@@ -25,7 +25,7 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 import numpy as np
-from tools.cubical_partition import cubical_partition
+
 import Utils.Utils as Utils
 
 def point_model_distance(P, cylinder):
@@ -67,7 +67,7 @@ def point_model_distance(P, cylinder):
     # Cubical partitioning parameters
     L = 2 * np.median(Len)
     NE_input = max(3, min(10, int(np.ceil(np.max(Len) / L)))) + 3
-    partition, _, Info = cubical_partition(P_sampled, L, NE_input, False)
+    partition, _, Info = Utils.cubical_partition(P_sampled, L, NE_input, False)
     Min = Info[0:3]
     EL = Info[6]
     NE = int(Info[7])

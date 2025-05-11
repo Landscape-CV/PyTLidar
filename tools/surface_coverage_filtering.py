@@ -27,7 +27,7 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 import numpy as np
-from tools.distances_to_line import distances_to_line
+from Utils.Utils import distances_to_line
 from tools.orthonormal_vectors import orthonormal_vectors
 from numba import jit
 

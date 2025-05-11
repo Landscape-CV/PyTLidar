@@ -60,6 +60,7 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
 
 @jit()
 def average(X):
+
     """
     Computes the average of the columns of the matrix X.
 
@@ -145,6 +146,23 @@ def cross_product(A, B):
     ])
     return C
 
+def compute_patch_diam(pd, n):
+    """
+    Compute a range of PatchDiam values based on a given center value and count.
+
+    Parameters:
+    pd : float
+        Center value of PatchDiam.
+    n : int
+        Number of PatchDiam values to compute.
+
+    Returns:
+    patch_diam : ndarray
+        Array of PatchDiam values.
+    """
+    if n == 1:
+        return np.array([pd])
+    return np.linspace((0.90 - (n - 2) * 0.1) * pd, (1.10 + (n - 2) * 0.1) * pd, n)
 
 def dot_product(A, B):
     """
@@ -690,151 +708,116 @@ def intersect_elements(Set1, Set2, tracker1, tracker2):
     return union_set[mask]
 
 
-def connected_components(Nei, Sub, MinSize, Fal=None):
+def connected_components_array(Nei, Sub, MinSize, Fal=None):
     """
-    Determines the connected components of cover sets using their neighbor relation.
+    Version of connected components using Numpy and accepting Fal as an input
 
     Inputs:
-        Nei: List of neighbor lists for each cover set. Its length equals the total number of cover sets.
-        Sub: Defines the subset whose components are determined. It can be:
-                - A list/array of cover set indices (non-boolean), or
-                - A boolean (logical) array of length equal to the total number of cover sets.
-                Special case: if Sub == [0] (i.e. a single 0), it means “all cover sets.”
-        MinSize: Minimum number of cover sets required for a component to be acceptable.
-        Fal: (Optional) A boolean array (of length equal to total cover sets) provided as a “false” tracker.
+    Nei       : List of neighboring cover sets for each cover set (list of lists or list of arrays)
+    Sub       : Subset whose components are determined. 
+                If length(Sub) <= 3 and not a logical array, it is treated as a small subset.
+                If Sub is a single 0, it means all cover sets.
+                Otherwise, Sub is a logical array or a list of indices.
+    MinSize   : Minimum number of cover sets in an acceptable component.
+    Fal       : Logical false vector for the cover sets (optional).
 
     Outputs:
-        Components: A list of numpy arrays (dtype=uint32), each array containing the indices of one connected component.
-        CompSize: A numpy array (dtype=uint32) listing the size of each component.
+    Components: List of connected components (list of arrays).
+    CompSize  : Number of sets in the components (list of integers).
     """
-    import numpy as np
-
-    # Helper: determine if Sub is boolean.
-    def is_boolean(arr):
-        if isinstance(arr, np.ndarray):
-            return arr.dtype == bool
-        elif isinstance(arr, list) and len(arr) > 0:
-            return isinstance(arr[0], (bool, np.bool_))
-        return False
-
-    # Helper: unique elements preserving order.
-    def unique_preserve_order(seq):
-        seen = set()
-        res = []
-        for x in seq:
-            if x not in seen:
-                seen.add(x)
-                res.append(x)
-        return res
-
-    nb = len(Nei)  # total number of cover sets
-
-    # SPECIAL CASE: if Sub is exactly [0], treat it as "all cover sets"
-    if (not is_boolean(Sub)) and (len(Sub) == 1) and (Sub[0] == 0):
-        ns = nb
-        Sub = np.ones(nb, dtype=bool)
-    # SMALL SUBSET BRANCH:
-    # Only for non-boolean Sub with length <= 3 that is not the special [0] case.
-    elif (not is_boolean(Sub)) and (len(Sub) <= 3):
+    Sub = Sub.copy()
+    if len(Sub) <= 3 and Sub[0] > 0:
+        # Very small subset, i.e., at most 3 cover sets
         n = len(Sub)
         if n == 1:
             Components = [np.array(Sub, dtype=np.uint32)]
-            CompSize = np.array([1], dtype=np.uint32)
-            return Components, CompSize
+            CompSize = [1]
         elif n == 2:
             if Sub[1] in Nei[Sub[0]]:
                 Components = [np.array(Sub, dtype=np.uint32)]
-                CompSize = np.array([1], dtype=np.uint32)
+                CompSize = [1]
             else:
-                Components = [np.array([Sub[0]], dtype=np.uint32),
-                                np.array([Sub[1]], dtype=np.uint32)]
-                CompSize = np.array([1, 1], dtype=np.uint32)
-            return Components, CompSize
+                Components = [np.array([Sub[0]], dtype=np.uint32), np.array([Sub[1]], dtype=np.uint32)]
+                CompSize = [1, 1]
         elif n == 3:
-            conn1 = Sub[1] in Nei[Sub[0]]  # Connection between first and second
-            conn2 = Sub[2] in Nei[Sub[0]]  # Connection between first and third
-            conn3 = Sub[2] in Nei[Sub[1]]  # Connection between second and third
-            if (conn1 + conn2 + conn3) >= 2:
+            I = Sub[1] in Nei[Sub[0]]
+            J = Sub[2] in Nei[Sub[0]]
+            K = Sub[2] in Nei[Sub[1]]
+            if I + J + K >= 2:
                 Components = [np.array(Sub, dtype=np.uint32)]
-                CompSize = np.array([1], dtype=np.uint32)
-            elif conn1:
-                Components = [np.array(Sub[0:2], dtype=np.uint32),
-                                np.array([Sub[2]], dtype=np.uint32)]
-                CompSize = np.array([2, 1], dtype=np.uint32)
-            elif conn2:
-                Components = [np.array([Sub[0], Sub[2]], dtype=np.uint32),
-                                np.array([Sub[1]], dtype=np.uint32)]
-                CompSize = np.array([2, 1], dtype=np.uint32)
-            elif conn3:
-                Components = [np.array(Sub[1:3], dtype=np.uint32),
-                                np.array([Sub[0]], dtype=np.uint32)]
-                CompSize = np.array([2, 1], dtype=np.uint32)
+                CompSize = [1]
+            elif I:
+                Components = [np.array([Sub[0], Sub[1]], dtype=np.uint32), np.array([Sub[2]], dtype=np.uint32)]
+                CompSize = [2, 1]
+            elif J:
+                Components = [np.array([Sub[0], Sub[2]], dtype=np.uint32), np.array([Sub[1]], dtype=np.uint32)]
+                CompSize = [2, 1]
+            elif K:
+                Components = [np.array([Sub[1], Sub[2]], dtype=np.uint32), np.array([Sub[0]], dtype=np.uint32)]
+                CompSize = [2, 1]
             else:
-                Components = [np.array([Sub[0]], dtype=np.uint32),
-                                np.array([Sub[1]], dtype=np.uint32),
-                                np.array([Sub[2]], dtype=np.uint32)]
-                CompSize = np.array([1, 1, 1], dtype=np.uint32)
-            return Components, CompSize
+                Components = [np.array([Sub[0]], dtype=np.uint32), np.array([Sub[1]], dtype=np.uint32), np.array([Sub[2]], dtype=np.uint32)]
+                CompSize = [1, 1, 1]
+        return Components, CompSize
 
-    # GENERAL BRANCH:
-    # If Sub is not boolean, convert it to a boolean array.
-    if not is_boolean(Sub):
-        sub_bool = np.zeros(nb, dtype=bool)
-        for idx in Sub:
-            sub_bool[idx] = True
-        Sub = sub_bool
-        ns = np.count_nonzero(Sub)
+    elif any(Sub) or (len(Sub) == 1 and Sub[0] == 0):
+        nb = len(Nei)
+        if Fal is None:
+            Fal = np.zeros(nb, dtype=bool)
+        Fal = Fal.copy()
+        if len(Sub) == 1 and Sub[0] == 0:
+            # All the cover sets
+            ns = nb
+            Sub = ~Fal
+        elif not isinstance(Sub, (np.ndarray, list)):
+            # Subset of cover sets
+            ns = len(Sub)
+            sub = np.zeros(nb, dtype=bool)
+            sub[Sub] = True
+            Sub = sub
+        else:
+            # Subset of cover sets
+            ns = np.sum(Sub)
+
+        Components = []
+        CompSize = []
+        nc = 0  # number of components found
+        m = 0
+        while m < nb and not Sub[m]:
+            m += 1
+        i = 0
+        Comp = np.zeros(ns, dtype=np.uint32)
+        while i < ns:
+            Add = Nei[m]
+            I = Sub[Add]
+            Add = Add[I]
+            a = len(Add)
+            Comp = Comp.copy()
+            Comp[0] = m
+            Sub[m] = False
+            t = 1
+            while a > 0:
+                if t+a > len(Comp):
+                    Comp = np.concatenate([Comp,np.zeros((t+a-len(Comp)))])
+                Comp[t:t + a] = Add
+                Sub[Add] = False
+                t += a
+                Add = np.concatenate([Nei[a] for a in Add])
+                I = Sub[Add]
+                Add = Add[I]
+                Add = np.unique(Add)
+                a = len(Add)
+            i += t
+            if t >= MinSize:
+                nc += 1
+                Components.append(Comp[:t])
+                CompSize.append(t)
+            if i < ns:
+                while m < nb and not Sub[m]:
+                    m += 1
+        return Components, np.array(CompSize)
     else:
-        ns = np.count_nonzero(Sub)
-
-    if Fal is None:
-        Fal = np.zeros(nb, dtype=bool)
-
-    Components = []
-    CompSize_list = []
-    i = 0  # count of processed cover sets in the subset
-
-    # Find the first index m such that Sub[m] is True.
-    m = None
-    for idx in range(nb):
-        if Sub[idx]:
-            m = idx
-            break
-    if m is None:
         return [], 0
-
-    # Process the subset until all marked cover sets are visited.
-    while i < ns:
-        Comp = [m]
-        Sub[m] = False  # mark as visited
-        t = 1  # size of current component
-
-        Add = [x for x in Nei[m] if Sub[x]]
-        while len(Add) > 0:
-            for x in Add:
-                Sub[x] = False
-            Comp.extend(Add)
-            t = len(Comp)
-            new_Add = []
-            for x in Add:
-                new_Add.extend(Nei[x])
-            new_Add = [x for x in new_Add if Sub[x]]
-            new_Add = unique_preserve_order(new_Add)
-            Add = new_Add
-
-        i += t
-        if t >= MinSize:
-            Components.append(np.array(Comp, dtype=np.uint32))
-            CompSize_list.append(t)
-        if i < ns:
-            for idx in range(m + 1, nb):
-                if Sub[idx]:
-                    m = idx
-                    break
-            else:
-                break
-    CompSize = np.array(CompSize_list, dtype=np.uint32)
-    return Components, CompSize
 
 
 def cubical_averaging(P, CubeSize):
@@ -1243,92 +1226,96 @@ def save_model_text(QSM, savename):
             fid.write(f"{name}\t {val}\n")
 
 
-def cubical_partition(P, EL, NE=3):
+def cubical_partition(P, EL, NE=3, return_cubes = True):
     """
-    Partitions the point cloud P into cubes.
+    Partition the point cloud into cubic cells.
 
-    Inputs:
-        P  : (n_points x 3) NumPy array representing the point cloud.
-        EL : Edge length of the cubes.
-        NE : Number of empty edge layers (default is 3).
+    Parameters:
+    P (numpy.ndarray): Point cloud, shape (n_points, 3).
+    EL (float): Length of the cube edges.
+    NE (int): Number of empty edge layers (default=3).
 
-    Outputs:
-        Partition : A 1D list where each element is a NumPy array containing the indices
-                    (with respect to P) of the points in one nonempty cube.
-        CubeCoord : (n_points x 3) NumPy array (uint16) whose rows are the cube coordinates of each point.
-        Info      : 1D NumPy array [Min, N, EL, NE], where Min (length 3) is the minimum of P,
-                    N (length 3) is the number of cubes in each direction, EL is the final edge length,
-                    and NE is the number of empty layers.
-        Cubes     : A (nx x ny x nz) NumPy array (uint32) where each nonzero element indicates that
-                    the corresponding cube is nonempty and stores the index (1-indexed) into Partition.
+    Returns:
+    tuple: Partition (list of lists of point indices), CubeCoord (n_points x 3 matrix of cube coordinates),
+           Info (list containing [Min, N, EL, NE]), and optionally Cubes (3D numpy array).
     """
+    # Convert P to a numpy array if not already
     P = np.array(P, dtype=float)
-    np_points = P.shape[0]
 
-    # Determine the bounding box of P.
-    Min = np.min(P, axis=0)  # shape (3,)
-    Max = np.max(P, axis=0)  # shape (3,)
+    # The vertices of the bounding box containing P
+    Min = np.min(P, axis=0)
+    Max = np.max(P, axis=0)
 
-    # Compute number of cubes in each direction:
-    # N = ceil((Max - Min)/EL) + 2*NE + 1
+    # Calculate the number of cubes in each direction
     N = np.ceil((Max - Min) / EL).astype(int) + 2 * NE + 1
 
-    # Increase EL if the total number of cubes is too high.
+    # Adjust edge length and re-calculate N if too large
     t = 0
-    while t < 10 and (8 * N[0] * N[1] * N[2]) > 4e9:
+    while t < 10 and 8 * np.prod(N) > 4e9:
         t += 1
-        EL = 1.1 * EL
+        EL *= 1.1
         N = np.ceil((Max - Min) / EL).astype(int) + 2 * NE + 1
-    if (8 * N[0] * N[1] * N[2]) > 4e9:
+
+    if 8 * np.prod(N) > 4e9:
         NE = 3
         N = np.ceil((Max - Min) / EL).astype(int) + 2 * NE + 1
 
+    #Info = [Min, N, EL, NE]
     # Info: [Min, N, EL, NE] as a 1D array (Min and N are concatenated)
     Info = np.concatenate((Min, N.astype(float), np.array([EL, NE], dtype=float)))
 
-    # Calculate the cube coordinates for each point:
-    # CubeCoord = floor((P - Min) / EL) + NE + 1  (to mimic MATLAB 1-indexing)
+    # Calculate cube coordinates of each point
     CubeCoord = np.floor((P - Min) / EL).astype(int) + NE + 1
-    CubeCoord = np.array(CubeCoord, dtype=np.uint16)
 
-    # Compute lexicographical order for each point.
-    # LexOrd = CubeCoord[:,0] + (CubeCoord[:,1]-1)*N[0] + (CubeCoord[:,2]-1)*N[0]*N[1]
-    LexOrd = (CubeCoord[:, 0].astype(int) +
-                (CubeCoord[:, 1].astype(int) - 1) * N[0] +
-                (CubeCoord[:, 2].astype(int) - 1) * N[0] * N[1])
-    # Convert LexOrd to uint32.
-    LexOrd = np.array(LexOrd, dtype=np.uint32)
-
-    # Sort the points by lexicographical order.
-    SortOrd = np.argsort(LexOrd)
+    # Lexicographical order for sorting
+    LexOrd = (CubeCoord[:, 0]
+              + (CubeCoord[:, 1] - 1) * N[0]
+              + (CubeCoord[:, 2] - 1) * (N[0] * N[1]))
+    SortOrd = np.lexsort((CubeCoord[:, 2], CubeCoord[:, 1], CubeCoord[:, 0]))
+    # Sort points by LexOrd
+    # SortOrd = np.argsort(LexOrd)
     LexOrd = LexOrd[SortOrd]
-    SortOrd = np.array(SortOrd, dtype=np.uint32)
+    #print(LexOrd)
+    #print(SortOrd)
+    if return_cubes:
+        # Initialize outputs
+        Partition = []
+        np_points = P.shape[0]
 
-    # Now, produce the partition (the "else" branch from MATLAB).
-    unique_lex = np.unique(LexOrd)
-    nc = unique_lex.shape[0]
+        # Group points into cubes
+        p = 0
+        while p < np_points:
+            t = 1
+            while (p + t < np_points) and (LexOrd[p] == LexOrd[p + t]):
+                t += 1
 
-    Partition = []  # 1D list where each element is an array of indices of P.
-    Cubes = np.zeros((N[0], N[1], N[2]), dtype=np.uint32)
+            # Collect indices for the current cube
+            Partition.append(SortOrd[p:p + t].tolist())
+            p += t
 
-    p = 0
-    c = 0
-    while p < np_points:
-        t = 1
-        while (p + t < np_points) and (LexOrd[p] == LexOrd[p + t]):
-            t += 1
-        q = SortOrd[p]  # q is an index into P.
-        c += 1
-        # Group of point indices belonging to the same cube.
-        group = SortOrd[p : p + t]
-        Partition.append(group)
-        # Get the cube coordinate of the point q (convert to 0-index for Python lists).
-        coord = CubeCoord[q, :]  # This is 1-indexed.
-        x, y, z = int(coord[0]) - 1, int(coord[1]) - 1, int(coord[2]) - 1
-        Cubes[x, y, z] = c
-        p += t
+        # Optionally create a Cubes array
+        Cubes = np.zeros(N, dtype=int)
+        for c_idx, points in enumerate(Partition):
+            cube_coords = CubeCoord[points[0]]  # Representative point's cube coordinate
+            Cubes[cube_coords[0], cube_coords[1], cube_coords[2]] = c_idx + 1  # Non-zero index
 
-    return Partition, CubeCoord, Info, Cubes
+        return Partition, CubeCoord, Info, Cubes
+    else:
+        Partition = np.empty((N[0], N[1], N[2]), dtype=object)
+
+        np_points = P.shape[0]  # number of points
+        p = 0  
+
+        while p < np_points:
+            t = 1
+            while (p + t < np_points) and (LexOrd[p] == LexOrd[p + t]):
+                t += 1
+            q = SortOrd[p]
+            #print(SortOrd[p:p + t])
+            # Assign the indices of points in the current cube to the corresponding cell in Partition
+            Partition[CubeCoord[q, 0] - 1, CubeCoord[q, 1] - 1, CubeCoord[q, 2] - 1] = SortOrd[p:p + t]
+            p += t
+        return Partition,CubeCoord,Info
 
 
 def cubical_downsampling(P, CubeSize):

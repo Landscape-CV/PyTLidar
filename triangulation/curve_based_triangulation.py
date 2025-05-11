@@ -26,7 +26,7 @@ from scipy.spatial import Delaunay
 from triangulation import initial_boundary_curve
 from triangulation import boundary_curve
 from triangulation import check_self_intersection
-from tools import cubical_partition
+from Utils.Utils import cubical_partition
 def curve_based_triangulation(P, TriaHeight, TriaWidth):
     """
     Reconstructs a triangulation for the stem-buttress surface based on boundary curves

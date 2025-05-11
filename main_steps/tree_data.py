@@ -5,9 +5,8 @@ import Utils.Utils as Utils
 from tools.orthonormal_vectors import orthonormal_vectors
 import LeastSquaresFitting.LSF as LSF
 from triangulation import curve_based_triangulation
-from plotting.PlottingUtils import PlottingUtils
+import plotting.PlottingUtils as PlottingUtils
 import matplotlib.pyplot as plt
-import open3d as o3d
 def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     """
     Calculate tree attributes from cylinder QSM data.

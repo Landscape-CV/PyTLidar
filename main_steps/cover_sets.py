@@ -13,8 +13,7 @@ This derivative work is released under the GNU General Public License (GPL).
 
 from numba import jit
 import numpy as np
-from tools.cubical_partition import cubical_partition
-from tools.unique_elements import unique_elements_array
+from Utils.Utils import cubical_partition
 # import csv
 import time
 

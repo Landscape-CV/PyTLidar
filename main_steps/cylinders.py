@@ -33,7 +33,7 @@ import LeastSquaresFitting.LSF as LSF
 from tools.growth_volume_correction import growth_volume_correction
 from tools.distances_between_lines import distances_between_lines
 from tools.orthonormal_vectors import orthonormal_vectors
-from tools.distances_to_line import distances_to_line
+from Utils.Utils import distances_to_line
 from tools.surface_coverage2 import surface_coverage2
 import Utils.Utils as Utils
 

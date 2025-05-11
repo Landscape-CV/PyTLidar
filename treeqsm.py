@@ -37,7 +37,6 @@ from main_steps.point_model_distance import point_model_distance
 from tools.display_time import display_time
 from tools.load_point_cloud import load_point_cloud
 from tools.define_input import define_input
-from plotting.PlottingUtils import PlottingUtils
 import Utils.Utils as Utils
 import time
 import cProfile
@@ -52,8 +51,8 @@ import json
 
 def test():
     # file_path = r'C:\Users\johnh\Documents\LiDAR\A-04-7007_post.las'
-    file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/A-04-7007_post.las'
-    # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/tree_1.las'
+    # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/A-04-7007_post.las'
+    file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/tree_1.las'
     # file_path = r'E:\5-Study\OMSCS\CS8903_Research\TreeQSM\PyTLidar\Dataset\tree_1.las'
     points = load_point_cloud(file_path,0)
     if points is not None:
@@ -347,12 +346,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
                         str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
 
                     fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8,str,False)
-                    # if inputs['Tria']:
-                    #     raise NotImplementedError("Plotting with triangulation is untested.")
-                    #     PlottingUtils.plot_models_segmentations(P, cover2, segment2, cylinder, trunk, triangulation)
-                    # else:
-                    #     fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8)
-                    #     PlottingUtils.plot_models_segmentations(P, cover2, segment2, cylinder)
+
                     cyl_htmls.append(cyl_html)
 
                     models.append(qsm)

@@ -26,7 +26,7 @@ This derivative work is released under the GNU General Public License (GPL).
 
 import numpy as np
 from triangulation import check_self_intersection
-from tools import distances_to_line
+from Utils.Utils import distances_to_line
 from triangulation import boundary_curve2
 def initial_boundary_curve(P, TriaWidth):
     """
