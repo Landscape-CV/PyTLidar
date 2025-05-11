@@ -1,0 +1,12 @@
+*.xyz
+*.pyc
+*.npz
+/results
+results*
+*.html
+/build
+/dist
+*.nbi
+*.nbc
+*DS_Store
+*.spec\
