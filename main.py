@@ -8,7 +8,7 @@ from PySide6.QtGui import QPixmap
 from PySide6.QtPdf import QPdfDocument
 from PySide6.QtPdfWidgets import QPdfView 
 from tools.define_input import define_input
-from tools.load_point_cloud import load_point_cloud
+from Utils.Utils import load_point_cloud
 from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.qsm_plotting import qsm_plotting
 import numpy as np
@@ -18,7 +18,7 @@ import sys
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 # from matplotlib.figure import Figure
 import time
-import json
+
 # os.environ['QT_DEBUG_PLUGINS']='1'
 class QSMWindow(QMainWindow):
     def __init__(self):

@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import pandas as pd
 from tools.define_input import define_input
-from tools.load_point_cloud import load_point_cloud
+from Utils.Utils import load_point_cloud
 import warnings
 warnings.filterwarnings('ignore')
 def batched(folder, intensity_threshold = 0):

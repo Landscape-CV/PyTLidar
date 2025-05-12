@@ -16,7 +16,7 @@ import copy
 import os
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-import json
+
 import sys
 # from scipy.spatial import ConvexHull
 # import alphashape
