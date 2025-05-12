@@ -16,9 +16,9 @@ import numpy as np
 from Utils.Utils import cubical_partition
 # import csv
 import time
+import torch 
 
-
-def cover_sets(P, inputs, RelSize=None):
+def cover_sets(P, inputs, RelSize=None, qsm = True, device = 'cpu', full_point_data = None):
     """
     Creates cover sets (surface patches) and their neighbor-relation for a point cloud
 
@@ -46,18 +46,19 @@ def cover_sets(P, inputs, RelSize=None):
             center      Center points of the cover sets, (n_sets x 1)-vector
             neighbor    Neighboring cover sets of each cover set, (n_sets x 1)-cell
     """
-    if P.dtype != np.float64:
+    if device == 'cpu' and P.dtype != np.float64:
         P = P.astype(np.float64)
-    np_points = P.shape[0]  # number of points
+        np_points = P.shape[0]  # number of points
+    else:
+        np_points = len(P)
 
     if RelSize is None:
-        return uniform_cover(P, inputs, np_points)
+        return uniform_cover(P, inputs, np_points, qsm, device, full_point_data)
     else:
         return variable_cover(P, inputs, RelSize, np_points)
 
 
-
-def uniform_cover(P, inputs, np_points):
+def uniform_cover(P, inputs, np_points, qsm =True, device = 'cpu', full_point_data = None):
     """
     Creates uniform cover sets and neighbor-relation of a point cloud using fixed-radius balls
 
@@ -88,7 +89,7 @@ def uniform_cover(P, inputs, np_points):
     #print(Partition)
     #print(CC)
     #print(Cubes)
-
+    
     NotExa = np.ones(np_points, dtype=bool)  # the points not yet examined
     Dist = np.full(np_points, 1e8)  # distance of point to the closest center
     BoP = np.zeros(np_points, dtype=np.int64)  # the balls/cover sets the points belong
@@ -116,7 +117,7 @@ def uniform_cover(P, inputs, np_points):
     Radius_sq = BallRad ** 2
     MaxDist_sq = (PatchDiamMax) ** 2
 
-    for i in RandPerm:
+    for _i,i in enumerate(RandPerm):
         if NotExa[i]:  # point not yet examined
             Q = i
             #print(f"Q {Q}")
@@ -164,7 +165,7 @@ def uniform_cover(P, inputs, np_points):
     # Create cover sets
     cover = create_cover(Ball, Cen, BoP, nb, np_points)
     return cover
-
+    
 
 def variable_cover(P, inputs, RelSize, np_points):
     """
@@ -213,13 +214,7 @@ def variable_cover(P, inputs, RelSize, np_points):
 
      # Simplified permutation for small sets first
     
-    """"
-    I AM HOLDING THIS FIXED FOR NOW FOR TESTING
-    We should also consider looking closer at this line to see
-    if it's appropriately mimicking the original
-    RandPerm = np.argsort(RelSize) 
-    
-    """
+
     RandPerm = np.argsort(RelSize) 
     # f = open(r"randperm_seeded_sort.csv")
     # reader = csv.reader(f)
@@ -362,6 +357,12 @@ def create_cover(Ball, Cen, BoP, nb, np_points):
     #         idx = bop - 1
     #         pos = Ind[i] - 1
     #         PointsInSets[idx][pos] = i
+    if len(Ball) ==0:
+        cover = {'ball': Ball,
+        'center': np.array(Cen, dtype=np.int64),
+        'sets':BoP.copy()-1}
+        
+        return cover
     PointsInSets=create_PointsInSets(nb,np_points,BoP)
 
 
@@ -389,7 +390,8 @@ def create_cover(Ball, Cen, BoP, nb, np_points):
     cover = {
         'ball': PointsInSets,
         'center': np.array(Cen, dtype=np.int64),
-        'neighbor': Nei
+        'neighbor': Nei,
+        'sets':BoP.copy()-1
     }
     # #Optimized version of above:
     # Nei = list(np.empty(nb, dtype =object))
@@ -425,10 +427,6 @@ def create_cover(Ball, Cen, BoP, nb, np_points):
 
 
 
-    cover = {
-        'center': np.array(Cen, dtype=np.uint64),
-        'neighbor': Nei,
-        'ball': PointsInSets
-    }
+   
 
     return cover
