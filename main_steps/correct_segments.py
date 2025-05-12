@@ -25,9 +25,7 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 import numpy as np
-from Utils.Utils import distances_to_line
-from tools.mat_vec_subtraction import mat_vec_subtraction 
-from tools.set_difference import set_difference
+from Utils.Utils import distances_to_line,mat_vec_subtraction ,set_difference
 def correct_segments(P,cover,segment,inputs,RemSmall=None,ModBases=None,AddChild=None):
     if RemSmall is None:
         RemSmall = True

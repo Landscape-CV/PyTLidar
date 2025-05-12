@@ -34,8 +34,7 @@ from main_steps.cylinders import cylinders
 from main_steps.branches import branches
 from main_steps.tree_data import tree_data
 from main_steps.point_model_distance import point_model_distance
-from tools.display_time import display_time
-from tools.load_point_cloud import load_point_cloud
+from Utils.Utils import display_time,load_point_cloud
 from tools.define_input import define_input
 import Utils.Utils as Utils
 import time

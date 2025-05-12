@@ -26,7 +26,7 @@ This derivative work is released under the GNU General Public License (GPL).
 
 import numpy as np
 from scipy.spatial.distance import cdist
-from tools.unique_elements import unique_elements_array
+from Utils.Utils import unique_elements_array
 def segments(cover, Base, Forb):
     """
     Segments the covered point cloud into branches.

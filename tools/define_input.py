@@ -31,8 +31,7 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 import numpy as np
-from tools.optimal_parallel_vector import optimal_parallel_vector
-from Utils.Utils import compute_patch_diam,distances_to_line,load_point_cloud
+from Utils.Utils import compute_patch_diam,distances_to_line,load_point_cloud,optimal_parallel_vector
 from numba.typed import Dict
 
 def define_input(clouds, nPD1=1, nPD2Min=1, nPD2Max=1):

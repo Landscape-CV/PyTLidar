@@ -2,7 +2,7 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from alphashape import alphashape 
 import Utils.Utils as Utils
-from tools.orthonormal_vectors import orthonormal_vectors
+from Utils.Utils import orthonormal_vectors
 import LeastSquaresFitting.LSF as LSF
 from triangulation import curve_based_triangulation
 import plotting.PlottingUtils as PlottingUtils

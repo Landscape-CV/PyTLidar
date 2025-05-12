@@ -17,6 +17,7 @@ import os
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import json
+import sys
 # from scipy.spatial import ConvexHull
 # import alphashape
 # from shapely.geometry import Polygon
@@ -218,45 +219,76 @@ def distances_to_line(Q, LineDirec, LinePoint):
 
 def distances_between_lines(PointRay, DirRay, PointLines, DirLines):
     """
-    Calculates the distances between a ray and lines.
+    Calculates the distances between a ray and multiple lines.
 
     Parameters:
-        PointRay (array-like): A point on the ray (shape (3,)).
-        DirRay (array-like): Unit direction vector of the ray (shape (3,)).
-        PointLines (array-like): An array of points on each line (shape (n, 3)).
-        DirLines (array-like): An array of unit direction vectors for each line (shape (n, 3)).
+    -----------
+    PointRay : array-like, shape (3,)
+        A point on the ray.
+    DirRay : array-like, shape (3,)
+        A unit direction vector of the ray.
+    PointLines : array-like, shape (n, 3)
+        One point on every line (each row corresponds to a line).
+    DirLines : array-like, shape (n, 3)
+        Unit direction vectors for the lines (each row corresponds to a line).
 
     Returns:
-        DistLines (numpy.ndarray): 1D array of distances between the ray and each line.
-        DistOnRay (numpy.ndarray): 1D array of distances along the ray from PointRay to the closest point on the ray.
-        DistOnLines (numpy.ndarray): 1D array of distances along the lines from PointLines to the closest points on the lines.
+    --------
+    DistLines : numpy.ndarray, shape (n,)
+        The shortest distance between the ray and each line.
+    DistOnRay : numpy.ndarray, shape (n,)
+        Distance along the ray (from PointRay) to the closest approach to each line.
+    DistOnLines : numpy.ndarray, shape (n,)
+        Distance along each line (from PointLines) to the closest approach to the ray.
     """
+    # Ensure inputs are numpy arrays of type float
     PointRay = np.array(PointRay, dtype=float)
     DirRay = np.array(DirRay, dtype=float)
     PointLines = np.array(PointLines, dtype=float)
     DirLines = np.array(DirLines, dtype=float)
 
-    # Calculate unit vectors N orthogonal to the ray and each line (row-wise cross product)
-    N = np.cross(DirRay, DirLines)  # shape (n, 3)
-    l = np.sqrt(np.sum(N**2, axis=1))
-    N = N / l[:, None]
+    # Calculate unit vectors N that are orthogonal to both the ray and each line via cross product.
+    # For each line, N = DirRay x DirLines[i]
+    # When DirLines is (n,3) and DirRay is (3,), we use broadcasting.
+    N = np.column_stack((
+        DirRay[1] * DirLines[:, 2] - DirRay[2] * DirLines[:, 1],
+        DirRay[2] * DirLines[:, 0] - DirRay[0] * DirLines[:, 2],
+        DirRay[0] * DirLines[:, 1] - DirRay[1] * DirLines[:, 0]
+    ))
 
-    # Calculate A = -(PointLines - PointRay) = PointRay - PointLines for each line.
-    A = PointRay - PointLines
+    # Normalize N so that each row is a unit vector.
+    l = np.linalg.norm(N, axis=1)
 
-    # Distance between the ray and each line.
-    DistLines = np.sqrt(np.abs(np.sum(A * N, axis=1)))
+    # To avoid division by zero (i.e. when the ray and a line are parallel),
+    # you might want to handle that separately. For now, we assume non-parallel.
+    N_unit = (N.T / l).T  # Transpose division for broadcasting row-wise
 
-    # Calculate distances along the ray and along the lines.
-    b = np.dot(DirLines, DirRay)       # Dot product for each line (n,)
-    d = np.dot(A, DirRay)              # Dot product of A with ray direction (n,)
-    e = np.sum(A * DirLines, axis=1)     # Row-wise dot product of A and DirLines (n,)
+    # Compute A = -(PointRay - PointLines) = PointLines - PointRay
+    A = -mat_vec_subtraction(PointLines, PointRay)  # This subtracts PointRay from each row of PointLines
 
-    DistOnRay = (b * e - d) / (1 - b**2)
-    DistOnLines = (e - b * d) / (1 - b**2)
+    # Calculate the perpendicular distance (projection of A on N_unit)
+    # Use the dot product for each row and take the absolute value
+    DistLines = np.sqrt(np.abs(np.sum(A * N_unit, axis=1)))
+
+    # Now, calculate the distances along the ray and lines.
+    # Let:
+    #   d = A dot DirRay
+    #   e = A dot DirLines (each row, so row-wise dot product)
+    #   b = DirLines dot DirRay  (each row dot the ray direction)
+    b = np.sum(DirLines * DirRay, axis=1)
+    d = np.sum(A * DirRay, axis=1)
+    e = np.sum(A * DirLines, axis=1)
+
+    # Solve for the scalar parameters along the ray (s) and the line (t)
+    # as derived from the perpendicularity conditions:
+    #   s = (b*e - d) / (1 - b^2)
+    #   t = (e - b*d) / (1 - b^2)
+    # Again, we assume 1-b^2 is not zero.
+    denom = 1 - b ** 2
+    DistOnRay = (b * e - d) / denom
+    DistOnLines = (e - b * d) / denom
 
     return DistLines, DistOnRay, DistOnLines
-
 
 def sec2min(T):
     """
@@ -275,43 +307,32 @@ def sec2min(T):
 
 def display_time(T1, T2, string, display):
     """
-    Displays the two times given. "T1" is the time associated with the provided label and
-    "T2" is considered the total time.
-
-    The time values are converted to minutes and seconds (and hours if necessary)
-    before being formatted in a human-readable string.
-
-    Parameters:
-        T1 (float): Time in seconds for the primary time.
-        T2 (float): Total time in seconds.
-        string (str): Label for T1.
-        display (bool): Flag to indicate whether to display the message.
-
-    Returns:
-        str: The formatted time string if display is True; otherwise, None.
+    Display the two times given. T1 is the time named with the "string" and
+    T2 is named "Total".
     """
     if display:
         tmin, tsec = sec2min(T1)
         Tmin, Tsec = sec2min(T2)
+
         if tmin < 60 and Tmin < 60:
             if tmin < 1 and Tmin < 1:
-                msg = f"{string} {tsec} sec.   Total: {Tsec} sec"
+                result = f"{string} {tsec} sec.   Total: {Tsec} sec"
             elif tmin < 1:
-                msg = f"{string} {tsec} sec.   Total: {Tmin} min {Tsec} sec"
+                result = f"{string} {tsec} sec.   Total: {Tmin} min {Tsec} sec"
             else:
-                msg = f"{string} {tmin} min {tsec} sec.   Total: {Tmin} min {Tsec} sec"
+                result = f"{string} {tmin} min {tsec} sec.   Total: {Tmin} min {Tsec} sec"
         elif tmin < 60:
-            Thour = int(Tmin // 60)
-            Tmin = Tmin - Thour * 60
-            msg = f"{string} {tmin} min {tsec} sec.   Total: {Thour} hours {Tmin} min"
+            Thour = Tmin // 60
+            Tmin %= 60
+            result = f"{string} {tmin} min {tsec} sec.   Total: {Thour} hours {Tmin} min"
         else:
-            thour = int(tmin // 60)
-            tmin = tmin - thour * 60
-            Thour = int(Tmin // 60)
-            Tmin = Tmin - Thour * 60
-            msg = f"{string} {thour} hours {tmin} min.   Total: {Thour} hours {Tmin} min"
-        print(msg)
-        return msg
+            thour = tmin // 60
+            tmin %= 60
+            Thour = Tmin // 60
+            Tmin %= 60
+            result = f"{string} {thour} hours {tmin} min.   Total: {Thour} hours {Tmin} min"
+
+        sys.stdout.write(result+'\n')
 
 
 def median2(X):
@@ -376,32 +397,34 @@ def mat_vec_subtraction(A, v):
     return A - v
 
 
-def verticalcat(CellArray):
+def verticalcat(cell_array):
     """
-    Vertical concatenation of the given cell array into a vector.
+    Vertical concatenation of a list of arrays into a single vector.
 
     Parameters:
-        CellArray (list of array-like): Each element is a vector.
+    cell_array (list of np.ndarray): A list where each element is a numpy array.
 
     Returns:
-        Vector (numpy.ndarray): A 1D array resulting from the vertical concatenation of the cell array.
-        IndElements (numpy.ndarray): A 2D array of shape (nc, 2) where each row contains the start (inclusive)
-                                        and end (exclusive) indices corresponding to the elements from that cell
-                                        in the concatenated vector.
+    tuple: A tuple (vector, ind_elements) where:
+        - vector is a 1D numpy array containing the concatenated values.
+        - ind_elements is a 2D numpy array where each row specifies the start
+          and end indices of the corresponding cell's elements in the vector.
     """
-    # Compute the length of each cell
-    cell_sizes = np.array([len(cell) for cell in CellArray])
-    nc = len(CellArray)
-    # Compute cumulative sizes to determine index ranges
-    cum_sizes = np.cumsum(cell_sizes)
-    # The start index for each cell is 0 for the first cell and the previous cumulative sum for subsequent cells.
-    start_indices = np.insert(cum_sizes[:-1], 0, 0)
-    # The end indices are given by the cumulative sums.
-    end_indices = cum_sizes
-    IndElements = np.column_stack((start_indices, end_indices))
-    # Concatenate all cells into a single vector
-    Vector = np.concatenate([np.array(cell).flatten() for cell in CellArray])
-    return Vector, IndElements
+    # Determine the size of each array in the cell array
+    cell_size = np.array([len(cell) for cell in cell_array])
+
+    # Compute cumulative sum to determine index ranges
+    ind_elements = np.zeros((len(cell_array), 2), dtype=int)
+    ind_elements[:, 1] = np.cumsum(cell_size) - 1  # End indices
+    ind_elements[1:, 0] = 1 + ind_elements[:-1, 1]  # Start indices (shifted ends)
+
+    # Create the output vector and fill it
+    total_size = sum(cell_size)
+    vector = np.zeros(total_size, dtype=int)
+    for i, cell in enumerate(cell_array):
+        vector[ind_elements[i, 0]:ind_elements[i, 1] + 1] = cell
+
+    return vector, ind_elements
 
 @jit()
 def rotation_matrix(A, angle):
@@ -469,20 +492,10 @@ def optimal_parallel_vector(V):
         sigmah (float): The standard deviation of these absolute dot products.
         residual (numpy.ndarray): 1D array containing the absolute dot products for each row.
     """
-    V = np.array(V, dtype=float)
-    # Compute A = V' * V.
-    A = V.T @ V
-    # Perform singular value decomposition.
-    U, s, Vh = np.linalg.svd(A)
-    # The optimal vector is the first column of U.
-    v = U[:, 0]
+    _, _, vh = np.linalg.svd(V, full_matrices=False)
 
-    # Compute residuals: absolute value of dot products between each row of V and the optimal vector.
-    residual = np.abs(V @ v)
-    mean_res = np.mean(residual)
-    sigmah = np.std(residual)
 
-    return v, mean_res, sigmah, residual
+    return vh[0]
 
 
 def expand(Nei, C, n, Forb=None):
@@ -566,116 +579,117 @@ def unique2(Set):
         return Set
 
 
-def unique_elements(Set, tracker):
-    """
-    Returns the unique elements of Set using a provided boolean tracker.
-    For each element in Set, if tracker[element] is False, the element is kept and tracker[element]
-    is set to True. If the element has already been encountered (tracker[element] is True), it is skipped.
-    In the special case when Set has exactly two elements and they are equal, only one is returned.
 
-    Parameters:
-        Set (array-like): A list or numpy array of integer elements.
-        tracker (numpy.ndarray or list of bool): A boolean array/list that can be indexed by the elements in Set.
-            It is modified in place.
+def unique_elements_array(arr,False_mask=None):
 
-    Returns:
-        numpy.ndarray: A 1D array containing the unique elements from Set.
-    """
-    Set = np.array(Set)
-    n = len(Set)
+
+    return np.unique(arr)
+
+
+    if False_mask is None:
+        False_mask = np.zeros((len(arr),)).astype(bool)
+    False_mask = False_mask.copy()
+    n = len(arr)
+    
     if n > 2:
-        # Create a boolean mask I to select unique occurrences.
-        I = np.ones(n, dtype=bool)
+        I = [True] * n
         for j in range(n):
-            # Use tracker with the element as index.
-            if not tracker[Set[j]]:
-                tracker[Set[j]] = True
+            if not False_mask[arr[j].astype(int)]:
+                False_mask[arr[j].astype(int)] = True
             else:
                 I[j] = False
-        return Set[I]
+        arr = [arr[i] for i in range(n) if I[i]]
+        
     elif n == 2:
-        if Set[0] == Set[1]:
-            return np.array([Set[0]])
-    return Set
+        if arr[0] == arr[1]:
+            arr = [arr[0]]
+    
+    return np.array(arr)
 
 
 def dimensions(points, *args):
     """
-    Calculates the box-dimensions and dimension estimates of the point set "points".
-    Returns also the corresponding direction vectors.
-
-    Usage:
-        - dimensions(points, P)
-            Here, "points" is an array of indices and P is a matrix.
-            The points are taken as P[points, :].
-        - dimensions(points, P, Bal)
-            Here, "points" is an array of indices, P is a matrix, and Bal is a list of arrays.
-            I = concatenate(Bal[i] for i in points)
-            points = P[I, :].
-
-    For a point set with d=3 columns, returns:
-        D = [range_dp1, range_dp2, range_dp3, (s0-s1)/s0, (s1-s2)/s0, s2/s0]
-        dir = concatenation of U[:,0]', U[:,1]', U[:,2]' (a 1x9 vector).
-    For d=2, returns:
-        D = [range_dp1, range_dp2, (s0-s1)/s0, s1/s0]
-        dir = concatenation of U[:,0]', U[:,1]' (a 1x4 vector).
+    Calculates the box dimensions and dimension estimates of the point set "points".
+    Also returns the corresponding direction vectors.
 
     Parameters:
-        points (array-like): Either a set of indices or a point matrix.
-        *args: Optional arguments.
-            If len(args)==1:
-                P (array-like): A matrix from which to select rows using indices "points".
-            If len(args)==2:
-                P (array-like): A matrix.
-                Bal (list of array-like): A list where each element is an array of indices.
-                                            For each index in "points", the corresponding Bal element is concatenated.
+        points (np.ndarray): A numpy array of shape (n_points, d) where d = 2 or 3.
+        *args:
+            If one extra argument is provided:
+                P (np.ndarray): An indexable array used to re-map "points".
+                points = P[points, :]
+            If two extra arguments are provided:
+                P (np.ndarray): An indexable array.
+                Bal (list or dict): A collection where indexing by "points" returns index arrays.
+                I = np.concatenate([Bal[idx] for idx in points])
+                points = P[I, :]
 
     Returns:
-        D (numpy.ndarray): A vector of dimension measures.
-        dir (numpy.ndarray): A 1D array representing the concatenated direction vectors.
+        D (np.ndarray): A vector containing extents and variance ratios.
+        dir (np.ndarray): A matrix whose rows are the principal direction vectors.
+                          For a d-dimensional space, the output shape will be (d, d).
     """
-    # Process optional arguments.
+
+    # Handle optional arguments to remap 'points'
     if len(args) == 1:
         P = args[0]
-        points = np.array(points)
-        points = P[points, :]  # Select rows from P.
+        points = P[points, :]
     elif len(args) == 2:
         P = args[0]
         Bal = args[1]
-        points = np.array(points)
-        I = np.concatenate([np.array(Bal[i]) for i in points])
+        # Assuming Bal is a list-like structure where each element Bal[idx] is an index array.
+        I = np.concatenate([np.asarray(Bal[idx]) for idx in points])
         points = P[I, :]
-    else:
-        points = np.array(points)
+
+    # Calculate the covariance matrix.
+    # np.cov expects data variables as rows by default, so we need to set rowvar=False.
+    X = np.cov(points, rowvar=False)
+
+    # Compute the Singular Value Decomposition.
+    U, S_vals, _ = np.linalg.svd(X)
+
+    # Create diagonal matrix S so that S(i,i) = S_vals[i]
+    S = np.diag(S_vals)
 
     d = points.shape[1]
-    # Compute the covariance matrix; each row is an observation.
-    X = np.cov(points, rowvar=False)
-    # Perform singular value decomposition.
-    U, s, _ = np.linalg.svd(X)
-    # Project points onto the principal directions.
-    dp1 = points @ U[:, 0]
-    dp2 = points @ U[:, 1]
+
     if d == 3:
+        # Project the points on the principal axes.
+        dp1 = points @ U[:, 0]
+        dp2 = points @ U[:, 1]
         dp3 = points @ U[:, 2]
-        D = np.array([
-            np.max(dp1) - np.min(dp1),
-            np.max(dp2) - np.min(dp2),
-            np.max(dp3) - np.min(dp3),
-            (s[0] - s[1]) / s[0],
-            (s[1] - s[2]) / s[0],
-            s[2] / s[0]
-        ])
-        dir_vec = np.concatenate((U[:, 0], U[:, 1], U[:, 2]))
+
+        # Calculate extents along each principal direction.
+        extent1 = np.max(dp1) - np.min(dp1)
+        extent2 = np.max(dp2) - np.min(dp2)
+        extent3 = np.max(dp3) - np.min(dp3)
+
+        # Calculate variance ratios.
+        ratio1 = (S[0, 0] - S[1, 1]) / S[0, 0] if S[0, 0] != 0 else 0
+        ratio2 = (S[1, 1] - S[2, 2]) / S[0, 0] if S[0, 0] != 0 else 0
+        ratio3 = S[2, 2] / S[0, 0] if S[0, 0] != 0 else 0
+
+        # Dimensions vector: extents and ratios.
+        D = np.array([extent1, extent2, extent3, ratio1, ratio2, ratio3])
+
+        # Direction vectors as rows.
+        dir_vectors = np.vstack((U[:, 0].T, U[:, 1].T, U[:, 2].T))
+    elif d == 2:
+        dp1 = points @ U[:, 0]
+        dp2 = points @ U[:, 1]
+
+        extent1 = np.max(dp1) - np.min(dp1)
+        extent2 = np.max(dp2) - np.min(dp2)
+
+        ratio1 = (S[0, 0] - S[1, 1]) / S[0, 0] if S[0, 0] != 0 else 0
+        ratio2 = S[1, 1] / S[0, 0] if S[0, 0] != 0 else 0
+
+        D = np.array([extent1, extent2, ratio1, ratio2])
+        dir_vectors = np.vstack((U[:, 0].T, U[:, 1].T))
     else:
-        D = np.array([
-            np.max(dp1) - np.min(dp1),
-            np.max(dp2) - np.min(dp2),
-            (s[0] - s[1]) / s[0],
-            s[1] / s[0]
-        ])
-        dir_vec = np.concatenate((U[:, 0], U[:, 1]))
-    return D, dir_vec
+        raise ValueError("The dimension of points must be either 2 or 3.")
+
+    return D, dir_vectors
 
 
 def intersect_elements(Set1, Set2, tracker1, tracker2):
@@ -1098,30 +1112,16 @@ def define_input(Clouds, nPD1, nPD2Min, nPD2Max):
     return inputs_list
 
 
-def set_difference(Set1, Set2, false_vec):
-    """
-    Performs the set difference so that the common elements of Set1 and Set2
-    are removed from Set1. The boolean array false_vec is used as a tracker;
-    its length must be at least max(max(Set1), max(Set2)) + 1.
+def set_difference(Set1,Set2,Fal):
 
-    Parameters:
-        Set1 (array-like): Primary set of indices.
-        Set2 (array-like): Set of indices to be removed from Set1.
-        false_vec (array-like of bool): Boolean array used as a tracker.
-
-    Returns:
-        numpy.ndarray: Updated Set1 with elements that also appear in Set2 removed.
-    """
-    # Convert inputs to numpy arrays if they aren't already.
-    Set1 = np.array(Set1, dtype=int)
-    Set2 = np.array(Set2, dtype=int)
-    # Mark each element in Set2 as True in the tracker.
-    for elem in Set2:
-        false_vec[elem] = True
-    # Create a mask: True for indices in Set1 that are marked in false_vec.
-    mask = false_vec[Set1]
-    # Return only those elements in Set1 that are not marked.
-    return Set1[~mask]
+# % Performs the set difference so that the common elements of Set1 and Set2
+# % are removed from Set1, which is the output. Uses logical vector whose
+# % length must be up to the maximum element of the sets.
+   
+    Fal[Set2] = True
+    I = Fal[Set1]
+    Set1 = Set1[~I]
+    return Set1
 
 
 def save_model_text(QSM, savename):
@@ -1678,190 +1678,199 @@ def surface_coverage(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
     return SurfCov, Dis, CylVol, dis_out
 
 
-def surface_coverage2(Axis, Len, Vec, height, nl, ns):
+def surface_coverage2(axis, length, vec, height, nl, ns):
     """
-    Computes the surface coverage (a number between 0 and 1) of points on a cylinder
-    surface defined by the cylinder’s axis (Axis) and its length (Len). The input Vec
-    contains the vectors (from the cylinder’s axis to each point) and height is the
-    array of point heights (distance from the base of the cylinder).
+    Compute surface coverage (fraction of covered cells on a cylindrical surface).
 
     Parameters:
-        Axis   : (3,) array-like, the axis direction of the cylinder.
-        Len    : float, the length of the cylinder.
-        Vec    : (n_points x 3) array-like, vectors connecting each point to the cylinder axis.
-        height : (n_points,) array-like, heights of the points from the base of the cylinder.
-        nl     : int, number of layers (along the axis) used to partition the surface.
-        ns     : int, number of sectors (angular partitions) used to partition the surface.
+        axis (array-like): Axis vector of the cylinder.
+        length (float): Length of the cylinder.
+        vec (np.ndarray): Vectors connecting points to the axis (n x 3).
+        height (np.ndarray): Heights of points from the base of the cylinder (n x 1).
+        nl (int): Number of layers along the cylinder height.
+        ns (int): Number of angular segments around the cylinder.
 
     Returns:
-        SurfCov : float, the fraction of the cylinder surface covered by points (between 0 and 1).
+        float: Surface coverage (value between 0 and 1).
     """
-    # Compute two orthonormal vectors U and W perpendicular to Axis.
-    U, W = orthonormal_vectors(Axis)
+    # Compute orthonormal basis
+    u, w = orthonormal_vectors(axis)
 
-    # Form a 3x2 matrix from U and W.
-    UW = np.column_stack((U, W))  # shape: (3, 2)
+    # Project vectors into the cylinder's local 2D plane
+    vec = vec @ np.array([u, w]).T
 
-    # Project the vectors onto the plane spanned by U and W.
-    # Vec is (n_points x 3), so the result is (n_points x 2)
-    Vec_proj = np.dot(Vec, UW)
+    # Compute angular coordinates
+    ang = np.arctan2(vec[:, 1], vec[:, 0]) + np.pi
 
-    # Compute angles in [0, 2*pi):
-    # angle = atan2(second coordinate, first coordinate) + pi.
-    ang = np.arctan2(Vec_proj[:, 1], Vec_proj[:, 0]) + np.pi
+    # Map points to layer indices
+    i = np.ceil(height / length * nl).astype(int)
+    i = np.clip(i, 1, nl)
 
-    # Determine the layer index for each point.
-    I = np.ceil((np.array(height) / Len) * nl).astype(int)
-    I[I == 0] = 1
-    I[I > nl] = nl
+    # Map points to angular segment indices
+    j = np.ceil(ang / (2 * np.pi) * ns).astype(int)
+    j = np.clip(j, 1, ns)
 
-    # Determine the sector index for each point.
-    J = np.ceil((ang / (2 * np.pi)) * ns).astype(int)
-    J[J == 0] = 1
+    # Compute unique cell indices
+    k = (i - 1) + (j - 1) * nl
+    unique_k = np.unique(k)
 
-    # Compute lexicographic index K = I + (J - 1)*nl.
-    K = I + (J - 1) * nl
-
-    # Surface coverage is the fraction of (nl x ns) cells that have at least one point.
-    SurfCov = len(np.unique(K)) / (nl * ns)
-
-    return SurfCov
+    # Compute surface coverage
+    surf_cov = len(unique_k) / (nl * ns)
+    return surf_cov
 
 
-# @jit(nopython=True) 
-def surface_coverage_filtering(P, c, lh, ns):
+@jit(nopython=True)
+def surface_coverage_filtering(P, axis,start,length, lh, ns):
     """
-    Filters a 3D point cloud based on the assumption that it samples a cylinder.
-    The cylinder is defined by the structure (dictionary) c with fields:
-        - "axis": (3,) array, cylinder axis direction.
-        - "start": (3,) array, starting point of the cylinder.
-        - "length": scalar, length of the cylinder.
-    The function divides the cylinder surface into layers (of height lh) and
-    ns angular sectors. For each sector-layer cell, only the points closest to
-    the axis are retained. Additionally, it estimates a new radius, surface coverage,
-    and a mean absolute deviation (mad) from the selected distances.
+    Filter a 3d-point cloud based on given cylinder (axis and radius) by
+    dividing the point cloud into "ns" equal-angle sectors and "lh"-height
+    layers along the axis. For each sector-layer intersection (a region in
+    the cylinder surface) keep only the points closest to the axis.
 
     Inputs:
-        P  : (n_points x 3) NumPy array representing the point cloud.
-        c  : dict with at least keys "axis", "start", "length". Will be updated with new keys.
-        lh : Scalar; height of each layer.
-        ns : Initial number of sectors.
+    P             Point cloud, (n_points x 3)-matrix
+    c             Cylinder, stucture array with fields "axis", "start",
+                    "length"
+    lh            Height of the layers
+    ns            Number of sectors
 
-    Outputs:
-        Pass : Boolean NumPy array of length n_points indicating which points pass the filtering.
-        c    : Updated cylinder dictionary with additional keys:
-                    "radius", "SurfCov", "mad", "conv", "rel".
+    Returns:
+    Pass          Logical vector indicating which points pass the filtering
+    c             Cylinder, stucture array with additional fields "radius",
+                    "SurfCov", "mad", "conv", "rel", estimated from the
+                    filtering
     """
-    # --- Step 1. Compute distances, projected vectors, and heights.
-    # distances_to_line returns (d, V, h, _) -- we ignore the fourth output.
-    d, V, h, _ = distances_to_line(P, c["axis"], c["start"])
+    # Compute the distances, heights and angles of the points
+    
+    d, V, h, B = distances_to_line(P, axis, start)
     h = h - np.min(h)
-
-    # Compute two orthonormal vectors U and W perpendicular to c.axis.
-    U, W = orthonormal_vectors(c["axis"])
-    # Project V onto the plane spanned by U and W.
-    V_proj = np.dot(V, np.column_stack((U, W)))  # shape: (n_points, 2)
+    U, W = orthonormal_vectors(axis)
+    #print(U)
+    #V_proj = np.dot(V, np.column_stack((U, W)))
+    V_proj = V @ np.column_stack((U, W))
     ang = np.arctan2(V_proj[:, 1], V_proj[:, 0]) + np.pi
+    #print(ang)
 
-    # --- Step 2. Initial partitioning into layers and sectors.
-    nl = int(np.ceil(c["length"] / lh))
-    # Compute layer indices (using 1-indexing in MATLAB, then converting to 0-indexing):
-    Layer = np.ceil(h / c["length"] * nl).astype(int)
-    Layer[Layer < 1] = 1
-    Layer[Layer > nl] = nl
-    # Sector indices:
-    Sector = np.ceil(ang / (2 * np.pi) * ns).astype(int)
-    Sector[Sector < 1] = 1
-    # Compute lexicographic order:
-    # In MATLAB: LexOrd = [Layer, Sector-1]*[1; nl] → Layer + (Sector-1)*nl.
-    # Convert to 0-index: subtract 1 from Layer.
-    LexOrd = (Layer - 1) + (Sector - 1) * nl  # Now in range 0 ... (nl*ns - 1)
+    # Initial layer and sector computation
+    nl_initial = max(int(np.ceil(length / lh)), 1)
+    Layer = np.ceil(h / length * nl_initial).astype(np.int64)
+    Layer = np.clip(Layer, 1, nl_initial)
+    Sector = np.ceil(ang / (2 * np.pi) * ns).astype(np.int64)
+    Sector = np.clip(Sector, 1, ns)
+    #print(Sector)
 
-    # Sort LexOrd and apply the same permutation to d.
+    # Sort based on lexicographic order of (sector,layer)
+    LexOrd = Layer + (Sector - 1) * nl_initial  # Equivalent to MATLAB's [Layer Sector-1]*[1 nl]'
     SortOrd = np.argsort(LexOrd)
-    LexOrd_sorted = LexOrd[SortOrd]
+    LexOrd = LexOrd[SortOrd]
     ds = d[SortOrd]
+    #print(SortOrd)
+    #print(LexOrd)
+    #print(ds)
+
+    # Estimate the distances for each sector-layer intersection
+    Dis = np.zeros((nl_initial, ns))
+    #print(nl_initial, ns)
+    #print(LexOrd // nl_initial)
     np_points = P.shape[0]
-
-    # For each cell (group of points with same LexOrd), store a distance estimate.
-    Dis = np.zeros((nl, ns))
-    p_idx = 0
-    while p_idx < np_points:
+    p = 0
+    max_ns=np.int64(36)
+    min_ns=np.int64(8)
+    while p < np_points:
         t = 1
-        while (p_idx + t < np_points) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
-            t += 1
-        group_d = ds[p_idx : p_idx + t]
-        D_val = np.min(group_d)
-        cell_idx = LexOrd_sorted[p_idx]  # This is a flat index (0-indexed) into Dis.
-        Dis.flat[cell_idx] = min(1.05 * D_val, D_val + 0.02)
-        p_idx += t
-
-    # --- Step 3. Estimate cylinder radius and update partition parameters.
-    valid = Dis > 0
-    R_val = np.median(Dis[valid]) if np.any(valid) else 0
-    a_val = max(0.02, 0.2 * R_val)
-    ns_new = int(np.ceil(2 * np.pi * R_val / a_val))
-    ns_new = min(36, max(ns_new, 8))
-    nl_new = int(np.ceil(c["length"] / a_val))
-    nl_new = max(nl_new, 3)
-
-    # Recompute layer and sector indices with updated nl and ns.
-    Layer = np.ceil(h / c["length"] * nl_new).astype(int)
-    Layer[Layer < 1] = 1
-    Layer[Layer > nl_new] = nl_new
-    Sector = np.ceil(ang / (2 * np.pi) * ns_new).astype(int)
-    Sector[Sector < 1] = 1
-    LexOrd = (Layer - 1) + (Sector - 1) * nl_new
-    SortOrd = np.argsort(LexOrd)
-    LexOrd_sorted = LexOrd[SortOrd]
-    d_sorted = d[SortOrd]
-
-    # --- Step 4. Filtering: for each cell, keep points close to the axis.
-    Dis = np.zeros((nl_new, ns_new))
-    Pass = np.zeros(np_points, dtype=bool)
-    p_idx = 0
-    k = 0
-    r_val = max(0.01, 0.05 * R_val)
-    while p_idx < np_points:
-        t = 1
-        while (p_idx + t < np_points) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
-            t += 1
-        ind = np.arange(p_idx, p_idx + t)
-        D_group = d_sorted[ind]
-        Dmin = np.min(D_group)
-        I = D_group <= (Dmin + r_val)
-        # Mark the corresponding original indices as passing.
-        selected = SortOrd[p_idx : p_idx + t][I]
-        Pass[selected] = True
-        cell_idx = LexOrd_sorted[p_idx]
-        Dis.flat[cell_idx] = min(1.05 * Dmin, Dmin + 0.02)
-        p_idx += t
-        k += 1
-    # d_filtered: only the distances of points that pass.
-    d_filtered = d[Pass]
-
-    # --- Step 5. Restore the original ordering of Pass.
-    n_sort = len(SortOrd)
-    InvSortOrd = np.empty_like(SortOrd)
-    InvSortOrd[SortOrd] = np.arange(n_sort)
-    Pass = Pass[InvSortOrd]
-
-    # --- Step 6. Compute final statistics.
-    valid_D = Dis > 0
-    R_new = np.median(Dis[valid_D]) if np.any(valid_D) else 0
-    if d_filtered.size > 0:
-        mad_val = np.sum(np.abs(d_filtered - R_new)) / d_filtered.size
+        while (p + t < np_points) and (LexOrd[p] == LexOrd[p + t]):
+            t =t+ 1
+        D = np.min(ds[p:p + t])
+        current_Layer = LexOrd[p] % nl_initial+1
+        # if current_Layer == 0:
+        #     current_Layer = 1
+        current_Sector = (LexOrd[p] - current_Layer) // nl_initial + 1
+        #print(current_Layer, current_Sector)
+        Dis[current_Layer - 1, current_Sector - 1] = min(1.05 * D, D + 0.02)
+        p =p+ t
+    #print(Dis)
+    # Compute the number of sectors (new ns and nl) based on estimated radius
+    Dis=Dis.flatten()
+    non_zero_Dis = Dis[Dis > 0]
+    if len(non_zero_Dis) == 0:
+        R = 0.0
     else:
-        mad_val = 0.0
+        R = np.median(non_zero_Dis)
+    a = max(0.02, 0.2 * R)
+    ns_new = int(np.ceil(2 * np.pi * R / a))
+    ns_new = np.maximum(min_ns,np.minimum(ns_new,max_ns))#np.clip(ns_new, 8, 36)
+    nl_new = int(np.ceil(length / a))
+    nl_new = np.maximum(nl_new, 3)
+    #print(ns_new, nl_new)
 
-    # Update cylinder structure with new estimates.
-    c["radius"] = R_new
-    c["SurfCov"] = k / (nl_new * ns_new)
-    c["mad"] = mad_val
-    c["conv"] = 1
-    c["rel"] = 1
+    # Recompute layers and sectors with new ns and nl
+    Layer_new = np.ceil(h / length * nl_new).astype(np.int64)
+    Layer_new = np.minimum(Layer_new,nl_new)#np.clip(Layer_new, 1, nl_new)
+    Sector_new = np.ceil(ang / (2 * np.pi) * ns_new).astype(np.int64)
+    Sector_new = np.maximum(Sector_new,ns_new)#np.clip(Sector_new, 1, ns_new)
 
-    return Pass, c
+    # Sort based on lexicographic order of (Sector_new,Layer_new)
+    LexOrd_new = Layer_new + (Sector_new - 1) * nl_new
+    SortOrd_new = np.argsort(LexOrd_new)
+    LexOrd_new = LexOrd_new[SortOrd_new]
+    sorted_d_new = d[SortOrd_new]
+    #print(LexOrd_new)
+    #print(SortOrd_new)
+    #print(sorted_d_new)
+
+    # Filtering for each sector-layer intersection
+    Dis_new = np.zeros((nl_new, ns_new))
+    try:
+        Pass = np.zeros(len(P), dtype=np.bool)
+    except:
+        Pass = np.zeros(len(P), dtype=np.bool_)
+    p = 0  # index of point under processing
+    k = 0  # number of nonempty cells
+    r = max(0.01, 0.05 * R)  # cell diameter from the closest point
+    #print(np_points)
+    while p < np_points:
+        t = 1
+        while (p + t < np_points) and (LexOrd_new[p] == LexOrd_new[p + t]):
+            t =t+ 1
+        ind = np.arange(p, p + t)
+        D = sorted_d_new[ind]
+        #print(D)
+        #print(ind)
+        Dmin = np.min(D)
+        I = D <= Dmin + r
+        Pass[ind[I]] = True
+        current_Layer = LexOrd_new[p] % nl_new
+        #print(current_Layer)
+        if current_Layer == 0:
+            current_Layer = nl_new
+        current_Sector = (LexOrd_new[p] - current_Layer) // nl_new + 1
+        Dis_new[current_Layer - 1, current_Sector - 1] = min(1.05 * Dmin, Dmin + 0.02)
+        p =p+ t
+        k =k+ 1
+    #print(Dis_new)
+    # Sort the "Pass"-vector back to original point cloud order
+    inv_sorted_indices = np.argsort(SortOrd_new)
+    Pass_ordered = Pass[inv_sorted_indices]
+
+    # Compute radius, SurfCov and mad
+    d_filtered = d[Pass_ordered]
+    Dis_new=Dis_new.flatten()
+    non_zero_Dis_new = Dis_new[Dis_new > 0]
+    if len(non_zero_Dis_new) == 0:
+        R_final = 0.0
+    else:
+        R_final = np.median(non_zero_Dis_new)
+    if len(d_filtered) == 0:
+        mad = 0.0
+    else:
+        mad = np.sum(np.abs(d_filtered - R_final)) / len(d_filtered)
+    k = np.sum(Dis_new > 0)
+    SurfCov = k / (nl_new * ns_new)
+    #print(k, nl_new, ns_new)
+    # Update cylinder dictionary
+    
+
+    return Pass_ordered, R_final,SurfCov,mad
 
 
 def update_tree_data(QSM, cylinder, branch, inputs):

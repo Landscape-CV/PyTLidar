@@ -26,9 +26,8 @@ This derivative work is released under the GNU General Public License (GPL).
 
 import numpy as np
 from scipy.spatial.distance import cdist
-from Utils.Utils import distances_to_line,connected_components_array,cubical_partition
+from Utils.Utils import distances_to_line,connected_components_array,cubical_partition,unique_elements_array
 import  LeastSquaresFitting.LSF as LSF
-from tools.unique_elements import unique_elements_array
 def tree_sets(P:np.ndarray,cover:dict,inputs:dict,segment=None):
     """_summary_
     % Inputs:

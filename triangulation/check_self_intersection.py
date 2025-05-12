@@ -26,7 +26,7 @@ This derivative work is released under the GNU General Public License (GPL).
 import numpy as np
 # import sys
 # sys.path.append('../')
-from tools import distances_between_lines
+from Utils.Utils import distances_between_lines
 def check_self_intersection(Curve):
     # Check if the curve intersects itself
     if Curve.size > 0:

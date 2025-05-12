@@ -1,5 +1,5 @@
 import numpy as np
-from tools.load_point_cloud import load_point_cloud
+from Utils.Utils import load_point_cloud
 
 def test():
     file_path = r'.\Dataset\tree_1.las'
