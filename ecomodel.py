@@ -8,7 +8,10 @@ from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
 from main_steps.cover_sets import cover_sets
 from main_steps.segments import segments
-from main_steps.cluster import connect_covers,segment_point_cloud
+from main_steps.correct_segments import correct_segments
+from main_steps.tree_sets import tree_sets
+from main_steps.cluster import segment_point_cloud
+from tools.define_input import define_input
 import time
 import cProfile
 import pstats
@@ -119,7 +122,7 @@ class Ecomodel:
 
     def segment_trees(self, intensity_threshold= 0):
         """
-        Cluster the point cloud P
+        Segments the point cloud into groups from a single tree
         Parameters: 
                 min_points (int): Minimum number of points in a cluster.
         Returns:
@@ -168,6 +171,11 @@ class Ecomodel:
             print("Segment Cloud")
             start = time.time()
             segment_point_cloud(tile)
+            mask = tile.segment_labels >-1#filters out points that could not be connected, ideal will segment better and this will be uneccesary
+            tile.cloud = tile.cloud[mask]
+            tile.point_data = tile.point_data[mask]
+            tile.segment_labels=tile.segment_labels[mask]
+            tile.cover_sets =tile.cover_sets[mask]
             print("Time to segment cloud:",time.time()-start)
             
             # tile.cluster_labels = labels
@@ -176,10 +184,57 @@ class Ecomodel:
 
             
 
-            print("Writing File")
-            tile.to_xyz(f"clustered_{i}.xyz", True)
+            # print("Writing File")
+            # tile.to_xyz(f"clustered_{i}.xyz", True)
+
             
-    
+    def get_qsm_segments(self,intensity_threshold = 0):
+        """
+        Get the segments from the point cloud P.
+        Parameters: 
+                intensity_threshold (float): Intensity threshold for filtering.
+        Returns:        
+                numpy.ndarray: Segmented point cloud, shape (n_points, 3).
+        """
+        max_segment = 0
+        for i,tile in enumerate(self.tiles.flatten()):
+            if tile == 0:
+                continue
+            tile.to(tile.device)
+            tile.numpy()
+            tile.cloud = tile.cloud[tile.point_data[:,3]>intensity_threshold]
+            tile.point_data = tile.point_data[tile.point_data[:,3]>intensity_threshold]
+            tile.cover_sets = tile.cover_sets[tile.point_data[:,3]>intensity_threshold]
+            tile.segment_labels = tile.segment_labels[tile.point_data[:,3]>intensity_threshold]
+            tile.cluster_labels = np.array([-1]*len(tile.cloud))
+            for segment in np.unique(tile.segment_labels):
+                if segment == -1:
+                    continue
+                mask = tile.segment_labels == segment
+                segment_cloud = tile.cloud[mask]
+                segment_point_data = tile.point_data[mask]
+                segment_cover_sets = tile.cover_sets[mask]
+                segment_labels = tile.segment_labels[mask]
+
+                qsm_input = define_input(segment_cloud,1,1,1)[0]
+                qsm_input['PatchDiam1'] = qsm_input['PatchDiam1'][0]
+                qsm_input['BallRad1'] = qsm_input['BallRad1'][0]
+                cover1 = cover_sets(segment_cloud, qsm_input)
+                cover1, Base, Forb = tree_sets(segment_cloud, cover1, qsm_input)
+                segment1 = segments( cover1, Base, Forb)
+                segment1 = correct_segments(segment_cloud,cover1,segment1,qsm_input,0,1,1)
+                segs = [np.concatenate(seg).astype(np.int64) for seg in segment1["segments"]]
+                cloud_segments = Utils.assign_segments(segment_cloud,segs)+max_segment+1
+                max_segment = cloud_segments.max()
+                tile.cluster_labels[mask] = cloud_segments
+                
+                breakpoint = True
+            tile.to_xyz(f"clustered_{i}.xyz", True,True)
+                # tile.to_xyz(f"clustered_{i}.xyz", True)
+                # print("Writing File")
+                # print("Writing File")
+            # tile.to_xyz(f"clustered_{i}.xyz", True)
+
     def calc_volumes(self):
         print("Calculating volumes")
         start = time.time()
@@ -512,18 +567,18 @@ class Tile:
 
     def numpy(self):
         if type(self.cloud) == torch.Tensor:
-            self.cloud = self.cloud.cpu().numpy()
+            self.cloud = self.cloud.cpu().numpy().astype('float64')
         if type(self.point_data) == laspy.LasData:
             self.point_data = np.vstack([self.point_data.x,self.point_data.y,self.point_data.z,self.point_data.intensity]).T
         elif type(self.point_data) == torch.Tensor:
-            self.point_data = self.point_data.cpu().numpy()
+            self.point_data = self.point_data.cpu().numpy().astype('float64')
 
         if type(self.cluster_labels) == torch.Tensor:
-            self.cluster_labels= self.cluster_labels.cpu().numpy()
+            self.cluster_labels= self.cluster_labels.cpu().numpy().astype('float64')
         if type(self.cover_sets) == torch.Tensor:
-            self.cover_sets = self.cover_sets.cpu().numpy()
+            self.cover_sets = self.cover_sets.cpu().numpy().astype('float64')
         if type(self.segment_labels) == torch.Tensor:
-            self.segment_labels = self.segment_labels.cpu().numpy()
+            self.segment_labels = self.segment_labels.cpu().numpy().astype('float64')
 
     def concat(self,tile):
         """
@@ -571,6 +626,7 @@ if __name__ == "__main__":
     # stats.reverse_order()
     # stats.print_stats()
     combined_cloud.segment_trees()
+    combined_cloud.get_qsm_segments()
     # combined_cloud.calc_volumes()
     # subdivided_cloud = combined_cloud.subdivide_tiles(cube_size = 10)
     # print(subdivided_cloud)

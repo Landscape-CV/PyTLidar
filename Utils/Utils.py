@@ -2169,3 +2169,11 @@ def package_outputs(models,cyl_htmls):
         
 
     return {"tree_data":tuple(tree_data_figures),"cylinders":tuple(cyl_htmls)}
+
+@jit(nopython=True)
+def assign_segments(cloud,segments):
+    point_segments = np.zeros((cloud.shape[0]),dtype = np.int64)-1
+    for i,segment in enumerate(segments):
+        if len(segment)>4:
+            point_segments[segment] = i
+    return point_segments

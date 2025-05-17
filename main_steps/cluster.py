@@ -342,7 +342,6 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
         if  len(base_set[:,2]<min_Z+.3)>25:
 
             filtered_tree_bases.append(base)
-    print(len(filtered_tree_bases))
     
 
     
@@ -352,7 +351,8 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
     segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist*1.5,network,False)
     
 
-
+    unassigned_sets = np.where(~np.isin(segments,filtered_tree_bases))
+    segments[unassigned_sets]=-1
 
 
     I = torch.argsort(tile.cover_sets)
@@ -369,6 +369,7 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
     
     tile.segment_labels= torch.repeat_interleave(segments, num_indices)
     tile.cover_sets = tile.cover_sets.cpu().numpy()
+    tile.numpy()
     # tile.cluster_labels = segments
     # tile.cloud = cloud
     
