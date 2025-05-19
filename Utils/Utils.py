@@ -2171,9 +2171,9 @@ def package_outputs(models,cyl_htmls):
     return {"tree_data":tuple(tree_data_figures),"cylinders":tuple(cyl_htmls)}
 
 @jit(nopython=True)
-def assign_segments(cloud,segments):
+def assign_segments(cloud,segments,cover_sets):
     point_segments = np.zeros((cloud.shape[0]),dtype = np.int64)-1
     for i,segment in enumerate(segments):
-        if len(segment)>4:
-            point_segments[segment] = i
+        I = np.where(np.isin(cover_sets, segment))[0]
+        point_segments[I] = i
     return point_segments

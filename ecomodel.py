@@ -203,18 +203,18 @@ class Ecomodel:
             tile.to(tile.device)
             tile.numpy()
             tile.cloud = tile.cloud[tile.point_data[:,3]>intensity_threshold]
-            tile.point_data = tile.point_data[tile.point_data[:,3]>intensity_threshold]
             tile.cover_sets = tile.cover_sets[tile.point_data[:,3]>intensity_threshold]
             tile.segment_labels = tile.segment_labels[tile.point_data[:,3]>intensity_threshold]
+            tile.point_data = tile.point_data[tile.point_data[:,3]>intensity_threshold]
+            
+            
             tile.cluster_labels = np.array([-1]*len(tile.cloud))
             for segment in np.unique(tile.segment_labels):
                 if segment == -1:
                     continue
                 mask = tile.segment_labels == segment
                 segment_cloud = tile.cloud[mask]
-                segment_point_data = tile.point_data[mask]
-                segment_cover_sets = tile.cover_sets[mask]
-                segment_labels = tile.segment_labels[mask]
+                
 
                 qsm_input = define_input(segment_cloud,1,1,1)[0]
                 qsm_input['PatchDiam1'] = qsm_input['PatchDiam1'][0]
@@ -224,8 +224,8 @@ class Ecomodel:
                 segment1 = segments( cover1, Base, Forb)
                 segment1 = correct_segments(segment_cloud,cover1,segment1,qsm_input,0,1,1)
                 segs = [np.concatenate(seg).astype(np.int64) for seg in segment1["segments"]]
-                cloud_segments = Utils.assign_segments(segment_cloud,segs)+max_segment+1
-                max_segment = cloud_segments.max()
+                cloud_segments = Utils.assign_segments(segment_cloud,segs,cover1["sets"])+max_segment+1
+                max_segment = cloud_segments.max()+max_segment
                 tile.cluster_labels[mask] = cloud_segments
                 
                 breakpoint = True
@@ -626,7 +626,7 @@ if __name__ == "__main__":
     # stats.reverse_order()
     # stats.print_stats()
     combined_cloud.segment_trees()
-    combined_cloud.get_qsm_segments()
+    combined_cloud.get_qsm_segments(46000)
     # combined_cloud.calc_volumes()
     # subdivided_cloud = combined_cloud.subdivide_tiles(cube_size = 10)
     # print(subdivided_cloud)
