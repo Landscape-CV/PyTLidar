@@ -76,7 +76,7 @@ def cylinders(P,cover,segment,inputs):
     # Initialization of variables
     #print(segment)
     Segs = segment['segments']
-    SPar = segment['ParentSegment']
+    SPar = segment['ParentSegment'].astype(np.int64)
     SChi = segment['ChildSegment']
     NumOfSeg = len(Segs)
     n_init = max(2000, min(40 * NumOfSeg, 200000))
@@ -555,6 +555,7 @@ def parent_cylinder(SPar, SChi, CiS, cylinder, cyl, si):
         added:      Added cylinders, logical vector
 
     '''
+    
     # Extract current cylinder properties
     if np.size(cyl['radius']) > 1:
         rad = cyl['radius'].copy()
