@@ -5,7 +5,6 @@ Creates cover sets (surface patches) and their neighbor-relation for a point clo
 
 Version: 0.0.1
 Date: Feb 19 2025
-Author: Fan Yang, John Hagood
 Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
 
 This derivative work is released under the GNU General Public License (GPL).

@@ -24,7 +24,6 @@ Plots the given point cloud in 2D or 3D.
 
 Version: 0.0.1
 Date: 18 Jan 2025
-Authors: Fan Yang, John Hagood, Amir Hossein Alikhah Mishamandani
 Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
 
 This derivative work is released under the GNU General Public License (GPL).
