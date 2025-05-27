@@ -24,7 +24,6 @@ Plots the given point cloud in 2D or 3D.
 
 Version: 0.0.1
 Date: 5 April 2025
-Authors: Fan Yang, John Hagood, Amir Hossein Alikhah Mishamandani
 Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
 
 This derivative work is released under the GNU General Public License (GPL).
@@ -34,9 +33,9 @@ import plotly.graph_objects as go
 import plotly.colors as pc
 import numpy as np
 from plotting.cylinders_plotting import cylinders_plotting
+import Utils.Utils as Utils
 
-
-def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3):
+def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3,return_html = True,subset=False,fidelity = .1):
     """
     Plots the given point cloud in 3D interactively using Plotly.
 
@@ -57,30 +56,46 @@ def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3):
 
     #print(segments['segments'])
 
-    # create cover set and segment ids for each point
-    cover_set_ids = np.full(n, -1)  # cover set id each point belongs to, initialize with -1 (not assigned)
-    segment_ids = np.full(n, -1)  # segment id each point belongs to
-    #cover_set_segment_ids = np.full(len(cover_sets['ball']), -1)  # segment id each cover set belongs to
+    # create cover set and segment ids for each point OLD SLOWER METHOD
+    # cover_set_ids = np.full(n, -1)  # cover set id each point belongs to, initialize with -1 (not assigned)
+    # segment_ids = np.full(n, -1)  # segment id each point belongs to
+    # #cover_set_segment_ids = np.full(len(cover_sets['ball']), -1)  # segment id each cover set belongs to
 
-    for i, elements in enumerate(segments['segments']):
-        for j, seg_cover_indices in enumerate(elements):
-            pts = []
-            for cover_idx in seg_cover_indices:
-                pts.extend(cover_sets['ball'][cover_idx.astype(int)])  # get all points in a segment
-            #pts = np.concatenate([pt for pt in pts])
-            if len(pts) > 0:
-                segment_ids[pts] = i
-    for i, p_indices in enumerate(cover_sets['ball']):
-        cover_set_ids[p_indices] = i  # assign cover set ID to those indices
+    # for i, elements in enumerate(segments['segments']):
+    #     for j, seg_cover_indices in enumerate(elements):
+    #         pts = []
+    #         for cover_idx in seg_cover_indices:
+    #             pts.extend(cover_sets['ball'][cover_idx.astype(int)])  # get all points in a segment
+    #         #pts = np.concatenate([pt for pt in pts])
+    #         if len(pts) > 0:
+    #             segment_ids[pts] = i
+    # for i, p_indices in enumerate(cover_sets['ball']):
+    #     cover_set_ids[p_indices] = i  # assign cover set ID to those indices
+    segs = [np.concatenate(seg).astype(np.int64) for seg in segments["segments"]]
+    segment_ids = Utils.assign_segments(points,segs,cover_sets["sets"])
+    cover_set_ids = cover_sets["sets"]  
+
+    if subset:
+        points = points.copy()
+        segment_ids = segment_ids.copy()
+        cover_set_ids = cover_set_ids.copy()
+        I = np.random.permutation(np.arange(points.shape[0]))
+        segment_ids = segment_ids[I[:int(points.shape[0] * fidelity)]]
+        cover_set_ids = cover_set_ids[I[:int(points.shape[0] * fidelity)]]
+        points = points[I[:int(points.shape[0] * fidelity)], :]
+
     #print(cover_set_ids)
     #print(cover_sets['ball'])
     #print(len(cover_sets['ball']), len(segments['segments']), p_count)
 
-    # Create 5 traces, only one visible at a time
+    
+    # trace = make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=True, additional_labels=segment_ids)
+    # ]
+    #Create 5 traces, only one visible at a time
     traces = [
-        make_trace(points, points[:, 0], "X", marker_size, visible=False),
-        make_trace(points, points[:, 1], "Y", marker_size, visible=False),
-        make_trace(points, points[:, 2], "Z", marker_size, visible=True),  # Default visible
+        # make_trace(points, points[:, 0], "X", marker_size, visible=False),
+        # make_trace(points, points[:, 1], "Y", marker_size, visible=False),
+        # make_trace(points, points[:, 2], "Z", marker_size, visible=True),  # Default visible
         make_categorical_color_trace(points, cover_set_ids, "Cover Set", marker_size, visible=True, additional_labels=cover_set_ids),
         make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=False, additional_labels=segment_ids)
     ]
@@ -92,20 +107,20 @@ def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3):
         updatemenus=[
             dict(
                 buttons=[
-                    dict(label="Color by X", method="update",
-                         args=[{"visible": [True, False, False, False, False]},
-                               {"title": "Point Cloud Colored by X"}]),
-                    dict(label="Color by Y", method="update",
-                         args=[{"visible": [False, True, False, False, False]},
-                               {"title": "Point Cloud Colored by Y"}]),
-                    dict(label="Color by Z", method="update",
-                         args=[{"visible": [False, False, True, False, False]},
-                               {"title": "Point Cloud Colored by Z"}]),
+                    # dict(label="Color by X", method="update",
+                    #      args=[{"visible": [True, False, False, False, False]},
+                    #            {"title": "Point Cloud Colored by X"}]),
+                    # dict(label="Color by Y", method="update",
+                    #      args=[{"visible": [False, True, False, False, False]},
+                    #            {"title": "Point Cloud Colored by Y"}]),
+                    # dict(label="Color by Z", method="update",
+                    #      args=[{"visible": [False, False, True, False, False]},
+                    #            {"title": "Point Cloud Colored by Z"}]),
                     dict(label="Color by Cover Set", method="update",
-                         args=[{"visible": [False, False, False, True, False]},
+                         args=[{"visible": [ True, False]},
                                {"title": "Point Cloud Colored by Cover Set"}]),
                     dict(label="Color by Segment", method="update",
-                         args=[{"visible": [False, False, False, False, True]},
+                         args=[{"visible": [ False, True]},
                                {"title": "Point Cloud Colored by Segment"}]),
                 ],
                 direction="down",
@@ -117,7 +132,7 @@ def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3):
                 yanchor="top"
             )
         ],
-        title="Point Cloud Colored by Z",
+        title="Point Cloud Colored by Cover_set",
         title_x=0.5,  # Center the title
         scene=dict(
             xaxis_title="X",
@@ -125,9 +140,13 @@ def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3):
             zaxis_title="Z"
         )
     )
-    filename = f"results/point_cloud_plot{qsm['rundata']['inputs']['name']}_{i}.html"
+    filename = f"results/point_cloud_plot{qsm['rundata']['inputs']['name']}.html"
     fig.write_html(filename)  # save html to results folder
-    return filename
+    if return_html:
+        return filename
+    else:
+        return fig
+  
 
 
 def make_categorical_color_trace(points, labels, label_type="Cover Set", marker_size=3, visible=True, additional_labels = None):

@@ -10,3 +10,4 @@ results*
 *.nbc
 *DS_Store
 *.spec\
+*.pickle

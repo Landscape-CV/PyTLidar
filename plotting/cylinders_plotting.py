@@ -69,7 +69,7 @@ def create_cylinder(start, axis, radius, height, num_points):
     return surfaces
 
 
-def cylinders_plotting(cylinders, num_points=10):
+def cylinders_plotting(cylinders, num_points=10,base_fig=None):
     """
     Plot multiple cylinders in a single 3D figure.
 
@@ -84,7 +84,10 @@ def cylinders_plotting(cylinders, num_points=10):
     Returns:
         plotly.graph_objects.Figure: Figure with all cylinders.
     """
-    fig = go.Figure()
+    if base_fig is not None:
+        fig = base_fig
+    else:
+        fig = go.Figure()
 
     for i in range(np.size(cylinders['radius'])):
         start = np.array(cylinders['start'][i])

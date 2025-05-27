@@ -18,7 +18,6 @@ Python adaptation and extension of TREEQSM:
 
 Version: 0.0.1
 Date: 5 Mar 2025
-Authors: Fan Yang, John Hagood, Amir Hossein Alikhah Mishamandani
 Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
 
 This derivative work is released under the GNU General Public License (GPL).
@@ -76,7 +75,7 @@ def cylinders(P,cover,segment,inputs):
     # Initialization of variables
     #print(segment)
     Segs = segment['segments']
-    SPar = segment['ParentSegment']
+    SPar = segment['ParentSegment'].astype(np.int64)
     SChi = segment['ChildSegment']
     NumOfSeg = len(Segs)
     n_init = max(2000, min(40 * NumOfSeg, 200000))
@@ -555,6 +554,7 @@ def parent_cylinder(SPar, SChi, CiS, cylinder, cyl, si):
         added:      Added cylinders, logical vector
 
     '''
+    
     # Extract current cylinder properties
     if np.size(cyl['radius']) > 1:
         rad = cyl['radius'].copy()

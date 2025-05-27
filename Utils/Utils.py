@@ -3,7 +3,6 @@ Python adaptation and extension of TREEQSM.
 
 Version: 0.0.4
 Date: 4 March 2025
-Authors: Fan Yang, John Hagood, Amir Hossein Alikhah Mishamandani
 Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
 
 This derivative work is released under the GNU General Public License (GPL).
@@ -45,6 +44,17 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
     point_cloud : ndarray
         Nx3 matrix of point coordinates (x, y, z).
     """
+    if ".xyz" in file_path:
+        # Load point cloud from an XYZ file
+        point_data = np.loadtxt(file_path, dtype=np.float64)
+        if point_data.shape[1] == 3:
+            point_cloud = point_data
+        elif point_data.shape[1] == 4:
+            I = point_data[:, 3] > intensity_threshold
+            point_cloud = point_data[I, :3]
+        else:
+            raise ValueError("Unsupported format in XYZ file.")
+        return point_cloud if not full_data else (point_cloud, point_data)
     with laspy.open(file_path) as las:
         point_data = las.read()
         point_data = np.vstack((point_data.x, point_data.y, point_data.z,point_data.intensity)).T.astype('float64')
@@ -2169,3 +2179,11 @@ def package_outputs(models,cyl_htmls):
         
 
     return {"tree_data":tuple(tree_data_figures),"cylinders":tuple(cyl_htmls)}
+
+@jit(nopython=True)
+def assign_segments(cloud,segments,cover_sets):
+    point_segments = np.zeros((cloud.shape[0]),dtype = np.int64)-1
+    for i,segment in enumerate(segments):
+        I = np.where(np.isin(cover_sets, segment))[0]
+        point_segments[I] = i
+    return point_segments
