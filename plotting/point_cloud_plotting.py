@@ -33,7 +33,7 @@ This derivative work is released under the GNU General Public License (GPL).
 import plotly.graph_objects as go
 import plotly.offline
 import numpy as np
-def point_cloud_plotting(points, marker_size=3, subset = False):
+def point_cloud_plotting(points, marker_size=3,fidelity=.1, subset = False, return_html = True):
     """
     Plots the given point cloud in 3D interactively using Plotly.
 
@@ -48,7 +48,7 @@ def point_cloud_plotting(points, marker_size=3, subset = False):
     if subset:
         points = points.copy()
         I = np.random.permutation(np.arange(points.shape[0]))
-        points = points[I[:int(points.shape[0] * 0.1)], :]
+        points = points[I[:int(points.shape[0] * fidelity)], :]
 
 
     # Create the 3D scatter plot
@@ -82,8 +82,10 @@ def point_cloud_plotting(points, marker_size=3, subset = False):
     # Show the interactive plot
     fig.write_html("point_cloud_plot.html", include_plotlyjs=True, full_html=True,auto_open=False)
     
-    
-    return "point_cloud_plot.html"
+    if return_html:
+        return "point_cloud_plot.html"
+    else:
+        return fig
     
 
 

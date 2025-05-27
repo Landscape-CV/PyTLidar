@@ -45,20 +45,31 @@ warnings.filterwarnings('ignore')
 from main_steps.correct_segments import correct_segments
 from main_steps.cube_volume import cube_volume
 from plotting.cylinders_line_plotting import cylinders_line_plotting
+from plotting.point_cloud_plotting import point_cloud_plotting
+from plotting.qsm_plotting import qsm_plotting
 import sys
 import json
 
 def test():
     # file_path = r'C:\Users\johnh\Documents\LiDAR\A-04-7007_post.las'
     # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/A-04-7007_post.las'
-    file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/tree_1.las'
+    # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/tree_1.las'
+    file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/test_palm.xyz'
     # file_path = r'E:\5-Study\OMSCS\CS8903_Research\TreeQSM\PyTLidar\Dataset\tree_1.las'
     points = load_point_cloud(file_path,0)
     if points is not None:
         sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.")
     # Step 3: Define inputs for TreeQSM
     points = points - np.mean(points,axis = 0)
+
     inputs = define_input(points, 1, 1, 1)[0]
+
+    #specific inputs for testing
+    inputs['PatchDiam1'] = [0.05]
+    inputs['PatchDiam2Min'] = [0.03]
+    inputs['PatchDiam2Max'] = [0.12]
+    inputs['BallRad1'] = [0.06]
+    inputs['BallRad2'] = [0.13]
     inputs['plot'] = 0
     treeqsm(points,inputs)
 
@@ -343,8 +354,10 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
                             str += f"_DI{PatchDiam2Min[j]}"
                     else:
                         str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
-
-                    fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8,str,False)
+                    fidelity = min(100000/ P.shape[0],1)  # Adjust fidelity based on point cloud size
+                    base_fig = point_cloud_plotting(P, subset=True,fidelity=fidelity,marker_size=1,return_html=False)
+                    qsm_plotting(P,cover2,segment2,qsm,return_html=True,subset = True, fidelity=fidelity,marker_size=1)
+                    fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8,str,False,base_fig=base_fig)
 
                     cyl_htmls.append(cyl_html)
 

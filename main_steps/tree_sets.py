@@ -18,7 +18,6 @@ Python adaptation and extension of TREEQSM:
 
 Version: 0.0.1
 Date: 9 Feb 2025
-Authors: Fan Yang, John Hagood, Amir Hossein Alikhah Mishamandani
 Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
 
 This derivative work is released under the GNU General Public License (GPL).
@@ -760,8 +759,11 @@ def make_tree_connected(cover, aux, Forb, Base, Trunk, inputs):
                             if len(forb) > 0:
                                 d = cdist(Ce[comp, :], Ce[forb, :])
                                 df = np.min(d)
-                                if len(df) > 1:
-                                    df = np.min(df)
+                                try:
+                                    if len(d) > 1 and len(df)>1:
+                                        df = np.min(df)
+                                except TypeError:
+                                    pass
                             else:
                                 df = 1000
 

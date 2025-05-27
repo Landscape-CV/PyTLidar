@@ -4,7 +4,7 @@ from plotting.cylinders_plotting import create_cylinder
 from plotting.cylinders_plotting import rotation_matrix_from_z
 
 
-def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_name = None, overwrite = False):
+def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_name = None, overwrite = False, base_fig = None):
     """
     Plot cylinders as segments with width proportional to radius.
 
@@ -18,7 +18,10 @@ def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_nam
     Returns:
         plotly.graph_objects.Figure
     """
-    fig = go.Figure()
+    if base_fig is not None:
+        fig = base_fig
+    else:
+        fig = go.Figure()
 
     #if colors is None:
     #    colors = ['blue'] * len(starts)

@@ -1,3 +1,5 @@
+import warnings
+warnings.filterwarnings('ignore')
 import Utils.Utils as Utils
 import numpy as np
 import os
@@ -10,9 +12,14 @@ from main_steps.cover_sets import cover_sets
 from main_steps.segments import segments
 from main_steps.correct_segments import correct_segments
 from main_steps.tree_sets import tree_sets
+from main_steps.relative_size import relative_size
 from main_steps.cluster import segment_point_cloud
 from main_steps.cylinders import cylinders
+from main_steps.point_model_distance import point_model_distance
 from tools.define_input import define_input
+from plotting.cylinders_line_plotting import cylinders_line_plotting
+from plotting.point_cloud_plotting import point_cloud_plotting
+from plotting.cylinders_plotting import cylinders_plotting
 import time
 import cProfile
 import pstats
@@ -186,13 +193,13 @@ class Ecomodel:
 
             
 
-            # print("Writing File")
-            # tile.to_xyz(f"clustered_{i}.xyz", True)
+            print("Writing File")
+            tile.to_xyz(f"clustered_{i}.xyz", True)
 
             
     def get_qsm_segments(self,intensity_threshold = 0):
         """
-        Get the segments from the point cloud P.
+        Get the modeled cylinder and QSM segments from the point cloud P.
         Parameters: 
                 intensity_threshold (float): Intensity threshold for filtering.
         Returns:        
@@ -202,15 +209,15 @@ class Ecomodel:
         for i,tile in enumerate(self.tiles.flatten()):
             if tile == 0:
                 continue
-            tile.to(tile.device)
+            
             tile.numpy()
             tile.cloud = tile.cloud[tile.point_data[:,3]>intensity_threshold]
             tile.cover_sets = tile.cover_sets[tile.point_data[:,3]>intensity_threshold]
             tile.segment_labels = tile.segment_labels[tile.point_data[:,3]>intensity_threshold]
             tile.point_data = tile.point_data[tile.point_data[:,3]>intensity_threshold]
-            tile.cylinder_starts = np.array([])
+            tile.cylinder_starts = np.empty(shape=(0,3))
             tile.cylinder_radii = np.array([])
-            tile.cylinder_axes = np.array([])
+            tile.cylinder_axes = np.empty(shape=(0,3))
             tile.cylinder_lengths = np.array([])
             tile.branch_labels = np.array([])
             tile.branch_orders = np.array([])
@@ -227,14 +234,27 @@ class Ecomodel:
                 qsm_input = define_input(segment_cloud,1,1,1)[0]
                 qsm_input['PatchDiam1'] = qsm_input['PatchDiam1'][0]
                 qsm_input['BallRad1'] = qsm_input['BallRad1'][0]
+                qsm_input['PatchDiam2Min'] = qsm_input['PatchDiam2Min'][0]
+                qsm_input['PatchDiam2Max'] = qsm_input['PatchDiam2Max'][0]
+                qsm_input['BallRad2'] = qsm_input['BallRad2'][0]
                 cover1 = cover_sets(segment_cloud, qsm_input)
                 cover1, Base, Forb = tree_sets(segment_cloud, cover1, qsm_input)
                 segment1 = segments( cover1, Base, Forb)
                 segment1 = correct_segments(segment_cloud,cover1,segment1,qsm_input,0,1,1)
+                try:
+                    RS = relative_size(segment_cloud,cover1,segment1)
+                    cover2 = cover_sets(segment_cloud, qsm_input,RS)
+                    cover2, Base, Forb = tree_sets(segment_cloud, cover2, qsm_input, segment1)
+                    segment2 = segments( cover2, Base, Forb)
+                    segment2 = correct_segments(segment_cloud,cover2,segment2,qsm_input,0,1,1)
+                except:
+                    print("Unable to create more detailed QSM, using initial segments")
+                    pass
+
                 cylinder = cylinders(segment_cloud,cover1,segment1,qsm_input)
-                tile.cylinder_starts = np.append(tile.cylinder_starts,cylinder["start"])
+                tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
                 tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
-                tile.cylinder_axes = np.append(tile.cylinder_axes,cylinder["axis"])
+                tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
                 tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
                 tile.branch_labels = np.append(tile.branch_labels,cylinder["branch"])
                 tile.branch_orders = np.append(tile.branch_orders,cylinder["BranchOrder"])
@@ -274,7 +294,44 @@ class Ecomodel:
             tile.cylinder_axes = tile.cylinder_axes + self.mean
 
 
+    def get_cylinders(self,min_x,min_y,min_z,voxel_size=1,fidelity =.3):
+        """
+        Get the cylinders from the point cloud P.
+        Parameters: 
+                min_x (float): Minimum x coordinate of the point cloud.
+                min_y (float): Minimum y coordinate of the point cloud.
+                min_z (float): Minimum z coordinate of the point cloud.
+                voxel_size (float): Size of the voxels to use for the cylinder fitting.
+        Returns:        
+                numpy.ndarray: Cylinders, shape (n_cylinders, 3).
+        """
+        for i,tile in enumerate(self._raw_tiles):
+            if tile == 0:
+                continue
+          
+            cube_min = np.array([min_x, min_y, min_z])
+            cube_max = np.array([min_x + voxel_size, min_y + voxel_size, min_z + voxel_size])
+            mask = np.all((tile.cylinder_starts >= cube_min) & (tile.cylinder_starts <= cube_max), axis=1)
+            cylinder_starts = tile.cylinder_starts[mask]
+            cylinder_radii = tile.cylinder_radii[mask]
+            cylinder_axes = tile.cylinder_axes[mask]
+            cylinder_lengths = tile.cylinder_lengths[mask]
+            branch_labels = tile.branch_labels[mask]
+            branch_orders = tile.branch_orders[mask]
+            cloud = tile.cloud[np.all((tile.cloud>=cube_min) & (tile.cloud <= cube_max),axis=1)]
+            cylinder = {"start": cylinder_starts, "radius": cylinder_radii, "axis": cylinder_axes, "length": cylinder_lengths, "branch": branch_labels, "BranchOrder": branch_orders}
+            pmdis = point_model_distance(cloud, cylinder)
+            D = [pmdis['TrunkMean'], pmdis['BranchMean'],
+                pmdis['Branch1Mean'], pmdis['Branch2Mean']]
+            D = np.round(10000 * np.array(D)) / 10
+            print(D)
+            cyl_plot = point_cloud_plotting(cloud, subset=True,fidelity=fidelity,marker_size=1,return_html=False)
+            return cylinder, cyl_plot
+    
     def calc_volumes(self):
+        """
+        UNDER CONSTRUCTION, NOT USED
+        """
         print("Calculating volumes")
         start = time.time()
         for i,tile in enumerate(self.tiles.flatten()):
@@ -294,7 +351,7 @@ class Ecomodel:
 
     def subdivide_tiles(self, cube_size = 1, meter_conversion = 1):
         """
-        Subdivides the point cloud P into smaller cubes of size cube_size.
+        Subdivides the point cloud P into smaller tiles of size cube_size. Maintains full z height
         Parameters: 
                 
                 cube_size (float): Size of the cubes to subdivide the point cloud into.
@@ -372,6 +429,7 @@ class Ecomodel:
     
     def recombine_tiles(self):
         """
+        Inverse of subdivide_tiles, recombines the tiles into a single tile.
         """
 
 
@@ -384,6 +442,13 @@ class Ecomodel:
         base_tile.segment_labels = np.concatenate([tile.segment_labels for tile in tiles])
         base_tile.cover_sets = np.concatenate([tile.cover_sets for tile in tiles])
         base_tile.cluster_labels = np.concatenate([tile.cluster_labels for tile in tiles])
+        base_tile.cylinder_starts = np.concatenate([tile.cylinder_starts for tile in tiles])
+        base_tile.cylinder_axes = np.concatenate([tile.cylinder_axes for tile in tiles])
+        base_tile.cylinder_lengths = np.concatenate([tile.cylinder_lengths for tile in tiles])
+        base_tile.cylinder_radii = np.concatenate([tile.cylinder_radii for tile in tiles])
+        base_tile.branch_labels = np.concatenate([tile.branch_labels for tile in tiles])
+        base_tile.branch_orders = np.concatenate([tile.branch_orders for tile in tiles])
+
             
         
 
@@ -397,7 +462,8 @@ class Ecomodel:
         self.max_y = float(base_tile.cloud[:,1].max())+self.mean[1]
         self.max_z = float(base_tile.cloud[:,2].max())+self.mean[2]
 
-
+    
+           
     
     @staticmethod 
     def combine_las_files(folder,ecomodel, intensity_threshold = 0):
@@ -424,30 +490,8 @@ class Ecomodel:
                 ecomodel.add_tile(Tile(point_cloud,point_data,True))
         return ecomodel
 
-    def denoise(self):
-        """
-        Denoise the point cloud P.
-        Parameters: 
-                None
-        Returns:        
-                numpy.ndarray: Denoised point cloud, shape (n_points, 3).
-        """
-        for tile in self._raw_tiles:
-            if tile == 0:
-                continue
-            # tile.to_xyz("tile.xyz")
-            
-            tile.o3d_cloud = o3d.geometry.PointCloud()
-            tile.o3d_cloud.points = o3d.utility.Vector3dVector(tile.cloud)
-           
-            print("DBSCAN Cleanup")
-            start = time.time()
-            labels = np.array(tile.o3d_cloud.cluster_dbscan(eps=0.5, min_points=20, print_progress=True))
-
-            mask = labels != -1
-            tile.cloud = tile.cloud[mask]
-            tile.point_data = tile.point_data[mask]
-            print("Time to DBSCAN:",time.time()-start)
+    
+        
 
     def pickle(self,name):
         """
@@ -645,6 +689,9 @@ class Tile:
             self.branch_orders = torch.from_numpy(self.branch_orders.astype('int')).to(self.device)   
 
     def numpy(self):
+        """
+        Convert all attributes of the tile to numpy arrays.
+        """
         if type(self.cloud) == torch.Tensor:
             self.cloud = self.cloud.cpu().numpy().astype('float64')
         if type(self.point_data) == laspy.LasData:
@@ -684,27 +731,7 @@ class Tile:
         self.cover_sets = np.concatenate([self.cover_sets,tile.cover_sets]) if len(tile.cover_sets)>0 else self.cover_sets
         self.cluster_labels = np.concatenate([self.cluster_labels,tile.cluster_labels]) if len(tile.cluster_labels)>0 else self.cluster_labels
 
-#     def pickle(self,name):
-#         """
-#         Save the point cloud to a pickle file.
-#         Parameters: 
-#                 name (str): Path to save the pickle file.
-#         Returns:        
-#                 None
-#         """
-#         with open(name, 'wb') as f:
-#             pickle.dump(self, f)
 
-# def unpickle_tile(name):
-#     """
-#     Load the tile object from a pickle file.
-#     Parameters: 
-#             name (str): Path to load the pickle file from.
-#     Returns:        
-#             Ecomodel: Loaded point cloud.
-#     """
-#     with open(name, 'rb') as f:
-#         return pickle.load(f)
 
     
         
@@ -735,7 +762,15 @@ if __name__ == "__main__":
     # combined_cloud.pickle("test_model.pickle")
     combined_cloud = Ecomodel.unpickle("test_model.pickle")
     combined_cloud.get_qsm_segments(46000)
+    combined_cloud.pickle("test_model_post_qsm.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model_post_qsm.pickle")
+    combined_cloud.recombine_tiles()
+    cylinder,base_plot = combined_cloud.get_cylinders(-15,-3,-3,5,fidelity = .3)
     
+    # cylinders,base_plot = combined_cloud.get_cylinders(-3,-3,-4,5)
+    
+    cylinders_line_plotting(cylinder, scale_factor=20,file_name="test_plot",base_fig=base_plot)
+    # cylinders_plotting(cylinder,base_fig=base_plot)
     # combined_cloud.calc_volumes()
     # subdivided_cloud = combined_cloud.subdivide_tiles(cube_size = 10)
     # print(subdivided_cloud)
