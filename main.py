@@ -38,99 +38,67 @@ class QSMWindow(QMainWindow):
         self.button2.clicked.connect(self.start_single_file_processing)
         self.button2.setGeometry(350, 200, 250, 50)
 
-        #slider for intensity threshold
-        Label = QLabel("Intensity Threshold:", self)
+        self.autoInputUI= QWidget()
+        self.autoInputUI.setLayout(QGridLayout())
+        self.setCentralWidget(self.autoInputUI)
+        #TextEdit for intensity threshold
+        Label = QLabel("Intensity Threshold:",self.autoInputUI)
         Label.setGeometry(50, 10, 200, 30)
-        self.slider = QSlider(Qt.Horizontal, self)
-        self.slider.setGeometry(50, 50, 200, 30)
-        self.slider.setRange(0, 65535 )
-        self.slider.setValue(0)
-        self.slider.setSingleStep(1)
-        self.slider.setPageStep(100)
-        self.slider.setTickInterval(2000)
 
-        self.threshold_label = QLabel("0", self)
-        self.threshold_label.setGeometry(200, 10, 50, 30)
-        self.slider.valueChanged.connect(self.update_threshold_label)
-        self.slider.setToolTip("Ser the Intensity threshold, this will automically filter out any points with intensity lower than this value. The default value is 0.")
-        self.slider.setToolTipDuration(1000)
+        self.TextEdit = QTextEdit(self.autoInputUI)
+        self.TextEdit.setGeometry(50, 50, 200, 30)
         
-        #slider for number of min PatchDiam to test
-        Label2 = QLabel("Number of Min PatchDiam to Test:", self)
+        self.TextEdit.setToolTip("Set the Intensity threshold, this will automically filter out any points with intensity lower than this value. The default value is 0.")
+        self.TextEdit.setToolTipDuration(1000)
+        
+        #TextEdit for number of min PatchDiam to test
+        Label2 = QLabel("Number of Min PatchDiam to Test:",self.autoInputUI)
         Label2.setGeometry(50, 100, 250, 30)
-        self.slider2 = QSlider(Qt.Horizontal, self) 
-        self.slider2.setGeometry(50, 150, 200, 30)
-        self.slider2.setRange(1, 10)
-        self.slider2.setValue(1)
-        self.slider2.setSingleStep(1)
-        self.slider2.setPageStep(1)
-        self.slider2.setTickInterval(2)
-        self.slider2.setToolTip("""Set the number of Min PatchDiam to test. The values will set different min cover set 
+        self.TextEdit2 = QTextEdit(self.autoInputUI) 
+        self.TextEdit2.setGeometry(50, 150, 200, 30)
+        
+        self.TextEdit2.setToolTip("""Set the number of Min PatchDiam to test. The values will set different min cover set 
                                 Patch Diameters for the algorithm to test on the variable size cover set step. 
                                 The resulting number of passes of the algorithm will be NInit x NMin x Nmax .The default value is 1. """)
-        self.slider2.setToolTipDuration(1000)
+        self.TextEdit2.setToolTipDuration(1000)
 
-        self.min_patchdiam_label = QLabel("1", self)
-        self.min_patchdiam_label.setGeometry(300, 100, 50, 30)
-        self.slider2.valueChanged.connect(self.update_min_patchdiam_label)
+        
 
 
-        #slider for number of max PatchDiam to test
-        Label3 = QLabel("Number of Max PatchDiam to Test:", self)
+        #TextEdit for number of max PatchDiam to test
+        Label3 = QLabel("Number of Max PatchDiam to Test:",self.autoInputUI)
         Label3.setGeometry(350, 100, 250, 30)
-        self.slider3 = QSlider(Qt.Horizontal, self)
-        self.slider3.setGeometry(350, 150, 200, 30)
-        self.slider3.setRange(1, 10)
-        self.slider3.setValue(1)
-        self.slider3.setSingleStep(1)
-        self.slider3.setPageStep(1)
-        self.slider3.setTickInterval(2)
-        self.slider3.setToolTip("""Set the number of Max PatchDiam to test. The values will set different max cover set 
+        self.TextEdit3 = QTextEdit(self.autoInputUI)
+        self.TextEdit3.setGeometry(350, 150, 200, 30)
+        self.TextEdit3.setToolTip("""Set the number of Max PatchDiam to test. The values will set different max cover set 
                                 Patch Diameters for the algorithm to test on the variable size cover set step. 
                                 The resulting number of passes of the algorithm will be NInit x NMin x Nmax. The default value is 1.""")
-        self.slider3.setToolTipDuration(1000)
+        self.TextEdit3.setToolTipDuration(1000)
 
-        self.max_patchdiam_label = QLabel("1", self)
-        self.max_patchdiam_label.setGeometry(600, 100, 50, 30)
-        self.slider3.valueChanged.connect(self.update_max_patchdiam_label)
+        
 
 
         #slider for number of Initial PatchDiam to test
-        Label4 = QLabel("Number of Initial PatchDiam to Test:", self)
+        Label4 = QLabel("Number of Initial PatchDiam to Test:",self.autoInputUI)
         Label4.setGeometry(350, 10, 250, 30)
-        self.slider4 = QSlider(Qt.Horizontal, self)
-        self.slider4.setGeometry(350, 50, 200, 30)
-        self.slider4.setRange(1, 10)
-        self.slider4.setValue(1)
-        self.slider4.setSingleStep(1)
-        self.slider4.setPageStep(1)
-        self.slider4.setTickInterval(2)
-        self.slider4.setToolTip("""Set the number of Initial PatchDiam to test. The values will set different initial cover set 
+        self.textEntry1 = QTextEdit(self.autoInputUI)
+        self.textEntry1.setGeometry(350, 50, 200, 30)
+        
+        self.textEntry1.setToolTip("""Set the number of Initial PatchDiam to test. The values will set different initial cover set 
         Patch Diameters for the algorithm to test. The resulting number of passes of the algorithm will be NInit x NMin x Nmax.
         The default value is 1.""")
-        self.slider4.setToolTipDuration(1000)
+        self.textEntry1.setToolTipDuration(1000)
 
-        self.init_patchdiam_label = QLabel("1", self)
-        self.init_patchdiam_label.setGeometry(600, 10, 50, 30)
-        self.slider4.valueChanged.connect(self.update_init_patchdiam_label)
+       
 
 
-    
-    def update_init_patchdiam_label(self, value):
-        self.init_patchdiam_label.setText(str(value))
-    def update_max_patchdiam_label(self, value):
-        self.max_patchdiam_label.setText(str(value))
-    def update_min_patchdiam_label(self, value):
-        self.min_patchdiam_label.setText(str(value))
-    def update_threshold_label(self, value):
-        self.threshold_label.setText(str(value))
 
 
 
 
     def start_batch_processing(self):
             #prompt user for folder path
-        inputs = [self.slider.value(), self.slider2.value(), self.slider3.value(), self.slider4.value()]#Intensity threshold, number of min PatchDiam to test, number of max PatchDiam to test, number of Initial PatchDiam to test
+        inputs = [self.slider.value(), self.slider2.value(), self.slider3.value(), self.textEntry1.value()]#Intensity threshold, number of min PatchDiam to test, number of max PatchDiam to test, number of Initial PatchDiam to test
         
         folder = QFileDialog.getExistingDirectory(self, "Select Folder", "")
         if not folder:
@@ -147,7 +115,7 @@ class QSMWindow(QMainWindow):
     
     def start_single_file_processing(self):
         #prompt user for file path
-        inputs = [self.slider.value(), self.slider2.value(), self.slider3.value(), self.slider4.value()]#Intensity threshold, number of min PatchDiam to test, number of max PatchDiam to test, number of Initial PatchDiam to test
+        inputs = [self.slider.value(), self.slider2.value(), self.slider3.value(), self.textEntry1.value()]#Intensity threshold, number of min PatchDiam to test, number of max PatchDiam to test, number of Initial PatchDiam to test
         file, _ = QFileDialog.getOpenFileName(self, "Select File", "", "LAS Files (*.las *.laz)")
         if not file:
             QMessageBox.warning(self, "No File Selected", "Please select a LAS or LAZ file.")
