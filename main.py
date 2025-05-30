@@ -2,7 +2,7 @@ from treeqsm import treeqsm
 from batch_process import batched
 import os
 from PySide6.QtCore import QObject,QThread,Signal,Qt,QUrl,QProcess
-from PySide6.QtWidgets import QWidget,QGridLayout,QVBoxLayout,QLabel,QMainWindow,QPushButton,QApplication,QTextEdit,QToolButton,QComboBox,QHBoxLayout,QSlider,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem
+from PySide6.QtWidgets import QWidget,QGridLayout,QVBoxLayout,QLabel,QMainWindow,QPushButton,QApplication,QTextEdit,QToolButton,QComboBox,QHBoxLayout,QSlider,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem, QCheckBox,QRadioButton
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtGui import QPixmap
 from PySide6.QtPdf import QPdfDocument
@@ -25,38 +25,36 @@ class QSMWindow(QMainWindow):
         super().__init__()
         # self.stacked_widget = QStackedWidget(self)
         self.setWindowTitle("TreeQSM")
-        self.setGeometry(100, 100, 700, 300)
+        self.setGeometry(100, 100, 750, 500)
         # layout.addWidget(self.stacked_widget)
 
         # Create a button to start the batch processing
         self.button= QPushButton("Batch Processing (Select Folder)", self)
         self.button.clicked.connect(self.start_batch_processing)
-        self.button.setGeometry(50, 200, 250, 50)
+        self.button.setGeometry(50, 200, 300, 50)
 
         # Create a button to start the single file processing
         self.button2 = QPushButton("Single File Processing (Select File)", self)
         self.button2.clicked.connect(self.start_single_file_processing)
-        self.button2.setGeometry(350, 200, 250, 50)
+        self.button2.setGeometry(400, 200, 300, 50)
 
-        self.autoInputUI= QWidget()
-        self.autoInputUI.setLayout(QGridLayout())
-        self.setCentralWidget(self.autoInputUI)
+
         #TextEdit for intensity threshold
-        Label = QLabel("Intensity Threshold:",self.autoInputUI)
+        Label = QLabel("Intensity Threshold:",self)
         Label.setGeometry(50, 10, 200, 30)
-
-        self.TextEdit = QTextEdit(self.autoInputUI)
-        self.TextEdit.setGeometry(50, 50, 200, 30)
         
+        self.TextEdit = QTextEdit(self)
+        self.TextEdit.setGeometry(100, 50, 200, 30)
+        self.TextEdit.setText("0")
         self.TextEdit.setToolTip("Set the Intensity threshold, this will automically filter out any points with intensity lower than this value. The default value is 0.")
         self.TextEdit.setToolTipDuration(1000)
         
         #TextEdit for number of min PatchDiam to test
-        Label2 = QLabel("Number of Min PatchDiam to Test:",self.autoInputUI)
+        Label2 = QLabel("Min PatchDiam to Test:",self)
         Label2.setGeometry(50, 100, 250, 30)
-        self.TextEdit2 = QTextEdit(self.autoInputUI) 
-        self.TextEdit2.setGeometry(50, 150, 200, 30)
-        
+        self.TextEdit2 = QTextEdit(self) 
+        self.TextEdit2.setGeometry(100, 150, 200, 30)
+        self.TextEdit2.setText("1")
         self.TextEdit2.setToolTip("""Set the number of Min PatchDiam to test. The values will set different min cover set 
                                 Patch Diameters for the algorithm to test on the variable size cover set step. 
                                 The resulting number of passes of the algorithm will be NInit x NMin x Nmax .The default value is 1. """)
@@ -66,10 +64,11 @@ class QSMWindow(QMainWindow):
 
 
         #TextEdit for number of max PatchDiam to test
-        Label3 = QLabel("Number of Max PatchDiam to Test:",self.autoInputUI)
-        Label3.setGeometry(350, 100, 250, 30)
-        self.TextEdit3 = QTextEdit(self.autoInputUI)
-        self.TextEdit3.setGeometry(350, 150, 200, 30)
+        Label3 = QLabel("Max PatchDiam to Test:",self)
+        Label3.setGeometry(400, 100, 250, 30)
+        self.TextEdit3 = QTextEdit(self)
+        self.TextEdit3.setText("1")
+        self.TextEdit3.setGeometry(450, 150, 200, 30)
         self.TextEdit3.setToolTip("""Set the number of Max PatchDiam to test. The values will set different max cover set 
                                 Patch Diameters for the algorithm to test on the variable size cover set step. 
                                 The resulting number of passes of the algorithm will be NInit x NMin x Nmax. The default value is 1.""")
@@ -79,15 +78,34 @@ class QSMWindow(QMainWindow):
 
 
         #slider for number of Initial PatchDiam to test
-        Label4 = QLabel("Number of Initial PatchDiam to Test:",self.autoInputUI)
-        Label4.setGeometry(350, 10, 250, 30)
-        self.textEntry1 = QTextEdit(self.autoInputUI)
-        self.textEntry1.setGeometry(350, 50, 200, 30)
+        Label4 = QLabel("Initial PatchDiam to Test:",self)
+        Label4.setGeometry(400, 10, 250, 30)
+        self.textEntry1 = QTextEdit(self)
+        self.textEntry1.setText("1")
+        self.textEntry1.setGeometry(450, 50, 200, 30)
         
         self.textEntry1.setToolTip("""Set the number of Initial PatchDiam to test. The values will set different initial cover set 
         Patch Diameters for the algorithm to test. The resulting number of passes of the algorithm will be NInit x NMin x Nmax.
         The default value is 1.""")
         self.textEntry1.setToolTipDuration(1000)
+
+        self.InputType = QCheckBox("Generate Values",self)
+        self.InputType.setGeometry(100, 275, 200, 30)
+        self.InputType.setChecked(True)
+        instructionLabel = QLabel(
+        """Instructions:
+1. Select a value for Intensity Threshold, this will filter out all values with intensity below this threshold
+2. If you select Generate Values, put a single number in Initial PatchDiam, MinPatchDiam and MaxPatchDiam 
+for the number of values you would like to test
+    - This will generate N reasonable values for these parameters, where N is the number you input. 
+    - All combinations of these values will be testes
+3. If you do not select Generate Values, put a list of values in Initial PatchDiam, MinPatchDiam and 
+MaxPatchDiam separated by commas for the values you would like to test
+    - All combinations of these values will be tested
+4. Select Batch Processing to process all files in a folder, select Single File Processing to process a single file"""
+            ,self)
+        instructionLabel.setGeometry(50, 300, 800, 200)
+
 
        
 
@@ -98,13 +116,21 @@ class QSMWindow(QMainWindow):
 
     def start_batch_processing(self):
             #prompt user for folder path
-        inputs = [self.slider.value(), self.slider2.value(), self.slider3.value(), self.textEntry1.value()]#Intensity threshold, number of min PatchDiam to test, number of max PatchDiam to test, number of Initial PatchDiam to test
         
         folder = QFileDialog.getExistingDirectory(self, "Select Folder", "")
         if not folder:
             QMessageBox.warning(self, "No Folder Selected", "Please select a folder containing LAS or LAZ files.")
             return
-        self.batch_window = BatchProcessingWindow(self, folder,inputs)
+        if self.InputType.isChecked():
+            try:
+                inputs = [int(self.TextEdit.toPlainText()), int(self.TextEdit2.toPlainText()), int(self.TextEdit3.toPlainText()), int(self.textEntry1.toPlainText())]
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Input", "Please enter valid integers for the inputs.")
+                return
+            self.batch_window = BatchProcessingWindow(self, folder,inputs,generate_values=True)
+        else:
+            inputs = [self.TextEdit.toPlainText(), self.TextEdit2.toPlainText(), self.TextEdit3.toPlainText(), self.textEntry1.toPlainText()]
+            self.batch_window = BatchProcessingWindow(self, folder,inputs,generate_values=False)
         self.batch_window.show()
         self.hide()
         # self.batch_window = BatchProcessingWindow(self,folder)
@@ -115,17 +141,26 @@ class QSMWindow(QMainWindow):
     
     def start_single_file_processing(self):
         #prompt user for file path
-        inputs = [self.slider.value(), self.slider2.value(), self.slider3.value(), self.textEntry1.value()]#Intensity threshold, number of min PatchDiam to test, number of max PatchDiam to test, number of Initial PatchDiam to test
+        #Intensity threshold, number of min PatchDiam to test, number of max PatchDiam to test, number of Initial PatchDiam to test
         file, _ = QFileDialog.getOpenFileName(self, "Select File", "", "LAS Files (*.las *.laz)")
         if not file:
             QMessageBox.warning(self, "No File Selected", "Please select a LAS or LAZ file.")
             return
-        self.single_window = SingleFileProcessingWindow(self, file,inputs)
+        if self.InputType.isChecked():
+            try:
+                inputs = [int(self.TextEdit.toPlainText()), int(self.TextEdit2.toPlainText()), int(self.TextEdit3.toPlainText()), int(self.textEntry1.toPlainText())]
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Input", "Please enter valid integers for the inputs.")
+                return
+            self.single_window = SingleFileProcessingWindow(self, file,inputs,generate_values=True)
+        else:
+            inputs = [self.TextEdit.toPlainText(), self.TextEdit2.toPlainText(), self.TextEdit3.toPlainText(), self.textEntry1.toPlainText()]
+            self.single_window = SingleFileProcessingWindow(self, file,inputs,generate_values=False)
         self.single_window.show()
         self.hide()   
 
 class BatchProcessingWindow(QMainWindow):
-    def __init__(self,root,folder,inputs):
+    def __init__(self,root,folder,inputs, generate_values):
         super().__init__()
         self.setWindowTitle("Batch Processing")
         self.setGeometry(100, 100, 1600, 900)  
@@ -158,6 +193,7 @@ class BatchProcessingWindow(QMainWindow):
         self.initial_inputs = {'PatchDiam1': self.nPD1,
                         'PatchDiam2Min': self.nPD2Min,
                         'PatchDiam2Max': self.nPD2Max}
+        self.generate_values = generate_values
         self.ui = QWidget()
 
         self.ui.setLayout(QGridLayout())
@@ -180,16 +216,30 @@ class BatchProcessingWindow(QMainWindow):
         # self.label2.setGeometry(50, 30, 200, 30)
         self.label2.setStyleSheet("font-size: 16px;")
         self.info.layout().addWidget(self.label2)
-        self.label3 = QLabel(f"Number of Initial PatchDiam to Test: {self.nPD1}")
-        # self.label3.setGeometry(50, 50, 200, 30)
-        self.label3.setStyleSheet("font-size: 16px;")
-        self.info.layout().addWidget(self.label3)
-        self.label4 = QLabel(f"Number of Min PatchDiam to Test: {self.nPD2Min}")
-        # self.label4.setGeometry(50, 70, 200, 30)
-        self.label4.setStyleSheet("font-size: 16px;")
-        self.info.layout().addWidget(self.label4)
-        self.label5 = QLabel(f"Number of Max PatchDiam to Test: {self.nPD2Max}")
-        self.info.layout().addWidget(self.label5)
+        if generate_values:
+            self.label3 = QLabel(f"Number of Initial PatchDiam to Test: {self.nPD1}")
+            # self.label3.setGeometry(50, 50, 200, 30)
+            self.label3.setStyleSheet("font-size: 16px;")
+            self.info.layout().addWidget(self.label3)
+            self.label4 = QLabel(f"Number of Min PatchDiam to Test: {self.nPD2Min}")
+            # self.label4.setGeometry(50, 70, 200, 30)
+            self.label4.setStyleSheet("font-size: 16px;")
+            self.info.layout().addWidget(self.label4)
+            self.label5 = QLabel(f"Number of Max PatchDiam to Test: {self.nPD2Max}")
+            self.info.layout().addWidget(self.label5)
+            self.label5.setStyleSheet("font-size: 16px;")
+        else:
+            self.label3 = QLabel(f"Initial PatchDiam to Test: {self.nPD1}")
+            # self.label3.setGeometry(50, 50, 200, 30)
+            self.label3.setStyleSheet("font-size: 16px;")
+            self.info.layout().addWidget(self.label3)
+            self.label4 = QLabel(f"Min PatchDiam to Test: {self.nPD2Min}")
+            # self.label4.setGeometry(50, 70, 200, 30)
+            self.label4.setStyleSheet("font-size: 16px;")
+            self.info.layout().addWidget(self.label4)
+            self.label5 = QLabel(f"PatchDiam to Test: {self.nPD2Max}")
+            self.info.layout().addWidget(self.label5)
+            self.label5.setStyleSheet("font-size: 16px;")
         
 
 
@@ -327,7 +377,12 @@ class BatchProcessingWindow(QMainWindow):
         npd1 = max(self.npd1_combo.currentIndex(),0)
         max_pd = max(self.max_pd_combo.currentIndex(),0)
         min_pd = max(self.min_pd_combo.currentIndex(),0)
-        index = int(npd1)*self.nPD2Max*self.nPD2Min + int(max_pd)*self.nPD2Min + int(min_pd)
+        if self.generate_values:
+            
+        
+            index = int(npd1)*self.nPD2Max*self.nPD2Min + int(max_pd)*self.nPD2Min + int(min_pd)
+        else:
+            index = int(npd1)*len(self.nPD2Max)*len(self.nPD2Min) + int(max_pd)*len(self.nPD2Min) + int(min_pd)
         return index
 
     def left_button_clicked(self):
@@ -457,7 +512,7 @@ class BatchProcessingWindow(QMainWindow):
     def process_files(self):
         self.append_text("Processing file...\n")
         
-        task = BatchQSM(self,self.folder,self.files,self.intensity_threshold, self.initial_inputs)
+        task = BatchQSM(self,self.folder,self.files,self.intensity_threshold, self.initial_inputs,self.generate_values)
         self.qsm_thread = BackgroundProcess(task)
         task.finished.connect(self.complete_processing)
         task.message.connect(self.append_text)
@@ -466,13 +521,14 @@ class BatchProcessingWindow(QMainWindow):
         self.qsm_thread.start()
 
 class SingleFileProcessingWindow(QMainWindow):
-    def __init__(self,root,file,inputs):
+    def __init__(self,root,file,inputs,generate_values):
         super().__init__()
         self.setWindowTitle("Single File Processing")
         self.setGeometry(100, 100, 1920, 1080)  
         self.root = root
         self.args = inputs
-        self.initModel(file,inputs)
+        self.generate_values =generate_values
+        self.initModel(file,inputs,generate_values)
 
 
         self.ui = QWidget()
@@ -499,15 +555,15 @@ class SingleFileProcessingWindow(QMainWindow):
         # self.label2.setGeometry(50, 30, 200, 30)
         self.label2.setStyleSheet("font-size: 16px;")
         self.info.layout().addWidget(self.label2)
-        self.label3 = QLabel(f"Number of Initial PatchDiam to Test: {self.nPD1}")
+        self.label3 = QLabel(f"Initial PatchDiam to Test: {self.nPD1_vals}")
         # self.label3.setGeometry(50, 50, 200, 30)
         self.label3.setStyleSheet("font-size: 16px;")
         self.info.layout().addWidget(self.label3)
-        self.label4 = QLabel(f"Number of Min PatchDiam to Test: {self.nPD2Min}")
+        self.label4 = QLabel(f"Min PatchDiam to Test: {self.nPD2Min_vals}")
         # self.label4.setGeometry(50, 70, 200, 30)
         self.label4.setStyleSheet("font-size: 16px;")
         self.info.layout().addWidget(self.label4)
-        self.label5 = QLabel(f"Number of Max PatchDiam to Test: {self.nPD2Max}")
+        self.label5 = QLabel(f"Max PatchDiam to Test: {self.nPD2Max_vals}")
         # self.label5.setGeometry(50, 90, 200, 30)
         self.label5.setStyleSheet("font-size: 16px;")
         self.info.layout().addWidget(self.label5)
@@ -620,7 +676,7 @@ class SingleFileProcessingWindow(QMainWindow):
         self.num_screens = 1
 
 
-    def initModel(self,file,inputs):
+    def initModel(self,file,inputs,generate_values):
         self.file = file
         self.intensity_threshold = inputs[0]
         self.nPD2Min = inputs[1]
@@ -630,7 +686,22 @@ class SingleFileProcessingWindow(QMainWindow):
 
         # Step 3: Define inputs for TreeQSM
         self.points = self.points - np.mean(self.points,axis = 0)
-        self.inputs = define_input(self.file,self.nPD1, self.nPD2Min, self.nPD2Max)[0]
+        if generate_values:
+            self.inputs = define_input(self.file,self.nPD1, self.nPD2Min, self.nPD2Max)[0]
+        else:
+            self.inputs = define_input(self.file,1,2,3)[0]
+            self.nPD1 = [float(i.strip()) for i in self.nPD1.split(',')]
+            self.nPD2Min = [float(i.strip()) for i in self.nPD2Min.split(',')]
+            self.nPD2Max = [float(i.strip()) for i in self.nPD2Max.split(',')]
+            self.inputs['PatchDiam1'] = self.nPD1
+            self.inputs['PatchDiam2Min'] = self.nPD2Min
+            self.inputs['PatchDiam2Max'] = self.nPD2Max
+            self.inputs['BallRad1'] = [i+.01 for i in self.inputs['PatchDiam1']]
+            self.inputs['BallRad2'] = [i+.01 for i in self.inputs['PatchDiam2Max']]
+        # self.inputs['name']=file
+        self.nPD1_vals = self.inputs['PatchDiam1']
+        self.nPD2Min_vals = self.inputs['PatchDiam2Min']
+        self.nPD2Max_vals = self.inputs['PatchDiam2Max']
         self.inputs['plot']=0
     
     def show_point_cloud(self):
@@ -733,7 +804,12 @@ class SingleFileProcessingWindow(QMainWindow):
         npd1 = max(self.npd1_combo.currentIndex(),0)
         max_pd = max(self.max_pd_combo.currentIndex(),0)
         min_pd = max(self.min_pd_combo.currentIndex(),0)
-        index = int(npd1)*self.nPD2Max*self.nPD2Min + int(max_pd)*self.nPD2Min + int(min_pd)
+        if self.generate_values:
+            
+        
+            index = int(npd1)*self.nPD2Max*self.nPD2Min + int(max_pd)*self.nPD2Min + int(min_pd)
+        else:
+            index = int(npd1)*len(self.nPD2Max)*len(self.nPD2Min) + int(max_pd)*len(self.nPD2Min) + int(min_pd)
         return index
 
     def complete_processing(self,package):
@@ -771,13 +847,14 @@ class BatchQSM(QObject):
     plot_data = Signal(tuple)
     message = Signal(str)
     input_list = Signal(list)
-    def __init__(self, root, folder,files,threshold,inputs):
+    def __init__(self, root, folder,files,threshold,inputs,generate_values):
         super().__init__()
         self.root = root
         self.folder = folder
         self.files = files
-        self.intensity_threshold = threshold
+        self.intensity_threshold = float(threshold)
         self.inputs = inputs
+        self.generate_values = generate_values
         # self.process_file()
 
     def run(self):
@@ -788,7 +865,16 @@ class BatchQSM(QObject):
                 point_cloud = point_cloud - np.mean(point_cloud,axis = 0)
                 clouds.append(point_cloud)
                 self.plot_data.emit((i,point_cloud))
-        inputs = define_input(clouds,self.inputs['PatchDiam1'], self.inputs['PatchDiam2Min'], self.inputs['PatchDiam2Max'])
+        if self.generate_values:
+            inputs = define_input(clouds,self.inputs['PatchDiam1'], self.inputs['PatchDiam2Min'], self.inputs['PatchDiam2Max'])
+        else:
+            inputs = define_input(clouds,1,1,1)
+            for cld in inputs:
+                cld['PatchDiam1'] = [float(i.strip()) for i in self.inputs['PatchDiam1'].split(',')]
+                cld['PatchDiam2Min'] = [float(i.strip()) for i in self.inputs['PatchDiam2Min'].split(',')]
+                cld['PatchDiam2Max'] = [float(i.strip()) for i in self.inputs['PatchDiam2Max'].split(',')]
+                cld['BallRad1'] = [i+.01 for i in cld['PatchDiam1']]
+                cld['BallRad2'] = [i+.01 for i in cld['PatchDiam2Max']]
         self.input_list.emit(inputs)
         for i, input_params in enumerate(inputs):
             input_params['name'] = self.files[i]
@@ -800,8 +886,18 @@ class BatchQSM(QObject):
         for i, input_params in enumerate(inputs):
             self.message.emit(f"Processing {input_params['name']}. This may take several minutes...\n")
             try:
-                data,plot = treeqsm(clouds[i],input_params,i)
-                finished = self.finished.emit((i,data,plot)) 
+                try:
+                    mp.set_start_method('spawn')
+                except:
+                    pass
+
+                q = mp.Queue()
+                p = mp.Process(target=treeqsm, args=(clouds[i],input_params,i,q))
+                p.start()
+                batch,data,plot = q.get()
+                p.join()
+                # data,plot = treeqsm(clouds[i],input_params,i)
+                finished = self.finished.emit((batch,data,plot)) 
             except:
                 self.message.emit(f"An error occured on file {input_params['name']}. Please try again. Consider checking the console and reporting the bug to us.")  
                 
