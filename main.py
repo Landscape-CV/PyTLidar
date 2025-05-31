@@ -428,16 +428,20 @@ class BatchProcessingWindow(QMainWindow):
         self.show_point_cloud()
 
     def get_selected_inputs(self):
-        npd1 = max(self.npd1_combo.currentIndex(),0)
-        max_pd = max(self.max_pd_combo.currentIndex(),0)
-        min_pd = max(self.min_pd_combo.currentIndex(),0)
-        if self.generate_values:
+        if not self.show_only_optimal:
+            npd1 = max(self.npd1_combo.currentIndex(),0)
+            max_pd = max(self.max_pd_combo.currentIndex(),0)
+            min_pd = max(self.min_pd_combo.currentIndex(),0)
+            if self.generate_values:
+                
             
-        
-            index = int(npd1)*self.nPD2Max*self.nPD2Min + int(max_pd)*self.nPD2Min + int(min_pd)
+                index = int(npd1)*self.nPD2Max*self.nPD2Min + int(max_pd)*self.nPD2Min + int(min_pd)
+            else:
+                index = int(npd1)*len(self.nPD2Max)*len(self.nPD2Min) + int(max_pd)*len(self.nPD2Min) + int(min_pd)
+            return index
         else:
-            index = int(npd1)*len(self.nPD2Max)*len(self.nPD2Min) + int(max_pd)*len(self.nPD2Min) + int(min_pd)
-        return index
+            # If show_only_optimal is True, return the optimal index
+            return self.optimum[self.selected_index]
 
     def left_button_clicked(self):
         # Handle left button click

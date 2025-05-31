@@ -2724,10 +2724,17 @@ def compute_metric_value(met, T, treedata, Data):
             D = np.std(treedata[7,T])
     
     elif met < 56:  # Branch order metrics
-        dis = np.max(Data['BranchOrdDis'][T,:], axis=0) - np.min(Data['BranchOrdDis'][T,:], axis=0)
-        M = np.mean(Data['BranchOrdDis'][T,:], axis=0)
-        I = M > 0
-        dis[I] = dis[I] / M[I]
+
+        if type(T) is np.ndarray:
+            dis = np.max(Data['BranchOrdDis'][T,:], axis=0) - np.min(Data['BranchOrdDis'][T,:], axis=0)
+            M = np.mean(Data['BranchOrdDis'][T,:], axis=0)
+            I = M > 0
+            dis[I] = dis[I] / M[I]
+        else:
+            dis = Data['BranchOrdDis'][T,:]
+            M = np.mean(dis, axis=0)
+            I = M > 0
+            dis[I] = dis[I] / M[I]
         
         if met == 40:  # branch_vol_ord3_mean
             D = np.mean(dis[0:3])
@@ -2763,10 +2770,16 @@ def compute_metric_value(met, T, treedata, Data):
             D = np.max(dis[18:24])
     
     elif met < 68:  # Cylinder diameter distribution metrics
-        dis = np.max(Data['CylDiaDis'][T,:], axis=0) - np.min(Data['CylDiaDis'][T,:], axis=0)
-        M = np.mean(Data['CylDiaDis'][T,:], axis=0)
-        I = M > 0
-        dis[I] = dis[I] / M[I]
+        if type(T) is np.ndarray:
+            dis = np.max(Data['CylDiaDis'][T,:], axis=0) - np.min(Data['CylDiaDis'][T,:], axis=0)
+            M = np.mean(Data['CylDiaDis'][T,:], axis=0)
+            I = M > 0
+            dis[I] = dis[I] / M[I]
+        else:
+            dis = Data['CylDiaDis'][T,:]
+            M = np.mean(dis, axis=0)
+            I = M > 0
+            dis[I] = dis[I] / M[I]
         
         if met == 56:  # cyl_vol_dia10_mean
             D = np.mean(dis[0:10])
@@ -2794,10 +2807,16 @@ def compute_metric_value(met, T, treedata, Data):
             D = np.max(dis[40:60])
     
     elif met < 74:  # Cylinder zenith distribution metrics
-        dis = np.max(Data['CylZenDis'][T,:], axis=0) - np.min(Data['CylZenDis'][T,:], axis=0)
-        M = np.mean(Data['CylZenDis'][T,:], axis=0)
-        I = M > 0
-        dis[I] = dis[I] / M[I]
+        if type(T) is np.ndarray:
+            dis = np.max(Data['CylZenDis'][T,:], axis=0) - np.min(Data['CylZenDis'][T,:], axis=0)
+            M = np.mean(Data['CylZenDis'][T,:], axis=0)
+            I = M > 0
+            dis[I] = dis[I] / M[I]
+        else:
+            dis = Data['CylZenDis'][T,:]
+            M = np.mean(dis, axis=0)
+            I = M > 0
+            dis[I] = dis[I] / M[I]
         
         if met == 68:  # cyl_vol_zen_mean
             D = np.mean(dis[0:18])
@@ -2813,7 +2832,11 @@ def compute_metric_value(met, T, treedata, Data):
             D = np.max(dis[36:54])
     
     elif met < 92:  # Surface coverage metrics
-        D = 1 - np.mean(Data['CylSurfCov'][T,:], axis=0)
+        if type(T) is np.ndarray:
+            D = 1 - np.mean(Data['CylSurfCov'][T,:], axis=0)
+        else:
+            D = 1 - Data['CylSurfCov'][T,:]
+
         
         if met == 74:  # all_mean_surf
             D = D[0]
