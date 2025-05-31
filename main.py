@@ -103,9 +103,11 @@ for the number of values you would like to test
 3. If you do not select Generate Values, put a list of values in Initial PatchDiam, MinPatchDiam and 
 MaxPatchDiam separated by commas for the values you would like to test
     - All combinations of these values will be tested
-4. Select Batch Processing to process all files in a folder, select Single File Processing to process a single file"""
+4. If you select Show Only Optimal Model, only the optimal model based on the selected metric will be shown
+    You may also change the metric once the processing is complete
+5. Select Batch Processing to process all files in a folder, select Single File Processing to process a single file"""
             ,self)
-        instructionLabel.setGeometry(50, 300, 800, 200)
+        instructionLabel.setGeometry(25, 300, 800, 200)
 
         self.optimumCheck = QCheckBox("Show Only Optimal Model",self)
         self.optimumCheck.setGeometry(300, 275, 200, 30)
