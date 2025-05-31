@@ -99,7 +99,7 @@ class QSMWindow(QMainWindow):
 2. If you select Generate Values, put a single number in Initial PatchDiam, MinPatchDiam and MaxPatchDiam 
 for the number of values you would like to test
     - This will generate N reasonable values for these parameters, where N is the number you input. 
-    - All combinations of these values will be testes
+    - All combinations of these values will be tested
 3. If you do not select Generate Values, put a list of values in Initial PatchDiam, MinPatchDiam and 
 MaxPatchDiam separated by commas for the values you would like to test
     - All combinations of these values will be tested
@@ -492,7 +492,8 @@ class BatchProcessingWindow(QMainWindow):
         if cloud is None:
             self.append_text("Loading Point Cloud...\n")
             file = os.path.join(self.folder, self.file_data[self.selected_index]['file'])
-            cloud = load_point_cloud(file)
+            cloud = load_point_cloud(file, self.intensity_threshold)
+            cloud = cloud-np.mean(cloud,axis=0)  # Center the point cloud
             self.file_data[self.selected_index]['cloud'] = cloud
         fidelity = max(1,len(cloud)/100000)
         html = point_cloud_plotting(cloud,subset=True,fidelity=fidelity,marker_size=1)
@@ -807,7 +808,7 @@ class SingleFileProcessingWindow(QMainWindow):
         self.nPD2Min = inputs[1]
         self.nPD2Max = inputs[2]
         self.nPD1 = inputs[3]
-        self.points = load_point_cloud(self.file)
+        self.points = load_point_cloud(self.file,intensity_threshold=self.intensity_threshold)
 
         # Step 3: Define inputs for TreeQSM
         self.points = self.points - np.mean(self.points,axis = 0)
