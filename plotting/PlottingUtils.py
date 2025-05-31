@@ -141,7 +141,7 @@ def plot_distribution(QSM, fig, rela, cumu, dis, dis2=None, dis3=None, dis4=None
         xlab = 'Cylinder ' + xlab
     else:
         xlab = 'Branch ' + xlab
-    plt.title('Tree segment ' + str_desc + ' per ' + str2 + ' class')
+    plt.title('Seg ' + str_desc + '/' + str2 + ' class')
     plt.xlabel(xlab)
     plt.ylabel(ylab)
     plt.axis('tight')
