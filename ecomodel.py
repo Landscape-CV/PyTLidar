@@ -252,13 +252,15 @@ class Ecomodel:
                 #     print("Unable to create more detailed QSM, using initial segments")
                 #     pass
 
-                cylinder = cylinders(segment_cloud,cover1,segment1,qsm_input)
-                tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
-                tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
-                tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
-                tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
-                tile.branch_labels = np.append(tile.branch_labels,cylinder["branch"])
-                tile.branch_orders = np.append(tile.branch_orders,cylinder["BranchOrder"])
+                # cylinder = cylinders(segment_cloud,cover1,segment1,qsm_input)
+                # tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
+                # tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
+                # tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
+                # tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
+                # tile.branch_labels = np.append(tile.branch_labels,cylinder["branch"])
+                # tile.branch_orders = np.append(tile.branch_orders,cylinder["BranchOrder"])
+
+
                 #store cylinders for tile to be accessed later
                 segs = [np.concatenate(seg).astype(np.int64) for seg in segment1["segments"]]
                 cloud_segments = Utils.assign_segments(segment_cloud,segs,cover1["sets"])+max_segment+1
@@ -312,21 +314,21 @@ class Ecomodel:
           
             cube_min = np.array([min_x, min_y, min_z])
             cube_max = np.array([min_x + voxel_size, min_y + voxel_size, min_z + voxel_size])
-            mask = np.all((tile.cylinder_starts >= cube_min) & (tile.cylinder_starts <= cube_max), axis=1)
-            cylinder_starts = tile.cylinder_starts[mask]
-            cylinder_radii = tile.cylinder_radii[mask]
-            cylinder_axes = tile.cylinder_axes[mask]
-            cylinder_lengths = tile.cylinder_lengths[mask]
-            branch_labels = tile.branch_labels[mask]
-            branch_orders = tile.branch_orders[mask]
+            # mask = np.all((tile.cylinder_starts >= cube_min) & (tile.cylinder_starts <= cube_max), axis=1)
+            # cylinder_starts = tile.cylinder_starts[mask]
+            # cylinder_radii = tile.cylinder_radii[mask]
+            # cylinder_axes = tile.cylinder_axes[mask]
+            # cylinder_lengths = tile.cylinder_lengths[mask]
+            # branch_labels = tile.branch_labels[mask]
+            # branch_orders = tile.branch_orders[mask]
             point_mask = np.all((tile.cloud>=cube_min) & (tile.cloud <= cube_max),axis=1)
             cloud = tile.cloud[point_mask]
-            cylinder = {"start": cylinder_starts, "radius": cylinder_radii, "axis": cylinder_axes, "length": cylinder_lengths, "branch": branch_labels, "BranchOrder": branch_orders}
-            pmdis = point_model_distance(cloud, cylinder)
-            D = [pmdis['TrunkMean'], pmdis['BranchMean'],
-                pmdis['Branch1Mean'], pmdis['Branch2Mean']]
-            D = np.round(10000 * np.array(D)) / 10
-            print(D)
+            cylinder ={}# {"start": cylinder_starts, "radius": cylinder_radii, "axis": cylinder_axes, "length": cylinder_lengths, "branch": branch_labels, "BranchOrder": branch_orders}
+            # pmdis = point_model_distance(cloud, cylinder)
+            # D = [pmdis['TrunkMean'], pmdis['BranchMean'],
+            #     pmdis['Branch1Mean'], pmdis['Branch2Mean']]
+            # D = np.round(10000 * np.array(D)) / 10
+            # print(D)
             # cyl_plot = point_cloud_plotting(cloud, subset=True,fidelity=fidelity,marker_size=1,return_html=False)
             cyl_plot = qsm_plotting(cloud,tile.cover_sets[point_mask],tile.cluster_labels[point_mask],return_html=False,subset = True, fidelity=fidelity,marker_size=1)
             return cylinder, cyl_plot
@@ -771,11 +773,11 @@ if __name__ == "__main__":
     #Palm
     # cylinder,base_plot = combined_cloud.get_cylinders(-15,-3,-3,5,fidelity = .3)
     #Small Voxel
-    # cylinder,base_plot = combined_cloud.get_cylinders(-11,1,-1,2,fidelity = 1)
+    # cylinder,base_plot = combined_cloud.get_cylinders(-11,1,-1,3,fidelity = 1)
     #Large Voxel
-    cylinder,base_plot = combined_cloud.get_cylinders(-3,-3,-4,5,fidelity = .3)
-    base_plot.write_html("results/segment_test_plot_shrub.html")
-    cylinders_line_plotting(cylinder, scale_factor=20,file_name="test_plot",base_fig=base_plot)
+    cylinder,base_plot = combined_cloud.get_cylinders(-3,-3,-4,3,fidelity = .6)
+    base_plot.write_html("results/segment_test_plot_no_continuation.html")
+    # cylinders_line_plotting(cylinder, scale_factor=20,file_name="test_plot",base_fig=base_plot)
     # cylinders_plotting(cylinder,base_fig=base_plot)
     # combined_cloud.calc_volumes()
     # subdivided_cloud = combined_cloud.subdivide_tiles(cube_size = 10)

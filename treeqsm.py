@@ -302,7 +302,10 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
                         },
                         'cover': cover2,
                         'segment': segment2,
-                        'points':P
+                        'points':P,
+                        'PatchDiam1': PatchDiam1[h],
+                        'PatchDiam2Max': PatchDiam2Max[i],
+                        'PatchDiam2Min': PatchDiam2Min[j],
                     }
 
                     if inputs['Dist']:

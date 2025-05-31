@@ -2187,3 +2187,669 @@ def assign_segments(cloud,segments,cover_sets):
         I = np.where(np.isin(cover_sets, segment))[0]
         point_segments[I] = i
     return point_segments
+
+def select_metric(Metric):
+    """Convert metric string to corresponding numeric code.
+    
+    Args:
+        Metric (str): Metric description string
+        
+    Returns:
+        tuple: (met, Metric) where met is the numeric code and Metric is the validated string
+    """
+    # Mean distance metrics:
+    if Metric == 'all_mean_dis':
+        met = 1
+    elif Metric == 'trunk_mean_dis':
+        met = 2
+    elif Metric == 'branch_mean_dis':
+        met = 3
+    elif Metric == '1branch_mean_dis':
+        met = 4
+    elif Metric == '2branch_mean_dis':
+        met = 5
+    elif Metric == 'trunk+branch_mean_dis':
+        met = 6
+    elif Metric == 'trunk+1branch_mean_dis':
+        met = 7
+    elif Metric == 'trunk+1branch+2branch_mean_dis':
+        met = 8
+    elif Metric == '1branch+2branch_mean_dis':
+        met = 9
+
+    # Maximum distance metrics:
+    elif Metric == 'all_max_dis':
+        met = 10
+    elif Metric == 'trunk_max_dis':
+        met = 11
+    elif Metric == 'branch_max_dis':
+        met = 12
+    elif Metric == '1branch_max_dis':
+        met = 13
+    elif Metric == '2branch_max_dis':
+        met = 14
+    elif Metric == 'trunk+branch_max_dis':
+        met = 15
+    elif Metric == 'trunk+1branch_max_dis':
+        met = 16
+    elif Metric == 'trunk+1branch+2branch_max_dis':
+        met = 17
+    elif Metric == '1branch+2branch_max_dis':
+        met = 18
+
+    # Mean plus Maximum distance metrics:
+    elif Metric == 'all_mean+max_dis':
+        met = 19
+    elif Metric == 'trunk_mean+max_dis':
+        met = 20
+    elif Metric == 'branch_mean+max_dis':
+        met = 21
+    elif Metric == '1branch_mean+max_dis':
+        met = 22
+    elif Metric == '2branch_mean+max_dis':
+        met = 23
+    elif Metric == 'trunk+branch_mean+max_dis':
+        met = 24
+    elif Metric == 'trunk+1branch_mean+max_dis':
+        met = 25
+    elif Metric == 'trunk+1branch+2branch_mean+max_dis':
+        met = 26
+    elif Metric == '1branch+2branch_mean+max_dis':
+        met = 27
+
+    # Standard deviation metrics:
+    elif Metric == 'tot_vol_std':
+        met = 28
+    elif Metric == 'trunk_vol_std':
+        met = 29
+    elif Metric == 'branch_vol_std':
+        met = 30
+    elif Metric == 'trunk+branch_vol_std':
+        met = 31
+    elif Metric == 'tot_are_std':
+        met = 32
+    elif Metric == 'trunk_are_std':
+        met = 33
+    elif Metric == 'branch_are_std':
+        met = 34
+    elif Metric == 'trunk+branch_are_std':
+        met = 35
+    elif Metric == 'trunk_len_std':
+        met = 36
+    elif Metric == 'trunk+branch_len_std':
+        met = 37
+    elif Metric == 'branch_len_std':
+        met = 38
+    elif Metric == 'branch_num_std':
+        met = 39
+
+    # Branch order distribution metrics:
+    elif Metric == 'branch_vol_ord3_mean':
+        met = 40
+    elif Metric == 'branch_are_ord3_mean':
+        met = 41
+    elif Metric == 'branch_len_ord3_mean':
+        met = 42
+    elif Metric == 'branch_num_ord3_mean':
+        met = 43
+    elif Metric == 'branch_vol_ord3_max':
+        met = 44
+    elif Metric == 'branch_are_ord3_max':
+        met = 45
+    elif Metric == 'branch_len_ord3_max':
+        met = 46
+    elif Metric == 'branch_num_ord3_max':
+        met = 47
+    elif Metric == 'branch_vol_ord6_mean':
+        met = 48
+    elif Metric == 'branch_are_ord6_mean':
+        met = 49
+    elif Metric == 'branch_len_ord6_mean':
+        met = 50
+    elif Metric == 'branch_num_ord6_mean':
+        met = 51
+    elif Metric == 'branch_vol_ord6_max':
+        met = 52
+    elif Metric == 'branch_are_ord6_max':
+        met = 53
+    elif Metric == 'branch_len_ord6_max':
+        met = 54
+    elif Metric == 'branch_num_ord6_max':
+        met = 55
+
+    # Cylinder distribution metrics:
+    elif Metric == 'cyl_vol_dia10_mean':
+        met = 56
+    elif Metric == 'cyl_are_dia10_mean':
+        met = 57
+    elif Metric == 'cyl_len_dia10_mean':
+        met = 58
+    elif Metric == 'cyl_vol_dia10_max':
+        met = 59
+    elif Metric == 'cyl_are_dia10_max':
+        met = 60
+    elif Metric == 'cyl_len_dia10_max':
+        met = 61
+    elif Metric == 'cyl_vol_dia20_mean':
+        met = 62
+    elif Metric == 'cyl_are_dia20_mean':
+        met = 63
+    elif Metric == 'cyl_len_dia20_mean':
+        met = 64
+    elif Metric == 'cyl_vol_dia20_max':
+        met = 65
+    elif Metric == 'cyl_are_dia20_max':
+        met = 66
+    elif Metric == 'cyl_len_dia20_max':
+        met = 67
+    elif Metric == 'cyl_vol_zen_mean':
+        met = 68
+    elif Metric == 'cyl_are_zen_mean':
+        met = 69
+    elif Metric == 'cyl_len_zen_mean':
+        met = 70
+    elif Metric == 'cyl_vol_zen_max':
+        met = 71
+    elif Metric == 'cyl_are_zen_max':
+        met = 72
+    elif Metric == 'cyl_len_zen_max':
+        met = 73
+
+    # Mean surface coverage metrics:
+    elif Metric == 'all_mean_surf':
+        met = 74
+    elif Metric == 'trunk_mean_surf':
+        met = 75
+    elif Metric == 'branch_mean_surf':
+        met = 76
+    elif Metric == '1branch_mean_surf':
+        met = 77
+    elif Metric == '2branch_mean_surf':
+        met = 78
+    elif Metric == 'trunk+branch_mean_surf':
+        met = 79
+    elif Metric == 'trunk+1branch_mean_surf':
+        met = 80
+    elif Metric == 'trunk+1branch+2branch_mean_surf':
+        met = 81
+    elif Metric == '1branch+2branch_mean_surf':
+        met = 82
+
+    # Minimum surface coverage metrics:
+    elif Metric == 'all_min_surf':
+        met = 83
+    elif Metric == 'trunk_min_surf':
+        met = 84
+    elif Metric == 'branch_min_surf':
+        met = 85
+    elif Metric == '1branch_min_surf':
+        met = 86
+    elif Metric == '2branch_min_surf':
+        met = 87
+    elif Metric == 'trunk+branch_min_surf':
+        met = 88
+    elif Metric == 'trunk+1branch_min_surf':
+        met = 89
+    elif Metric == 'trunk+1branch+2branch_min_surf':
+        met = 90
+    elif Metric == '1branch+2branch_min_surf':
+        met = 91
+
+    # Not given in right form, take the default option
+    else:
+        met = 1
+        Metric = 'all_mean_dis'
+
+    return met
+
+def get_all_metrics():
+    """
+    Returns a list of all available metrics.
+    """
+    return [
+    "all_mean_dis",
+    "trunk_mean_dis",
+    "branch_mean_dis",
+    "1branch_mean_dis",
+    "2branch_mean_dis",
+    "trunk+branch_mean_dis",
+    "trunk+1branch_mean_dis",
+    "trunk+1branch+2branch_mean_dis",
+    "1branch+2branch_mean_dis",
+    "all_max_dis",
+    "trunk_max_dis",
+    "branch_max_dis",
+    "1branch_max_dis",
+    "2branch_max_dis",
+    "trunk+branch_max_dis",
+    "trunk+1branch_max_dis",
+    "trunk+1branch+2branch_max_dis",
+    "1branch+2branch_max_dis",
+    "all_mean+max_dis",
+    "trunk_mean+max_dis",
+    "branch_mean+max_dis",
+    "1branch_mean+max_dis",
+    "2branch_mean+max_dis",
+    "trunk+branch_mean+max_dis",
+    "trunk+1branch_mean+max_dis",
+    "trunk+1branch+2branch_mean+max_dis",
+    "1branch+2branch_mean+max_dis",
+    "tot_vol_std",
+    "trunk_vol_std",
+    "branch_vol_std",
+    "trunk+branch_vol_std",
+    "tot_are_std",
+    "trunk_are_std",
+    "branch_are_std",
+    "trunk+branch_are_std",
+    "trunk_len_std",
+    "trunk+branch_len_std",
+    "branch_len_std",
+    "branch_num_std",
+    "branch_vol_ord3_mean",
+    "branch_are_ord3_mean",
+    "branch_len_ord3_mean",
+    "branch_num_ord3_mean",
+    "branch_vol_ord3_max",
+    "branch_are_ord3_max",
+    "branch_len_ord3_max",
+    "branch_num_ord3_max",
+    "branch_vol_ord6_mean",
+    "branch_are_ord6_mean",
+    "branch_len_ord6_mean",
+    "branch_num_ord6_mean",
+    "branch_vol_ord6_max",
+    "branch_are_ord6_max",
+    "branch_len_ord6_max",
+    "branch_num_ord6_max",
+    "cyl_vol_dia10_mean",
+    "cyl_are_dia10_mean",
+    "cyl_len_dia10_mean",
+    "cyl_vol_dia10_max",
+    "cyl_are_dia10_max",
+    "cyl_len_dia10_max",
+    "cyl_vol_dia20_mean",
+    "cyl_are_dia20_mean",
+    "cyl_len_dia20_mean",
+    "cyl_vol_dia20_max",
+    "cyl_are_dia20_max",
+    "cyl_len_dia20_max",
+    "cyl_vol_zen_mean",
+    "cyl_are_zen_mean",
+    "cyl_len_zen_mean",
+    "cyl_vol_zen_max",
+    "cyl_are_zen_max",
+    "cyl_len_zen_max",
+    "all_mean_surf",
+    "trunk_mean_surf",
+    "branch_mean_surf",
+    "1branch_mean_surf",
+    "2branch_mean_surf",
+    "trunk+branch_mean_surf",
+    "trunk+1branch_mean_surf",
+    "trunk+1branch+2branch_mean_surf",
+    "1branch+2branch_mean_surf",
+    "all_min_surf",
+    "trunk_min_surf",
+    "branch_min_surf",
+    "1branch_min_surf",
+    "2branch_min_surf",
+    "trunk+branch_min_surf",
+    "trunk+1branch_min_surf",
+    "trunk+1branch+2branch_min_surf",
+    "1branch+2branch_min_surf"]
+    
+
+def collect_data(QSMs):
+    """
+    Collects tree data and attributes from QSM models
+    
+    Args:
+        QSMs: List of QSM model dictionaries
+        names: List of attribute names to collect
+        
+        
+    Returns:
+        tuple: (treedata, inputs, TreeId, Data)
+            treedata: Array of tree attributes (Nattri x Nmod)
+            inputs: Array of input parameters (Nmod x 3)
+            TreeId: Array of tree and model indexes (Nmod x 2)
+            Data: Dictionary containing various distributions
+    """
+    Nmod = len(QSMs)  # number of models
+    names = list(QSMs[0]['treedata'].keys())  # attribute names from the first model
+    # Initialize output arrays
+    treedata = np.zeros((len(names), Nmod),dtype = object)  # Collect all tree attributes
+    inputs = np.zeros((Nmod, 3),dtype = object)  # Input parameters
+    CylDist = np.zeros((Nmod, 10),dtype = object)  # Cylinder distances
+    CylSurfCov = np.zeros((Nmod, 10),dtype = object)  # Surface coverages
+    s = 6  # maximum branch order
+    OrdDis = np.zeros((Nmod, 4*s),dtype = object)  # Branch order distributions
+    r = 20  # maximum cylinder diameter
+    CylDiaDis = np.zeros((Nmod, 3*r),dtype = object)  # Cylinder diameter distributions
+    CylZenDis = np.zeros((Nmod, 54),dtype = object)  # Zenith direction distributions
+    TreeId = np.zeros((Nmod, 2),dtype = object)  # Tree and model indexes
+    Keep = np.ones(Nmod, dtype=bool)  # Non-empty models flag
+
+    for i in range(Nmod):
+        if len(QSMs[i].get('cylinder',[]))>0:
+            # Collect input-parameter values and tree IDs
+            p = QSMs[i]['rundata']['inputs']
+            inputs[i,:] = [p['PatchDiam1'], p['PatchDiam2Min'], p['PatchDiam2Max']]
+            TreeId[i,:] = [p['tree'], p['model']]
+
+            # Collect cylinder-point distances
+            D = QSMs[i]['pmdistance']
+            CylDist[i,:] = [
+                D['mean'], D['TrunkMean'], D['BranchMean'], D['Branch1Mean'], 
+                D['Branch2Mean'], D['max'], D['TrunkMax'], D['BranchMax'], 
+                D['Branch1Max'], D['Branch2Max']
+            ]
+
+            # Collect surface coverages
+            D = QSMs[i]['cylinder']['SurfCov']
+            T = QSMs[i]['cylinder']['branch'] == 1
+            B1 = QSMs[i]['cylinder']['BranchOrder'] == 1
+            B2 = QSMs[i]['cylinder']['BranchOrder'] == 2
+            
+            if not np.any(B1):
+                CylSurfCov[i,:] = [
+                    np.mean(D), np.mean(D[T]), 0, 0, 0,
+                    np.min(D), np.min(D[T]), 0, 0, 0
+                ]
+            elif not np.any(B2):
+                CylSurfCov[i,:] = [
+                    np.mean(D), np.mean(D[T]), np.mean(D[~T]), np.mean(D[B1]), 0,
+                    np.min(D), np.min(D[T]), np.min(D[~T]), np.min(D[B1]), 0
+                ]
+            else:
+                CylSurfCov[i,:] = [
+                    np.mean(D), np.mean(D[T]), np.mean(D[~T]), np.mean(D[B1]), 
+                    np.mean(D[B2]), np.min(D), np.min(D[T]), np.min(D[~T]), 
+                    np.min(D[B1]), np.min(D[B2])
+                ]
+
+            # Collect branch-order distributions
+            d = QSMs[i]['treedata']['VolBranchOrd']
+            nd = len(d) if d is not None else 0
+            if nd > 0:
+                a = min(nd, s)
+                OrdDis[i, :a] = d[:a]
+                OrdDis[i, s:s+a] = QSMs[i]['treedata']['AreBranchOrd'][:a]
+                OrdDis[i, 2*s:2*s+a] = QSMs[i]['treedata']['LenBranchOrd'][:a]
+                OrdDis[i, 3*s:3*s+a] = QSMs[i]['treedata']['NumBranchOrd'][:a]
+
+            # Collect cylinder diameter distributions
+            d = QSMs[i]['treedata']['VolCylDia']
+            nd = len(d) if d is not None else 0
+            if nd > 0:
+                a = min(nd, r)
+                CylDiaDis[i, :a] = d[:a]
+                CylDiaDis[i, r:r+a] = QSMs[i]['treedata']['AreCylDia'][:a]
+                CylDiaDis[i, 2*r:2*r+a] = QSMs[i]['treedata']['LenCylDia'][:a]
+
+            # Collect cylinder zenith direction distributions
+            d = QSMs[i]['treedata']['VolCylZen']
+            if d is not None and len(d) > 0:
+                CylZenDis[i, :18] = d
+                CylZenDis[i, 18:36] = QSMs[i]['treedata']['AreCylZen']
+                CylZenDis[i, 36:54] = QSMs[i]['treedata']['LenCylZen']
+
+            # Collect the treedata values from each model
+            for j in range(len(names)):
+                treedata[j,i] = QSMs[i]['treedata'][names[j]]
+
+        else:
+            Keep[i] = False
+
+    # Filter out empty models
+    treedata = treedata[:, Keep]
+    inputs = inputs[Keep, :]
+    TreeId = TreeId[Keep, :]
+    
+    Data = {
+        'CylDist': CylDist[Keep, :],
+        'CylSurfCov': CylSurfCov[Keep, :],
+        'BranchOrdDis': OrdDis[Keep, :],
+        'CylDiaDis': CylDiaDis[Keep, :],
+        'CylZenDis': CylZenDis[Keep, :]
+    }
+
+    return treedata, inputs, TreeId, Data
+
+
+def compute_metric_value(met, T, treedata, Data):
+    """
+    Computes metric values based on the specified metric code and input data
+    
+    Args:
+        met: Metric code (1-91)
+        T: Index array for selecting data
+        treedata: Array of tree attributes
+        Data: Dictionary containing various distributions
+        
+    Returns:
+        D: Computed metric value
+    """
+    
+    if met <= 27:  # cylinder distance metrics
+        
+        D = np.mean(Data['CylDist'][T,:], axis=0) if type(T) is np.ndarray else Data['CylDist'][T,:]
+        D[5:10] = 0.5 * D[5:10]  # Half the maximum values 
+    
+    if met < 10:  # mean cylinder distance metrics
+        if met == 1:   # all_mean_dis
+            D = D[0]
+        elif met == 2:  # trunk_mean_dis
+            D = D[1]
+        elif met == 3:  # branch_mean_dis
+            D = D[2]
+        elif met == 4:  # 1branch_mean_dis
+            D = D[3]
+        elif met == 5:  # 2branch_mean_dis
+            D = D[4]
+        elif met == 6:  # trunk+branch_mean_dis
+            D = D[1] + D[2]
+        elif met == 7:  # trunk+1branch_mean_dis
+            D = D[1] + D[3]
+        elif met == 8:  # trunk+1branch+2branch_mean_dis
+            D = D[1] + D[3] + D[4]
+        elif met == 9:  # 1branch+2branch_mean_dis
+            D = D[3] + D[4]
+    
+    elif met < 19:  # maximum cylinder distance metrics
+        if met == 10:  # all_max_dis
+            D = D[5]
+        elif met == 11:  # trunk_max_dis
+            D = D[6]
+        elif met == 12:  # branch_max_dis
+            D = D[7]
+        elif met == 13:  # 1branch_max_dis
+            D = D[8]
+        elif met == 14:  # 2branch_max_dis
+            D = D[9]
+        elif met == 15:  # trunk+branch_max_dis
+            D = D[6] + D[7]
+        elif met == 16:  # trunk+1branch_max_dis
+            D = D[6] + D[8]
+        elif met == 17:  # trunk+1branch+2branch_max_dis
+            D = D[6] + D[8] + D[9]
+        elif met == 18:  # 1branch+2branch_max_dis
+            D = D[8] + D[9]
+    
+    elif met < 28:  # Mean plus maximum cylinder distance metrics
+        if met == 19:  # all_mean+max_dis
+            D = D[0] + D[5]
+        elif met == 20:  # trunk_mean+max_dis
+            D = D[1] + D[6]
+        elif met == 21:  # branch_mean+max_dis
+            D = D[2] + D[7]
+        elif met == 22:  # 1branch_mean+max_dis
+            D = D[3] + D[8]
+        elif met == 23:  # 2branch_mean+max_dis
+            D = D[4] + D[9]
+        elif met == 24:  # trunk+branch_mean+max_dis
+            D = D[1] + D[2] + D[6] + D[7]
+        elif met == 25:  # trunk+1branch_mean+max_dis
+            D = D[1] + D[3] + D[6] + D[8]
+        elif met == 26:  # trunk+1branch+2branch_mean+max_dis
+            D = D[1] + D[3] + D[4] + D[6] + D[8] + D[9]
+        elif met == 27:  # 1branch+2branch_mean+max_dis
+            D = D[3] + D[4] + D[8] + D[9]
+    
+    elif met < 39:  # Standard deviation metrics
+        if met == 28:  # tot_vol_std
+            D = np.std(treedata[0,T])
+        elif met == 29:  # trunk_vol_std
+            D = np.std(treedata[1,T])
+        elif met == 30:  # branch_vol_std
+            D = np.std(treedata[2,T])
+        elif met == 31:  # trunk+branch_vol_std
+            D = np.std(treedata[1,T]) + np.std(treedata[2,T])
+        elif met == 32:  # tot_are_std
+            D = np.std(treedata[11,T])  # Note: Python uses 0-based indexing
+        elif met == 33:  # trunk_are_std
+            D = np.std(treedata[9,T])
+        elif met == 34:  # branch_are_std
+            D = np.std(treedata[10,T])
+        elif met == 35:  # trunk+branch_are_std
+            D = np.std(treedata[9,T]) + np.std(treedata[10,T])
+        elif met == 36:  # trunk_len_std
+            D = np.std(treedata[4,T])
+        elif met == 37:  # branch_len_std
+            D = np.std(treedata[5,T])
+        elif met == 38:  # trunk+branch_len_std
+            D = np.std(treedata[4,T]) + np.std(treedata[5,T])
+        elif met == 39:  # branch_num_std
+            D = np.std(treedata[7,T])
+    
+    elif met < 56:  # Branch order metrics
+        dis = np.max(Data['BranchOrdDis'][T,:], axis=0) - np.min(Data['BranchOrdDis'][T,:], axis=0)
+        M = np.mean(Data['BranchOrdDis'][T,:], axis=0)
+        I = M > 0
+        dis[I] = dis[I] / M[I]
+        
+        if met == 40:  # branch_vol_ord3_mean
+            D = np.mean(dis[0:3])
+        elif met == 41:  # branch_are_ord3_mean
+            D = np.mean(dis[6:9])
+        elif met == 42:  # branch_len_ord3_mean
+            D = np.mean(dis[12:15])
+        elif met == 43:  # branch_num_ord3_mean
+            D = np.mean(dis[18:21])
+        elif met == 44:  # branch_vol_ord3_max
+            D = np.max(dis[0:3])
+        elif met == 45:  # branch_are_ord3_max
+            D = np.max(dis[6:9])
+        elif met == 46:  # branch_len_ord3_max
+            D = np.max(dis[12:15])
+        elif met == 47:  # branch_vol_ord3_max
+            D = np.max(dis[18:21])
+        elif met == 48:  # branch_vol_ord6_mean
+            D = np.mean(dis[0:6])
+        elif met == 49:  # branch_are_ord6_mean
+            D = np.mean(dis[6:12])
+        elif met == 50:  # branch_len_ord6_mean
+            D = np.mean(dis[12:18])
+        elif met == 51:  # branch_num_ord6_mean
+            D = np.mean(dis[18:24])
+        elif met == 52:  # branch_vol_ord6_max
+            D = np.max(dis[0:6])
+        elif met == 53:  # branch_are_ord6_max
+            D = np.max(dis[6:12])
+        elif met == 54:  # branch_len_ord6_max
+            D = np.max(dis[12:18])
+        elif met == 55:  # branch_vol_ord6_max
+            D = np.max(dis[18:24])
+    
+    elif met < 68:  # Cylinder diameter distribution metrics
+        dis = np.max(Data['CylDiaDis'][T,:], axis=0) - np.min(Data['CylDiaDis'][T,:], axis=0)
+        M = np.mean(Data['CylDiaDis'][T,:], axis=0)
+        I = M > 0
+        dis[I] = dis[I] / M[I]
+        
+        if met == 56:  # cyl_vol_dia10_mean
+            D = np.mean(dis[0:10])
+        elif met == 57:  # cyl_are_dia10_mean
+            D = np.mean(dis[20:30])
+        elif met == 58:  # cyl_len_dia10_mean
+            D = np.mean(dis[40:50])
+        elif met == 59:  # cyl_vol_dia10_max
+            D = np.max(dis[0:10])
+        elif met == 60:  # cyl_are_dia10_max
+            D = np.max(dis[20:30])
+        elif met == 61:  # cyl_len_dia10_max
+            D = np.max(dis[40:50])
+        elif met == 62:  # cyl_vol_dia20_mean
+            D = np.mean(dis[0:20])
+        elif met == 63:  # cyl_are_dia20_mean
+            D = np.mean(dis[20:40])
+        elif met == 64:  # cyl_len_dia20_mean
+            D = np.mean(dis[40:60])
+        elif met == 65:  # cyl_vol_dia20_max
+            D = np.max(dis[0:20])
+        elif met == 66:  # cyl_are_dia20_max
+            D = np.max(dis[20:40])
+        elif met == 67:  # cyl_len_dia20_max
+            D = np.max(dis[40:60])
+    
+    elif met < 74:  # Cylinder zenith distribution metrics
+        dis = np.max(Data['CylZenDis'][T,:], axis=0) - np.min(Data['CylZenDis'][T,:], axis=0)
+        M = np.mean(Data['CylZenDis'][T,:], axis=0)
+        I = M > 0
+        dis[I] = dis[I] / M[I]
+        
+        if met == 68:  # cyl_vol_zen_mean
+            D = np.mean(dis[0:18])
+        elif met == 69:  # cyl_are_zen_mean
+            D = np.mean(dis[18:36])
+        elif met == 70:  # cyl_len_zen_mean
+            D = np.mean(dis[36:54])
+        elif met == 71:  # cyl_vol_zen_max
+            D = np.max(dis[0:18])
+        elif met == 72:  # cyl_are_zen_max
+            D = np.max(dis[18:36])
+        elif met == 73:  # cyl_len_zen_max
+            D = np.max(dis[36:54])
+    
+    elif met < 92:  # Surface coverage metrics
+        D = 1 - np.mean(Data['CylSurfCov'][T,:], axis=0)
+        
+        if met == 74:  # all_mean_surf
+            D = D[0]
+        elif met == 75:  # trunk_mean_surf
+            D = D[1]
+        elif met == 76:  # branch_mean_surf
+            D = D[2]
+        elif met == 77:  # 1branch_mean_surf
+            D = D[3]
+        elif met == 78:  # 2branch_mean_surf
+            D = D[4]
+        elif met == 79:  # trunk+branch_mean_surf
+            D = D[1] + D[2]
+        elif met == 80:  # trunk+1branch_mean_surf
+            D = D[1] + D[3]
+        elif met == 81:  # trunk+1branch+2branch_mean_surf
+            D = D[1] + D[3] + D[4]
+        elif met == 82:  # 1branch+2branch_mean_surf
+            D = D[3] + D[4]
+        elif met == 83:  # all_min_surf
+            D = D[5]
+        elif met == 84:  # trunk_min_surf
+            D = D[6]
+        elif met == 85:  # branch_min_surf
+            D = D[7]
+        elif met == 86:  # 1branch_min_surf
+            D = D[8]
+        elif met == 87:  # 2branch_min_surf
+            D = D[9]
+        elif met == 88:  # trunk+branch_min_surf
+            D = D[6] + D[7]
+        elif met == 89:  # trunk+1branch_min_surf
+            D = D[6] + D[8]
+        elif met == 90:  # trunk+1branch+2branch_min_surf
+            D = D[6] + D[8] + D[9]
+        elif met == 91:  # 1branch+2branch_min_surf
+            D = D[8] + D[9]
+    
+    return D

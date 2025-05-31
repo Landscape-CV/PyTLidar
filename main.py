@@ -9,6 +9,7 @@ from PySide6.QtPdf import QPdfDocument
 from PySide6.QtPdfWidgets import QPdfView 
 from tools.define_input import define_input
 from Utils.Utils import load_point_cloud
+import Utils.Utils as Utils
 from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.qsm_plotting import qsm_plotting
 import numpy as np
@@ -106,8 +107,35 @@ MaxPatchDiam separated by commas for the values you would like to test
             ,self)
         instructionLabel.setGeometry(50, 300, 800, 200)
 
+        self.optimumCheck = QCheckBox("Show Only Optimal Model",self)
+        self.optimumCheck.setGeometry(300, 275, 200, 30)
+        self.optimumCheck.setToolTip("If checked, only the optimal model will be shown in the results. If unchecked, all models will be shown")
+        self.optimumCheck.setToolTipDuration(1000)
+        self.show_only_optimal = False
+        self.optimumCheck.stateChanged.connect(self.optimumCheckChanged)
 
-       
+        self.optimumMetric = QComboBox(self)
+        self.optimumMetric.setGeometry(500, 275, 200, 30)
+
+        self.metrics = Utils.get_all_metrics()
+        self.optimumMetric.addItems(self.metrics)
+        self.optimumMetric.setToolTip("Select the metric to use for the optimal model. The default is 'all_mean_dis'")
+        self.optimumMetric.setToolTipDuration(1000)
+
+        self.optimumMetric.setDisabled(True)
+
+
+
+
+    def optimumCheckChanged(self):
+        if self.optimumCheck.isChecked():
+            self.optimumMetric.setEnabled(True)
+            self.show_only_optimal = True
+            self.optimumMetric.setCurrentText("all_mean_dis")
+        else:
+            self.show_only_optimal = False
+            self.optimumMetric.setEnabled(False)
+           
 
 
 
@@ -127,10 +155,10 @@ MaxPatchDiam separated by commas for the values you would like to test
             except ValueError:
                 QMessageBox.warning(self, "Invalid Input", "Please enter valid integers for the inputs.")
                 return
-            self.batch_window = BatchProcessingWindow(self, folder,inputs,generate_values=True)
+            # self.batch_window = BatchProcessingWindow(self, folder,inputs,generate_values=True)
         else:
             inputs = [self.TextEdit.toPlainText(), self.TextEdit2.toPlainText(), self.TextEdit3.toPlainText(), self.textEntry1.toPlainText()]
-            self.batch_window = BatchProcessingWindow(self, folder,inputs,generate_values=False)
+        self.batch_window = BatchProcessingWindow(self, folder,inputs,self.InputType.isChecked(),self.show_only_optimal,self.optimumMetric.currentText())
         self.batch_window.show()
         self.hide()
         # self.batch_window = BatchProcessingWindow(self,folder)
@@ -152,39 +180,48 @@ MaxPatchDiam separated by commas for the values you would like to test
             except ValueError:
                 QMessageBox.warning(self, "Invalid Input", "Please enter valid integers for the inputs.")
                 return
-            self.single_window = SingleFileProcessingWindow(self, file,inputs,generate_values=True)
+            
         else:
             inputs = [self.TextEdit.toPlainText(), self.TextEdit2.toPlainText(), self.TextEdit3.toPlainText(), self.textEntry1.toPlainText()]
-            self.single_window = SingleFileProcessingWindow(self, file,inputs,generate_values=False)
+        self.single_window = SingleFileProcessingWindow(self, file,inputs,self.InputType.isChecked(),self.show_only_optimal,self.optimumMetric.currentText())
         self.single_window.show()
         self.hide()   
 
 class BatchProcessingWindow(QMainWindow):
-    def __init__(self,root,folder,inputs, generate_values):
+    def __init__(self,root,folder,inputs, generate_values, show_only_optimal=False,metric = None):
         super().__init__()
         self.setWindowTitle("Batch Processing")
         self.setGeometry(100, 100, 1600, 900)  
         self.root = root
         self.folder = folder
-
+        self.show_only_optimal = show_only_optimal
+        self.optimum_metric = metric
+        
+        
 
         files = os.listdir(folder)
         
         files = [f for f in files if f.endswith('.las') or f.endswith('.laz')]
-        table = QTableWidget()
-        table.setRowCount(len(files))
-        table.setColumnCount(2)
-        table.setHorizontalHeaderLabels(["File Name","Completed"])
-        table.clicked.connect(self.table_clicked)
+        self.file_table = QTableWidget()
+        self.file_table.setRowCount(len(files))
+        if self.show_only_optimal:
+            self.file_table.setColumnCount(5)
+            self.file_table.setHorizontalHeaderLabels(["File Name","Completed","OptPatchDiam1","OptMaxPatchDiam","OptMinPatchDiam"])
+        else:
+            self.file_table.setColumnCount(2)
+            self.file_table.setHorizontalHeaderLabels(["File Name","Completed"])
+        self.file_table.clicked.connect(self.table_clicked)
         self.file_data = []
         for i, file in enumerate(files):
             
             item_name = QTableWidgetItem(file)
 
-            table.setItem(i, 0, item_name)
+            self.file_table.setItem(i, 0, item_name)
             status = QTableWidgetItem("Not Completed")
             self.file_data.append({'file': file, 'status': status})
         self.files = files
+        self.optimum =np.zeros(len(files),dtype=int)
+        self.metric_data = [None for _ in range(len(files))]  # Initialize metric data for each file
         # self.hide()
         self.intensity_threshold = inputs[0]
         self.nPD2Min = inputs[1]
@@ -197,7 +234,7 @@ class BatchProcessingWindow(QMainWindow):
         self.ui = QWidget()
 
         self.ui.setLayout(QGridLayout())
-        self.ui.layout().addWidget(table,0,0)
+        self.ui.layout().addWidget(self.file_table,0,0)
         self.setCentralWidget(self.ui)
 
         self.ui.layout().setColumnStretch(0,1)
@@ -313,7 +350,21 @@ class BatchProcessingWindow(QMainWindow):
         self.combo_boxes.layout().addWidget(self.max_pd_combo)
         self.combo_boxes.layout().addWidget(self.min_pd_label)
         self.combo_boxes.layout().addWidget(self.min_pd_combo)
+        if self.show_only_optimal:
+            self.optimumLayout = QHBoxLayout()
+            self.buttons_and_progress.layout().addLayout(self.optimumLayout)
+            self.optimumLabel = QLabel("Change Optimum Metric:")
+            self.optimumLayout.addWidget(self.optimumLabel)
 
+            self.optimumMetric = QComboBox(self)
+            self.optimumLayout.addWidget(self.optimumMetric)
+            
+            self.optimumMetric.addItems(Utils.get_all_metrics())
+            self.optimumMetric.setToolTip("Select the metric to use for the optimal model. The default is 'all_mean_dis'")
+            self.optimumMetric.setToolTipDuration(1000)
+            self.optimumMetric.setCurrentText(self.optimum_metric)
+            self.optimumMetric.setEnabled(True)
+            self.optimumMetric.currentTextChanged.connect(self.optimum_changed)
 
         self.cloud_web_view = QWebEngineView()
         # self.web_view.setHtml(html)
@@ -364,6 +415,9 @@ class BatchProcessingWindow(QMainWindow):
             min_pd = self.inputs[self.selected_index]['PatchDiam2Min']
             self.min_pd_combo.clear()
             self.min_pd_combo.addItems([str(i) for i in min_pd])
+           
+                
+                
         else:
             self.tree_data_button.setEnabled(False)
             self.segment_plot_button.setEnabled(False)
@@ -434,7 +488,8 @@ class BatchProcessingWindow(QMainWindow):
             file = os.path.join(self.folder, self.file_data[self.selected_index]['file'])
             cloud = load_point_cloud(file)
             self.file_data[self.selected_index]['cloud'] = cloud
-        html = point_cloud_plotting(cloud,subset=True)
+        fidelity = max(1,len(cloud)/100000)
+        html = point_cloud_plotting(cloud,subset=True,fidelity=fidelity,marker_size=1)
         self.cloud_web_view = QWebEngineView()
         self.cloud_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
         self.ui.layout().addWidget(self.cloud_web_view, 0, 1,2,1)
@@ -477,6 +532,7 @@ class BatchProcessingWindow(QMainWindow):
     def complete_processing(self,package):
         
         index, data, plot = package
+        self.file_table.setItem(index, 1, QTableWidgetItem("Completed"))
         self.file_data[index]['status']="Completed"
         self.file_data[index]['QSM'] = data
         self.file_data[index]['plot'] = plot
@@ -487,7 +543,7 @@ class BatchProcessingWindow(QMainWindow):
         self.max_pd_combo.setEnabled(True)
         self.min_pd_combo.setEnabled(True)
 
-        if index == self.selected_index:
+        if index == self.selected_index and not self.show_only_optimal:
             npd1 = self.inputs[self.selected_index]['PatchDiam1']
             self.npd1_combo.clear()
             self.npd1_combo.addItems([str(i) for i in npd1])
@@ -497,6 +553,15 @@ class BatchProcessingWindow(QMainWindow):
             min_pd = self.inputs[self.selected_index]['PatchDiam2Min']
             self.min_pd_combo.clear()
             self.min_pd_combo.addItems([str(i) for i in min_pd])
+        elif self.show_only_optimal:
+
+            self.optimum[index] = self.calculate_optimal(index)
+            npd1 = self.file_data[index]['QSM'][self.optimum[index]]['PatchDiam1']
+            max_pd = self.file_data[index]['QSM'][self.optimum[index]]['PatchDiam2Max']
+            min_pd = self.file_data[index]['QSM'][self.optimum[index]]['PatchDiam2Min']
+            self.file_table.setItem(index, 2, QTableWidgetItem(str(npd1)))
+            self.file_table.setItem(index, 3, QTableWidgetItem(str(max_pd)))
+            self.file_table.setItem(index, 4, QTableWidgetItem(str(min_pd)))
 
         
         self.append_text(f"Processing Complete for {self.file_data[index]['file']}...\n")
@@ -519,15 +584,52 @@ class BatchProcessingWindow(QMainWindow):
         task.plot_data.connect(self.add_cloud)
         task.input_list.connect(self.set_inputs)
         self.qsm_thread.start()
+        
+    def optimum_changed(self):
+        self.append_text("Changing optimum metric...\n")
+        self.append_text("Changing optimum metric...\n")
+        for index in range(len(self.file_data)):
+            if self.metric_data[index] is None:
+                self.metric_data[index] = Utils.collect_data(self.file_data[index]['QSM'])
+            status = self.file_data[index]['status']
+            if status != "Completed":
+                continue
+            
+
+            self.optimum[index] = self.calculate_optimal(index)
+            npd1 = self.file_data[index]['QSM'][self.optimum[index]]['PatchDiam1']
+            max_pd = self.file_data[index]['QSM'][self.optimum[index]]['PatchDiam2Max']
+            min_pd = self.file_data[index]['QSM'][self.optimum[index]]['PatchDiam2Min']
+            self.file_table.setItem(index, 2, QTableWidgetItem(str(npd1)))
+            self.file_table.setItem(index, 3, QTableWidgetItem(str(max_pd)))
+            self.file_table.setItem(index, 4, QTableWidgetItem(str(min_pd)))
+            self.append_text(f"Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n")
+
+    def calculate_optimal(self,index=None):
+        if index is None:
+            index = self.selected_index
+        if self.metric_data[index] is None:
+            self.append_text("Calculating metrics...\n")
+            self.metric_data[index] = Utils.collect_data(self.file_data[index]['QSM'])
+        metrics = []
+        for i in range(len(self.file_data[index]['QSM'])):
+            metrics.append(Utils.compute_metric_value(Utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[index][0],self.metric_data[index][3]))
+        return np.argmax(np.array(metrics))
+    
 
 class SingleFileProcessingWindow(QMainWindow):
-    def __init__(self,root,file,inputs,generate_values):
+    def __init__(self,root,file,inputs,generate_values, show_only_optimal=False,metric = None):
         super().__init__()
         self.setWindowTitle("Single File Processing")
         self.setGeometry(100, 100, 1920, 1080)  
         self.root = root
         self.args = inputs
         self.generate_values =generate_values
+        self.show_only_optimal = show_only_optimal
+        self.optimum_metric = metric
+        self.optimum_calculated = False
+        self.metric_data = None
+        self.optimum =0
         self.initModel(file,inputs,generate_values)
 
 
@@ -652,6 +754,23 @@ class SingleFileProcessingWindow(QMainWindow):
         self.combo_boxes.layout().addWidget(self.min_pd_label)
         self.combo_boxes.layout().addWidget(self.min_pd_combo)
 
+        if self.show_only_optimal:
+            self.optimumLayout = QHBoxLayout()
+            self.buttons_and_progress.layout().addLayout(self.optimumLayout)
+            self.optimumLabel = QLabel("Change Optimum Metric:")
+            self.optimumLayout.addWidget(self.optimumLabel)
+
+            self.optimumMetric = QComboBox(self)
+            self.optimumLayout.addWidget(self.optimumMetric)
+            
+            self.optimumMetric.addItems(Utils.get_all_metrics())
+            self.optimumMetric.setToolTip("Select the metric to use for the optimal model. The default is 'all_mean_dis'")
+            self.optimumMetric.setToolTipDuration(1000)
+            self.optimumMetric.setCurrentText(self.optimum_metric)
+            self.optimumMetric.setEnabled(True)
+            self.optimumMetric.currentTextChanged.connect(self.optimum_changed)
+            
+
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)
         self.buttons_and_progress.layout().addWidget(self.text_edit)
@@ -703,10 +822,13 @@ class SingleFileProcessingWindow(QMainWindow):
         self.nPD2Min_vals = self.inputs['PatchDiam2Min']
         self.nPD2Max_vals = self.inputs['PatchDiam2Max']
         self.inputs['plot']=0
+
+    
     
     def show_point_cloud(self):
         self.append_text("Showing Point Cloud...\n")
-        html = point_cloud_plotting(self.points,subset=True)
+        fidelity = max(1,len(self.points)/100000)
+        html = point_cloud_plotting(self.points,subset=True,fidelity=fidelity,marker_size=1)
 
         self.cloud_web_view = QWebEngineView()
         self.cloud_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
@@ -801,17 +923,37 @@ class SingleFileProcessingWindow(QMainWindow):
 
 
     def get_selected_index(self):
-        npd1 = max(self.npd1_combo.currentIndex(),0)
-        max_pd = max(self.max_pd_combo.currentIndex(),0)
-        min_pd = max(self.min_pd_combo.currentIndex(),0)
-        if self.generate_values:
-            
-        
-            index = int(npd1)*self.nPD2Max*self.nPD2Min + int(max_pd)*self.nPD2Min + int(min_pd)
-        else:
-            index = int(npd1)*len(self.nPD2Max)*len(self.nPD2Min) + int(max_pd)*len(self.nPD2Min) + int(min_pd)
-        return index
 
+        if not self.show_only_optimal:
+            npd1 = max(self.npd1_combo.currentIndex(),0)
+            max_pd = max(self.max_pd_combo.currentIndex(),0)
+            min_pd = max(self.min_pd_combo.currentIndex(),0)
+            if self.generate_values:
+                
+            
+                index = int(npd1)*self.nPD2Max*self.nPD2Min + int(max_pd)*self.nPD2Min + int(min_pd)
+            else:
+                index = int(npd1)*len(self.nPD2Max)*len(self.nPD2Min) + int(max_pd)*len(self.nPD2Min) + int(min_pd)
+            return index
+        else:
+            if not self.optimum_calculated:
+                self.append_text("Calculating optimum model...\n")
+                self.optimum = self.calculate_optimal()
+            return self.optimum
+            #     self.optimum_calculated = True
+            #     self.inputs['optimum_metric'] = self.optimumMetric.currentText()
+            #     self.data, self.cyl_plots = calculate_optimal_model(self.points,self.inputs,self.optimumMetric.currentText())
+            # return 0
+
+    def optimum_changed(self):
+        self.append_text("Changing optimum metric...\n")
+
+        self.optimum = self.calculate_optimal()
+        npd1 = self.data[self.optimum]['PatchDiam1']
+        max_pd = self.data[self.optimum]['PatchDiam2Max']
+        min_pd = self.data[self.optimum]['PatchDiam2Min']
+        self.append_text(f"Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n")
+        
     def complete_processing(self,package):
         self.append_text("Processing Complete...\n")
 
@@ -823,16 +965,36 @@ class SingleFileProcessingWindow(QMainWindow):
         self.tree_data_button.setEnabled(True)
         self.segment_plot_button.setEnabled(True)
         self.cylinder_plot_button.setEnabled(True)
-        self.npd1_combo.setEnabled(True)
-        self.max_pd_combo.setEnabled(True)
-        self.min_pd_combo.setEnabled(True)
 
-        npd1=self.inputs['PatchDiam1']
-        self.npd1_combo.addItems([str(i) for i in npd1])
-        max_pd = self.inputs['PatchDiam2Max']
-        self.max_pd_combo.addItems([str(i) for i in max_pd])
-        min_pd = self.inputs['PatchDiam2Min']
-        self.min_pd_combo.addItems([str(i) for i in min_pd])
+
+        if not self.show_only_optimal:
+            self.npd1_combo.setEnabled(True)
+            self.max_pd_combo.setEnabled(True)
+            self.min_pd_combo.setEnabled(True)
+        
+            npd1=self.inputs['PatchDiam1']
+            self.npd1_combo.addItems([str(i) for i in npd1])
+            max_pd = self.inputs['PatchDiam2Max']
+            self.max_pd_combo.addItems([str(i) for i in max_pd])
+            min_pd = self.inputs['PatchDiam2Min']
+            self.min_pd_combo.addItems([str(i) for i in min_pd])
+        else:
+            self.metric_data = Utils.collect_data(self.data)
+            self.optimum = self.calculate_optimal()
+            npd1 = self.data[self.optimum]['PatchDiam1']
+            max_pd = self.data[self.optimum]['PatchDiam2Max']
+            min_pd = self.data[self.optimum]['PatchDiam2Min']
+            self.append_text(f"Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n")
+            self.optimum_calculated = True
+            
+    def calculate_optimal(self):
+        if self.metric_data is None:
+            self.append_text("Calculating metrics...\n")
+            self.metric_data = Utils.collect_data(self.data)
+        metrics = []
+        for i in range(len(self.data)):
+            metrics.append(Utils.compute_metric_value(Utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[0],self.metric_data[3]))
+        return np.argmax(np.array(metrics))
 
         
 
