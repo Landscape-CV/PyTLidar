@@ -424,7 +424,24 @@ class BatchProcessingWindow(QMainWindow):
         self.text_edit.setReadOnly(True)
         self.buttons_and_progress.layout().addWidget(self.text_edit)
 
+        self.parallel_options =QVBoxLayout()
+        self.parallel_checkbox = QCheckBox("Parallel Processing", self)
+        self.parallel_checkbox.setChecked(True)
+        self.parallel_checkbox.setToolTip("If checked, each file will be processed in parallel using multiple processes. If unchecked, the processing will be done sequentially.")
+        self.parallel_checkbox.setToolTipDuration(10000)
 
+        self.parallel_checkbox.stateChanged.connect(self.parallel_checkbox_changed)
+        self.parallel_options.addWidget(self.parallel_checkbox)
+        self.parallel_label = QLabel("Number of Processes:")
+        self.parallel_options.addWidget(self.parallel_label)
+        self.parallel_text_edit = QTextEdit(self)
+        self.parallel_text_edit.setText(str(mp.cpu_count()))
+        self.parallel_text_edit.setFixedHeight(30)
+        self.parallel_text_edit.setToolTip("Set the number of processes to use for parallel processing. Default is the number of CPU cores on your PC.")
+        self.parallel_text_edit.setToolTipDuration(10000)
+        self.parallel_text_edit.setEnabled(True)
+        self.parallel_options.addWidget(self.parallel_text_edit)
+        self.buttons_and_progress.layout().addLayout(self.parallel_options)
 
         self.button = QPushButton("Start Processing", self)
         self.button.clicked.connect(self.process_files)
@@ -438,7 +455,11 @@ class BatchProcessingWindow(QMainWindow):
         self.cyl_web_view = None
     
 
-
+    def parallel_checkbox_changed(self):
+        if self.parallel_checkbox.isChecked():
+            self.parallel_text_edit.setEnabled(True)
+        else:
+            self.parallel_text_edit.setEnabled(False)
     def table_clicked(self, index):
         # Get the selected row
         self.selected_index = index.row()
@@ -632,7 +653,7 @@ class BatchProcessingWindow(QMainWindow):
     def process_files(self):
         self.append_text("Processing file...\n")
         
-        task = BatchQSM(self,self.folder,self.files,self.intensity_threshold, self.initial_inputs,self.generate_values)
+        task = BatchQSM(self,self.folder,self.files,self.intensity_threshold, self.initial_inputs,self.generate_values,self.parallel_text_edit.toPlainText())
         self.qsm_thread = BackgroundProcess(task)
         task.finished.connect(self.complete_processing)
         task.message.connect(self.append_text)
@@ -1064,7 +1085,7 @@ class BatchQSM(QObject):
     plot_data = Signal(tuple)
     message = Signal(str)
     input_list = Signal(list)
-    def __init__(self, root, folder,files,threshold,inputs,generate_values):
+    def __init__(self, root, folder,files,threshold,inputs,generate_values,num_cores=2):
         super().__init__()
         self.root = root
         self.folder = folder
@@ -1072,9 +1093,16 @@ class BatchQSM(QObject):
         self.intensity_threshold = float(threshold)
         self.inputs = inputs
         self.generate_values = generate_values
+        self.num_cores = num_cores
+        
         # self.process_file()
 
     def run(self):
+        try:
+            num_cores = int(self.num_cores)
+        except:
+            num_cores = mp.cpu_count()
+            self.message.emit(f"Invalid number of cores specified. Using {num_cores} cores instead.\n")
         clouds = []
         for i, file in enumerate(self.files):
             point_cloud = load_point_cloud(os.path.join(self.folder, file), self.intensity_threshold)
@@ -1100,26 +1128,43 @@ class BatchQSM(QObject):
             input_params['plot'] = 0
         
     # Process each tree
+        try:
+            mp.set_start_method('spawn')
+        except:
+            pass
+        Q=[]
+        P=[]
+        
         for i, input_params in enumerate(inputs):
-            self.message.emit(f"Processing {input_params['name']}. This may take several minutes...\n")
-            try:
-                try:
-                    mp.set_start_method('spawn')
-                except:
-                    pass
 
-                q = mp.Queue()
-                p = mp.Process(target=treeqsm, args=(clouds[i],input_params,i,q))
-                p.start()
-                batch,data,plot = q.get()
-                if data =="ERROR":
-                    raise Exception("Error in processing file")
-                p.join()
-                # data,plot = treeqsm(clouds[i],input_params,i)
-                finished = self.finished.emit((batch,data,plot)) 
-            except:
-                self.message.emit(f"An error occured on file {input_params['name']}. Please try again. Consider checking the console and reporting the bug to us.")  
+            
+            q = mp.Queue()
+            p = mp.Process(target=treeqsm, args=(clouds[i],input_params,i,q))
+            Q.append(q)
+            P.append(p)
+        process = 0
+    
+        while process < len(inputs):
+            for i in range(num_cores):
                 
+
+                self.message.emit(f"Processing {inputs[process+i]['name']}. This may take several minutes...\n")
+                
+                P[process+i].start()
+
+            for i in range(num_cores):
+                q=Q[process+i]
+                p = P[process+i]
+                try:
+                    batch,data,plot = q.get()
+                    if data =="ERROR":
+                        raise Exception("Error in processing file")
+                    p.join()
+                    # data,plot = treeqsm(clouds[i],input_params,i)
+                    finished = self.finished.emit((batch,data,plot)) 
+                except:
+                    self.message.emit(f"An error occured on file {input_params['name']}. Please try again. Consider checking the console and reporting the bug to us.")  
+            process+=num_cores
             
             
         self.message.emit("Processing Complete.\n")
