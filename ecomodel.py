@@ -20,6 +20,7 @@ from tools.define_input import define_input
 from plotting.cylinders_line_plotting import cylinders_line_plotting
 from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.cylinders_plotting import cylinders_plotting
+from plotting.qsm_plotting import qsm_plotting
 import time
 import cProfile
 import pstats
@@ -232,32 +233,34 @@ class Ecomodel:
                 
 
                 qsm_input = define_input(segment_cloud,1,1,1)[0]
-                qsm_input['PatchDiam1'] = qsm_input['PatchDiam1'][0]
-                qsm_input['BallRad1'] = qsm_input['BallRad1'][0]
-                qsm_input['PatchDiam2Min'] = qsm_input['PatchDiam2Min'][0]
-                qsm_input['PatchDiam2Max'] = qsm_input['PatchDiam2Max'][0]
-                qsm_input['BallRad2'] = qsm_input['BallRad2'][0]
+                qsm_input['PatchDiam1'] = 0.05
+                qsm_input['PatchDiam2Min'] = 0.03
+                qsm_input['PatchDiam2Max'] = 0.12
+                qsm_input['BallRad1'] = 0.06
+                qsm_input['BallRad2'] = 0.13
                 cover1 = cover_sets(segment_cloud, qsm_input)
                 cover1, Base, Forb = tree_sets(segment_cloud, cover1, qsm_input)
                 segment1 = segments( cover1, Base, Forb)
                 segment1 = correct_segments(segment_cloud,cover1,segment1,qsm_input,0,1,1)
-                try:
-                    RS = relative_size(segment_cloud,cover1,segment1)
-                    cover2 = cover_sets(segment_cloud, qsm_input,RS)
-                    cover2, Base, Forb = tree_sets(segment_cloud, cover2, qsm_input, segment1)
-                    segment2 = segments( cover2, Base, Forb)
-                    segment2 = correct_segments(segment_cloud,cover2,segment2,qsm_input,0,1,1)
-                except:
-                    print("Unable to create more detailed QSM, using initial segments")
-                    pass
+                # try:
+                #     RS = relative_size(segment_cloud,cover1,segment1)
+                #     cover2 = cover_sets(segment_cloud, qsm_input,RS)
+                #     cover2, Base, Forb = tree_sets(segment_cloud, cover2, qsm_input, segment1)
+                #     segment2 = segments( cover2, Base, Forb)
+                #     segment2 = correct_segments(segment_cloud,cover2,segment2,qsm_input,0,1,1)
+                # except:
+                #     print("Unable to create more detailed QSM, using initial segments")
+                #     pass
 
-                cylinder = cylinders(segment_cloud,cover1,segment1,qsm_input)
-                tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
-                tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
-                tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
-                tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
-                tile.branch_labels = np.append(tile.branch_labels,cylinder["branch"])
-                tile.branch_orders = np.append(tile.branch_orders,cylinder["BranchOrder"])
+                # cylinder = cylinders(segment_cloud,cover1,segment1,qsm_input)
+                # tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
+                # tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
+                # tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
+                # tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
+                # tile.branch_labels = np.append(tile.branch_labels,cylinder["branch"])
+                # tile.branch_orders = np.append(tile.branch_orders,cylinder["BranchOrder"])
+
+
                 #store cylinders for tile to be accessed later
                 segs = [np.concatenate(seg).astype(np.int64) for seg in segment1["segments"]]
                 cloud_segments = Utils.assign_segments(segment_cloud,segs,cover1["sets"])+max_segment+1
@@ -311,21 +314,23 @@ class Ecomodel:
           
             cube_min = np.array([min_x, min_y, min_z])
             cube_max = np.array([min_x + voxel_size, min_y + voxel_size, min_z + voxel_size])
-            mask = np.all((tile.cylinder_starts >= cube_min) & (tile.cylinder_starts <= cube_max), axis=1)
-            cylinder_starts = tile.cylinder_starts[mask]
-            cylinder_radii = tile.cylinder_radii[mask]
-            cylinder_axes = tile.cylinder_axes[mask]
-            cylinder_lengths = tile.cylinder_lengths[mask]
-            branch_labels = tile.branch_labels[mask]
-            branch_orders = tile.branch_orders[mask]
-            cloud = tile.cloud[np.all((tile.cloud>=cube_min) & (tile.cloud <= cube_max),axis=1)]
-            cylinder = {"start": cylinder_starts, "radius": cylinder_radii, "axis": cylinder_axes, "length": cylinder_lengths, "branch": branch_labels, "BranchOrder": branch_orders}
-            pmdis = point_model_distance(cloud, cylinder)
-            D = [pmdis['TrunkMean'], pmdis['BranchMean'],
-                pmdis['Branch1Mean'], pmdis['Branch2Mean']]
-            D = np.round(10000 * np.array(D)) / 10
-            print(D)
-            cyl_plot = point_cloud_plotting(cloud, subset=True,fidelity=fidelity,marker_size=1,return_html=False)
+            # mask = np.all((tile.cylinder_starts >= cube_min) & (tile.cylinder_starts <= cube_max), axis=1)
+            # cylinder_starts = tile.cylinder_starts[mask]
+            # cylinder_radii = tile.cylinder_radii[mask]
+            # cylinder_axes = tile.cylinder_axes[mask]
+            # cylinder_lengths = tile.cylinder_lengths[mask]
+            # branch_labels = tile.branch_labels[mask]
+            # branch_orders = tile.branch_orders[mask]
+            point_mask = np.all((tile.cloud>=cube_min) & (tile.cloud <= cube_max),axis=1)
+            cloud = tile.cloud[point_mask]
+            cylinder ={}# {"start": cylinder_starts, "radius": cylinder_radii, "axis": cylinder_axes, "length": cylinder_lengths, "branch": branch_labels, "BranchOrder": branch_orders}
+            # pmdis = point_model_distance(cloud, cylinder)
+            # D = [pmdis['TrunkMean'], pmdis['BranchMean'],
+            #     pmdis['Branch1Mean'], pmdis['Branch2Mean']]
+            # D = np.round(10000 * np.array(D)) / 10
+            # print(D)
+            # cyl_plot = point_cloud_plotting(cloud, subset=True,fidelity=fidelity,marker_size=1,return_html=False)
+            cyl_plot = qsm_plotting(cloud,tile.cover_sets[point_mask],tile.cluster_labels[point_mask],return_html=False,subset = True, fidelity=fidelity,marker_size=1)
             return cylinder, cyl_plot
     
     def calc_volumes(self):
@@ -760,16 +765,19 @@ if __name__ == "__main__":
     
     # combined_cloud.segment_trees()
     # combined_cloud.pickle("test_model.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model.pickle")
-    combined_cloud.get_qsm_segments(46000)
-    combined_cloud.pickle("test_model_post_qsm.pickle")
+    # combined_cloud = Ecomodel.unpickle("test_model.pickle")
+    # combined_cloud.get_qsm_segments(0)
+    # combined_cloud.pickle("test_model_post_qsm.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm.pickle")
     combined_cloud.recombine_tiles()
-    cylinder,base_plot = combined_cloud.get_cylinders(-15,-3,-3,5,fidelity = .3)
-    
-    # cylinders,base_plot = combined_cloud.get_cylinders(-3,-3,-4,5)
-    
-    cylinders_line_plotting(cylinder, scale_factor=20,file_name="test_plot",base_fig=base_plot)
+    #Palm
+    # cylinder,base_plot = combined_cloud.get_cylinders(-15,-3,-3,5,fidelity = .3)
+    #Small Voxel
+    # cylinder,base_plot = combined_cloud.get_cylinders(-11,1,-1,3,fidelity = 1)
+    #Large Voxel
+    cylinder,base_plot = combined_cloud.get_cylinders(-3,-3,-4,3,fidelity = .6)
+    base_plot.write_html("results/segment_test_plot_no_continuation.html")
+    # cylinders_line_plotting(cylinder, scale_factor=20,file_name="test_plot",base_fig=base_plot)
     # cylinders_plotting(cylinder,base_fig=base_plot)
     # combined_cloud.calc_volumes()
     # subdivided_cloud = combined_cloud.subdivide_tiles(cube_size = 10)

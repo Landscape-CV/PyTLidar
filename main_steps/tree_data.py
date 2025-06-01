@@ -7,6 +7,7 @@ import LeastSquaresFitting.LSF as LSF
 from triangulation import curve_based_triangulation
 import plotting.PlottingUtils as PlottingUtils
 import matplotlib.pyplot as plt
+import matplotlib
 def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     """
     Calculate tree attributes from cylinder QSM data.
@@ -21,6 +22,7 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
         treedata (dict): Tree data/attributes.
         triangulation (dict or int): Triangulation results (if computed), otherwise 0.
     """
+    matplotlib.rcParams.update({'font.size': 8})
     # Define some variables from cylinder
     Rad = cylinder['radius']
     Len = cylinder['length']

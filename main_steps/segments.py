@@ -26,7 +26,7 @@ This derivative work is released under the GNU General Public License (GPL).
 import numpy as np
 from scipy.spatial.distance import cdist
 from Utils.Utils import unique_elements_array
-def segments(cover, Base, Forb):
+def segments(cover, Base, Forb,qsm=True):
     """
     Segments the covered point cloud into branches.
 
@@ -113,7 +113,7 @@ def segments(cover, Base, Forb):
                 Seg[nl] = Cut
         elif nc > 1:
             # Classify the components of the Study region
-            Class = component_classification(CompSize, Cont, BaseSize, CutSize)
+            Class = component_classification(CompSize, Cont, BaseSize, CutSize,qsm)
 
             for i in range(nc):
                 if Class[i] == 1:
@@ -455,7 +455,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
 
     return Components, Bases, CompSize, Cont, BaseSize
 
-def component_classification(CompSize, Cont, BaseSize, CutSize):
+def component_classification(CompSize, Cont, BaseSize, CutSize, qsm =True):
     """
     Classifies study region components into "continuation" or "branch".
 
@@ -492,6 +492,7 @@ def component_classification(CompSize, Cont, BaseSize, CutSize):
             Class[i] = 0
         elif BaseSize[i] / CutSize >= 0.7 or CompSize[i] >= 0.7 * StudySize:
             # Continuation of the segment
+            
             Class[i] = 0
             ContiComp = i
         else:
@@ -501,7 +502,7 @@ def component_classification(CompSize, Cont, BaseSize, CutSize):
     # If no continuation component is found and there are branches,
     # mark the largest branch as the continuation
     Branches = Class == 1
-    if ContiComp == -1 and np.any(Branches):
+    if ContiComp == -1 and np.any(Branches) and qsm:
         Ind = np.arange(nc)  # Indices of all components
         Branches = Ind[Branches]  # Indices of branch components
         I = np.argmax(CompSize[Branches])  # Index of the largest branch

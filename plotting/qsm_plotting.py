@@ -35,7 +35,7 @@ import numpy as np
 from plotting.cylinders_plotting import cylinders_plotting
 import Utils.Utils as Utils
 
-def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3,return_html = True,subset=False,fidelity = .1):
+def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=3,return_html = True,subset=False,fidelity = .1):
     """
     Plots the given point cloud in 3D interactively using Plotly.
 
@@ -49,11 +49,17 @@ def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3,return_html = 
     if points.shape[1] != 3:
         raise ValueError("Points array must have 3 columns (x, y, z).")
     n = len(points)
-    if cover_sets['ball'] is []:
-        cover_sets = np.zeros(n)
-    if segments['segments'] is []:
-        segments = np.zeros(n)
-
+    if type(cover_sets)==dict:
+        if cover_sets['ball'] is []:
+            cover_sets = np.zeros(n)
+        if segments['segments'] is []:
+            segments = np.zeros(n)
+        segs = [np.concatenate(seg).astype(np.int64) for seg in segments["segments"]]
+        segment_ids = Utils.assign_segments(points,segs,cover_sets["sets"])
+        cover_set_ids = cover_sets["sets"]  
+    else:
+        segment_ids = segments
+        cover_set_ids = cover_sets
     #print(segments['segments'])
 
     # create cover set and segment ids for each point OLD SLOWER METHOD
@@ -71,9 +77,8 @@ def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3,return_html = 
     #             segment_ids[pts] = i
     # for i, p_indices in enumerate(cover_sets['ball']):
     #     cover_set_ids[p_indices] = i  # assign cover set ID to those indices
-    segs = [np.concatenate(seg).astype(np.int64) for seg in segments["segments"]]
-    segment_ids = Utils.assign_segments(points,segs,cover_sets["sets"])
-    cover_set_ids = cover_sets["sets"]  
+
+    
 
     if subset:
         points = points.copy()
@@ -96,8 +101,8 @@ def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3,return_html = 
         # make_trace(points, points[:, 0], "X", marker_size, visible=False),
         # make_trace(points, points[:, 1], "Y", marker_size, visible=False),
         # make_trace(points, points[:, 2], "Z", marker_size, visible=True),  # Default visible
-        make_categorical_color_trace(points, cover_set_ids, "Cover Set", marker_size, visible=True, additional_labels=cover_set_ids),
-        make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=False, additional_labels=segment_ids)
+        make_categorical_color_trace(points, cover_set_ids, "Cover Set", marker_size, visible=False, additional_labels=cover_set_ids),
+        make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=True, additional_labels=segment_ids)
     ]
 
     fig = go.Figure(data=traces)
@@ -140,9 +145,10 @@ def qsm_plotting(points, cover_sets, segments, qsm, marker_size=3,return_html = 
             zaxis_title="Z"
         )
     )
-    filename = f"results/point_cloud_plot{qsm['rundata']['inputs']['name']}.html"
-    fig.write_html(filename)  # save html to results folder
+    
     if return_html:
+        filename = f"results/point_cloud_plot{qsm['rundata']['inputs']['name']}.html"
+        fig.write_html(filename)  # save html to results folder
         return filename
     else:
         return fig
