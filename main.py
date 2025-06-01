@@ -48,18 +48,18 @@ class QSMWindow(QMainWindow):
         self.TextEdit.setGeometry(100, 50, 200, 30)
         self.TextEdit.setText("0")
         self.TextEdit.setToolTip("Set the Intensity threshold, this will automically filter out any points with intensity lower than this value. The default value is 0.")
-        self.TextEdit.setToolTipDuration(1000)
+        self.TextEdit.setToolTipDuration(10000)
         
         #TextEdit for number of min PatchDiam to test
         Label2 = QLabel("Min PatchDiam to Test:",self)
+        Label2.setToolTip("""The Min PatchDiam is the minimum of the initial cover sets that will cover the tree shape on the second pass.\nThese cover sets will likely produce the upper branch shapes\nValues that are too large may not properly capture the detail in the branches\nThese values should be smaller than your initial patch diameter\nSee Instructions for how to fill in this field""")
+        Label2.setToolTipDuration(10000)
         Label2.setGeometry(50, 100, 250, 30)
         self.TextEdit2 = QTextEdit(self) 
         self.TextEdit2.setGeometry(100, 150, 200, 30)
         self.TextEdit2.setText("1")
-        self.TextEdit2.setToolTip("""Set the number of Min PatchDiam to test. The values will set different min cover set 
-                                Patch Diameters for the algorithm to test on the variable size cover set step. 
-                                The resulting number of passes of the algorithm will be NInit x NMin x Nmax .The default value is 1. """)
-        self.TextEdit2.setToolTipDuration(1000)
+        self.TextEdit2.setToolTip("""The Min PatchDiam is the minimum of the initial cover sets that will cover the tree shape on the second pass.\nThese cover sets will likely produce the upper branch shapes\nValues that are too large may not properly capture the detail in the branches\nThese values should be smaller than your initial patch diameter\nSee Instructions for how to fill in this field""")
+        self.TextEdit2.setToolTipDuration(10000)
 
         
 
@@ -67,13 +67,13 @@ class QSMWindow(QMainWindow):
         #TextEdit for number of max PatchDiam to test
         Label3 = QLabel("Max PatchDiam to Test:",self)
         Label3.setGeometry(400, 100, 250, 30)
+        Label3.setToolTip("""The Max PatchDiam is the maximum of the initial cover sets that will cover the tree shape on the second pass.\nThese cover sets will likely produce the shape of the trunk\nValues that are too small may cause performance issues and produce incorrect segment\nThese values should be larger than your initial patch diameter\nSee Instructions for how to fill in this field""")
+        Label3.setToolTipDuration(10000)
         self.TextEdit3 = QTextEdit(self)
         self.TextEdit3.setText("1")
         self.TextEdit3.setGeometry(450, 150, 200, 30)
-        self.TextEdit3.setToolTip("""Set the number of Max PatchDiam to test. The values will set different max cover set 
-                                Patch Diameters for the algorithm to test on the variable size cover set step. 
-                                The resulting number of passes of the algorithm will be NInit x NMin x Nmax. The default value is 1.""")
-        self.TextEdit3.setToolTipDuration(1000)
+        self.TextEdit3.setToolTip("""The Max PatchDiam is the maximum of the initial cover sets that will cover the tree shape on the second pass.\nValues that are too small may cause performance issues and produce incorrect segment\nThese values should be larger than your initial patch diameter\nSee Instructions for how to fill in this field""")
+        self.TextEdit3.setToolTipDuration(10000)
 
         
 
@@ -81,14 +81,14 @@ class QSMWindow(QMainWindow):
         #slider for number of Initial PatchDiam to test
         Label4 = QLabel("Initial PatchDiam to Test:",self)
         Label4.setGeometry(400, 10, 250, 30)
+        Label4.setToolTip("""The Initial PatchDiam is the size of the initial cover sets that will cover the tree shape.\nSmaller values will result in a more detailed model, but will take longer to process.\nLarger values will result in a less detailed model, but may help overcome issues from occlusion.\nSee Instructions for how to fill in this field""")
+        Label4.setToolTipDuration(10000)
         self.textEntry1 = QTextEdit(self)
         self.textEntry1.setText("1")
         self.textEntry1.setGeometry(450, 50, 200, 30)
         
-        self.textEntry1.setToolTip("""Set the number of Initial PatchDiam to test. The values will set different initial cover set 
-        Patch Diameters for the algorithm to test. The resulting number of passes of the algorithm will be NInit x NMin x Nmax.
-        The default value is 1.""")
-        self.textEntry1.setToolTipDuration(1000)
+        self.textEntry1.setToolTip("""The Initial PatchDiam is the size of the initial cover sets that will cover the tree shape.\nSmaller values will result in a more detailed model, but will take longer to process.\nLarger values will result in a less detailed model, but may help overcome issues from occlusion.\nSee Instructions for how to fill in this field""")
+        self.textEntry1.setToolTipDuration(10000)
 
         self.InputType = QCheckBox("Generate Values",self)
         self.InputType.setGeometry(100, 275, 200, 30)
@@ -112,7 +112,7 @@ MaxPatchDiam separated by commas for the values you would like to test
         self.optimumCheck = QCheckBox("Show Only Optimal Model",self)
         self.optimumCheck.setGeometry(300, 275, 200, 30)
         self.optimumCheck.setToolTip("If checked, only the optimal model will be shown in the results. If unchecked, all models will be shown")
-        self.optimumCheck.setToolTipDuration(1000)
+        self.optimumCheck.setToolTipDuration(10000)
         self.show_only_optimal = False
         self.optimumCheck.stateChanged.connect(self.optimumCheckChanged)
 
@@ -122,7 +122,7 @@ MaxPatchDiam separated by commas for the values you would like to test
         self.metrics = Utils.get_all_metrics()
         self.optimumMetric.addItems(self.metrics)
         self.optimumMetric.setToolTip("Select the metric to use for the optimal model. The default is 'all_mean_dis'")
-        self.optimumMetric.setToolTipDuration(1000)
+        self.optimumMetric.setToolTipDuration(10000)
 
         self.optimumMetric.setDisabled(True)
 
@@ -147,10 +147,7 @@ MaxPatchDiam separated by commas for the values you would like to test
     def start_batch_processing(self):
             #prompt user for folder path
         
-        folder = QFileDialog.getExistingDirectory(self, "Select Folder", "")
-        if not folder:
-            QMessageBox.warning(self, "No Folder Selected", "Please select a folder containing LAS or LAZ files.")
-            return
+        
         if self.InputType.isChecked():
             try:
                 inputs = [int(self.TextEdit.toPlainText()), int(self.TextEdit2.toPlainText()), int(self.TextEdit3.toPlainText()), int(self.textEntry1.toPlainText())]
@@ -160,7 +157,15 @@ MaxPatchDiam separated by commas for the values you would like to test
             # self.batch_window = BatchProcessingWindow(self, folder,inputs,generate_values=True)
         else:
             inputs = [self.TextEdit.toPlainText(), self.TextEdit2.toPlainText(), self.TextEdit3.toPlainText(), self.textEntry1.toPlainText()]
+       
+        if not self.check_inputs(inputs):
+            return
+        folder = QFileDialog.getExistingDirectory(self, "Select Folder", "")
+        if not folder:
+            QMessageBox.warning(self, "No Folder Selected", "Please select a folder containing LAS or LAZ files.")
+            return
         self.batch_window = BatchProcessingWindow(self, folder,inputs,self.InputType.isChecked(),self.show_only_optimal,self.optimumMetric.currentText())
+        
         self.batch_window.show()
         self.hide()
         # self.batch_window = BatchProcessingWindow(self,folder)
@@ -172,10 +177,7 @@ MaxPatchDiam separated by commas for the values you would like to test
     def start_single_file_processing(self):
         #prompt user for file path
         #Intensity threshold, number of min PatchDiam to test, number of max PatchDiam to test, number of Initial PatchDiam to test
-        file, _ = QFileDialog.getOpenFileName(self, "Select File", "", "LAS Files (*.las *.laz)")
-        if not file:
-            QMessageBox.warning(self, "No File Selected", "Please select a LAS or LAZ file.")
-            return
+        
         if self.InputType.isChecked():
             try:
                 inputs = [int(self.TextEdit.toPlainText()), int(self.TextEdit2.toPlainText()), int(self.TextEdit3.toPlainText()), int(self.textEntry1.toPlainText())]
@@ -185,9 +187,55 @@ MaxPatchDiam separated by commas for the values you would like to test
             
         else:
             inputs = [self.TextEdit.toPlainText(), self.TextEdit2.toPlainText(), self.TextEdit3.toPlainText(), self.textEntry1.toPlainText()]
+        if not self.check_inputs(inputs):
+            return
+
+        file, _ = QFileDialog.getOpenFileName(self, "Select File", "", "LAS Files (*.las *.laz)")
+        if not file:
+            QMessageBox.warning(self, "No File Selected", "Please select a LAS or LAZ file.")
+            return
         self.single_window = SingleFileProcessingWindow(self, file,inputs,self.InputType.isChecked(),self.show_only_optimal,self.optimumMetric.currentText())
         self.single_window.show()
         self.hide()   
+
+    def check_inputs(self,inputs):
+        """
+        Check if the inputs are valid.
+        If generate_values is True, inputs should be a list of integers.
+        If generate_values is False, inputs should be a list of strings.
+        """
+        if self.InputType.isChecked():
+            try:
+                inputs = [int(i) for i in inputs]
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Input", "Please enter valid integers for the inputs.")
+                return False
+        else:
+            try:
+                inputs[0]=int(inputs[0])
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Input", "Please enter a valid integer for the Intensity Threshold.")
+                return False
+            for i in inputs[1:]:
+                if not self.check_diams(i):
+                    QMessageBox.warning(self, "Invalid Input", "PatchDiam inputs should be a list of decimals betweeen 0 and 1, separated by commas.\nIf you do not have values in mind, try using generate values instead ")
+                    return False     
+        
+
+        return inputs
+    
+    def check_diams(self,diam):
+        if diam =="":
+            return False
+        try:
+            diam = [float(i) for i in diam.split(',')]
+            for d in diam:
+                if d <= 0:
+                    return False
+                if d >1:
+                    return False
+        except ValueError:
+            return False
 
 class BatchProcessingWindow(QMainWindow):
     def __init__(self,root,folder,inputs, generate_values, show_only_optimal=False,metric = None):
@@ -492,7 +540,7 @@ class BatchProcessingWindow(QMainWindow):
         if cloud is None:
             self.append_text("Loading Point Cloud...\n")
             file = os.path.join(self.folder, self.file_data[self.selected_index]['file'])
-            cloud = load_point_cloud(file, self.intensity_threshold)
+            cloud = load_point_cloud(file, float(self.intensity_threshold))
             cloud = cloud-np.mean(cloud,axis=0)  # Center the point cloud
             self.file_data[self.selected_index]['cloud'] = cloud
         fidelity = max(1,len(cloud)/100000)
@@ -808,7 +856,7 @@ class SingleFileProcessingWindow(QMainWindow):
         self.nPD2Min = inputs[1]
         self.nPD2Max = inputs[2]
         self.nPD1 = inputs[3]
-        self.points = load_point_cloud(self.file,intensity_threshold=self.intensity_threshold)
+        self.points = load_point_cloud(self.file,intensity_threshold=float(self.intensity_threshold))
 
         # Step 3: Define inputs for TreeQSM
         self.points = self.points - np.mean(self.points,axis = 0)
@@ -1064,6 +1112,8 @@ class BatchQSM(QObject):
                 p = mp.Process(target=treeqsm, args=(clouds[i],input_params,i,q))
                 p.start()
                 batch,data,plot = q.get()
+                if data =="ERROR":
+                    raise Exception("Error in processing file")
                 p.join()
                 # data,plot = treeqsm(clouds[i],input_params,i)
                 finished = self.finished.emit((batch,data,plot)) 
@@ -1092,15 +1142,21 @@ class SingleQSM(QObject):
             mp.set_start_method('spawn')
         except:
             pass
-        q = mp.Queue()
-        p = mp.Process(target=treeqsm, args=(self.points,self.inputs,0,q))
-        p.start()
-        
-        batch,data,plot = q.get()
-        p.join()
-        # data,plot = treeqsm(self.points,self.inputs)
-        
-        finished = self.finished.emit((data,plot))
+        try:
+            q = mp.Queue()
+            p = mp.Process(target=treeqsm, args=(self.points,self.inputs,0,q))
+            p.start()
+            
+            batch,data,plot = q.get()
+            if data == "ERROR":
+                raise Exception("Error in processing file")
+            p.join()
+            # data,plot = treeqsm(self.points,self.inputs)
+            
+            finished = self.finished.emit((data,plot))
+        except:
+            self.root.append_text("An error occured while processing the file. Please try again. Consider checking the console and reporting the bug to us.\n")
+            
 
 class BackgroundProcess(QThread):
     def __init__(self, worker, parent=None):

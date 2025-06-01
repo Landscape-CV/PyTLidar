@@ -2166,7 +2166,7 @@ def package_outputs(models,cyl_htmls):
         run_name = models[i]['rundata']['inputs']['name']+"_"+str(i)
         figs =[]
         for j,fig in enumerate(models[i]['treedata']['figures']):
-            save_name = f"results/tree_data_{run_name}_{j}.pdf"
+            save_name = f"results/tree_data_{run_name}_{models[i]['rundata']['inputs']['tree']}_{models[i]['rundata']['inputs']['model']}_{j}.pdf"
             fig.dpi=1000
             fig.savefig(save_name,format ='pdf')
             figs.append(save_name)
