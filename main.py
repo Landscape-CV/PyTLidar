@@ -236,6 +236,7 @@ MaxPatchDiam separated by commas for the values you would like to test
                     return False
         except ValueError:
             return False
+        return True
 
 class BatchProcessingWindow(QMainWindow):
     def __init__(self,root,folder,inputs, generate_values, show_only_optimal=False,metric = None):
