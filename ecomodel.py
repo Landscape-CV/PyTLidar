@@ -28,6 +28,10 @@ import open3d as o3d
 import trimesh
 from alphashape import alphashape
 import pickle
+import dotenv
+
+dotenv.load_dotenv()
+
 class Ecomodel:
     
     def __init__(self):
@@ -82,7 +86,7 @@ class Ecomodel:
         print("Filtering Ground")
         new_min_z = float('inf')
         for tile in tile_list:
-            if tile == 0 or  not tile.contains_ground:
+            if tile == 0 or not tile.contains_ground:
                 continue
             tile.numpy()
             z_range = tile.max_z - tile.min_z
@@ -745,13 +749,13 @@ class Tile:
 
 if __name__ == "__main__":
     # Example usage
-    # folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
-    # model = Ecomodel()
-    # combined_cloud = Ecomodel.combine_las_files(folder,model)
-    # combined_cloud.filter_ground(combined_cloud._raw_tiles,.5)
-    # combined_cloud.normalize_raw_tiles()
-    # for tile in combined_cloud._raw_tiles:
-    #     tile.to(tile.device)
+    folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
+    model = Ecomodel()
+    combined_cloud = Ecomodel.combine_las_files(folder,model)
+    combined_cloud.filter_ground(combined_cloud._raw_tiles,.5)
+    combined_cloud.normalize_raw_tiles()
+    for tile in combined_cloud._raw_tiles:
+        tile.to(tile.device)
     # # combined_cloud.denoise()
     # combined_cloud.subdivide_tiles(cube_size = 3)
     # combined_cloud.filter_ground(combined_cloud.tiles.flatten())
@@ -763,20 +767,21 @@ if __name__ == "__main__":
     # combined_cloud.subdivide_tiles(cube_size = 15)
 
     
-    # combined_cloud.segment_trees()
-    # combined_cloud.pickle("test_model.pickle")
-    # combined_cloud = Ecomodel.unpickle("test_model.pickle")
+    combined_cloud.segment_trees()
+    combined_cloud.pickle("test_model.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model.pickle")
     # combined_cloud.get_qsm_segments(0)
     # combined_cloud.pickle("test_model_post_qsm.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model_post_qsm.pickle")
-    combined_cloud.recombine_tiles()
+    # combined_cloud = Ecomodel.unpickle("test_model_post_qsm.pickle")
+    # combined_cloud.recombine_tiles()
     #Palm
     # cylinder,base_plot = combined_cloud.get_cylinders(-15,-3,-3,5,fidelity = .3)
     #Small Voxel
     # cylinder,base_plot = combined_cloud.get_cylinders(-11,1,-1,3,fidelity = 1)
     #Large Voxel
-    cylinder,base_plot = combined_cloud.get_cylinders(-3,-3,-4,3,fidelity = .6)
-    base_plot.write_html("results/segment_test_plot_no_continuation.html")
+    # combined_cloud = Ecomodel()
+    # cylinder,base_plot = combined_cloud.get_cylinders(-3,-3,-4,3,fidelity = .6)
+    # base_plot.write_html("results/segment_test_plot_no_continuation.html")
     # cylinders_line_plotting(cylinder, scale_factor=20,file_name="test_plot",base_fig=base_plot)
     # cylinders_plotting(cylinder,base_fig=base_plot)
     # combined_cloud.calc_volumes()
