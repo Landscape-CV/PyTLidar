@@ -49,12 +49,14 @@ from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.qsm_plotting import qsm_plotting
 import sys
 import json
+import traceback
 
 def test():
     # file_path = r'C:\Users\johnh\Documents\LiDAR\A-04-7007_post.las'
     # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/A-04-7007_post.las'
     # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/tree_1.las'
-    file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/test_palm.xyz'
+    # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/test_palm.xyz'
+    file_path = r'/Users/johnhagood/Downloads/tree_0160.laz'
     # file_path = r'E:\5-Study\OMSCS\CS8903_Research\TreeQSM\PyTLidar\Dataset\tree_1.las'
     points = load_point_cloud(file_path,0)
     if points is not None:
@@ -62,15 +64,15 @@ def test():
     # Step 3: Define inputs for TreeQSM
     points = points - np.mean(points,axis = 0)
 
-    inputs = define_input(points, 1, 1, 1)[0]
+    inputs = define_input(points, 3, 3, 3)[0]
 
-    #specific inputs for testing
-    inputs['PatchDiam1'] = [0.05]
-    inputs['PatchDiam2Min'] = [0.03]
-    inputs['PatchDiam2Max'] = [0.12]
-    inputs['BallRad1'] = [0.06]
-    inputs['BallRad2'] = [0.13]
-    inputs['plot'] = 0
+    # #specific inputs for testing
+    # inputs['PatchDiam1'] = [0.05]
+    # inputs['PatchDiam2Min'] = [0.03]
+    # inputs['PatchDiam2Max'] = [0.12]
+    # inputs['BallRad1'] = [0.06]
+    # inputs['BallRad2'] = [0.13]
+    # inputs['plot'] = 0
     treeqsm(points,inputs)
 
 
@@ -177,7 +179,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
                 Inputs['BallRad2'] = BallRad2[i]
                 
                 if na > 1 and inputs['disp'] >= 1:
-                    sys.stdout('    -----------------\n')
+                    sys.stdout.write('    -----------------\n')
                     sys.stdout.write(f'    PatchDiam2Max = {PatchDiam2Max[i]}\n')
                     sys.stdout.write('    -----------------\n')
                 
@@ -374,7 +376,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
             processing_queue.put([batch,models,cyl_htmls])
         return models, cyl_htmls
     except Exception as e:
-        sys.stderr.write(f"An error occurred: {e}\n")
+        sys.stderr.write(f"An error occurred: {traceback.format_exc()}\n")
         if processing_queue is not None:
             processing_queue.put([batch, "ERROR", "ERROR"])
         return "ERROR", "ERROR"
