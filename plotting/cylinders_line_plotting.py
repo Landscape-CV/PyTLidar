@@ -4,7 +4,7 @@ from plotting.cylinders_plotting import create_cylinder
 from plotting.cylinders_plotting import rotation_matrix_from_z
 
 
-def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_name = None, overwrite = False, base_fig = None):
+def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_name = None, overwrite = False, base_fig = None,display = True):
     """
     Plot cylinders as segments with width proportional to radius.
 
@@ -183,8 +183,8 @@ def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_nam
     # Save updated HTML
     with open(html_file, "w", encoding = 'utf-8') as f:
         f.write(html)
-
-    print(f"Interactive visualization saved to: {html_file}")
+    if display:
+        print(f"Interactive visualization saved to: {html_file}")
 
     return fig,html_file
 

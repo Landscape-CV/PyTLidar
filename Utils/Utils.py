@@ -15,7 +15,7 @@ import copy
 import os
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-
+import csv
 import sys
 # from scipy.spatial import ConvexHull
 # import alphashape
@@ -25,7 +25,7 @@ from numba.experimental import jitclass
 import laspy
 from plotting.qsm_plotting import qsm_plotting
 import open3d as o3d
-import sys
+
 # class Utils:
 
 # class Utils:
@@ -2168,7 +2168,7 @@ def package_outputs(models,cyl_htmls):
         run_name = models[i]['rundata']['inputs']['name']+"_"+str(i)
         figs =[]
         for j,fig in enumerate(models[i]['treedata']['figures']):
-            save_name = f"results/tree_data_{run_name}_{models[i]['rundata']['inputs']['tree']}_{models[i]['rundata']['inputs']['model']}_{j}.pdf"
+            save_name = os.path.join("results",f"tree_data_{run_name}_charts_{j}_{models[i]['file_id']}.pdf")
             fig.dpi=1000
             fig.savefig(save_name,format ='pdf')
             figs.append(save_name)
@@ -2879,6 +2879,15 @@ def compute_metric_value(met, T, treedata, Data):
     
     return D
 
+def save_fit(cyl_dist,filename):
+    filename = filename+"_qsm_cyldist.csv"
+    header = ['mean' ,'TrunkMean', 'BranchMean', 'Branch1Mean', 'Branch2Mean', 'max', 'TrunkMax', 'BranchMax', 'Branch1Max', 'Branch2Max']
+    with open(filename,"w") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        writer.writerows(cyl_dist)
+
+
 def cloud_to_image(cloud,resolution=.05):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(cloud)
@@ -2889,6 +2898,8 @@ def cloud_to_image(cloud,resolution=.05):
     voxel_array = np.ones((indices.max(axis=0)+1))
     for x, y, z in indices: voxel_array[x, y, z] = 0
     return voxel_array,voxel_grid,indices
+
+
 
 
 def parse_args(argv):

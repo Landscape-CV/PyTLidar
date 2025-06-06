@@ -7,6 +7,7 @@ import pandas as pd
 from tools.define_input import define_input
 from Utils.Utils import load_point_cloud
 import warnings
+import traceback
 import multiprocessing as mp
 import Utils.Utils as Utils
 
@@ -24,6 +25,25 @@ class BatchQSM():
         self.runname = args["Name"]
         self.verbose = args["Verbose"]
         self.directory = args["Directory"]
+        self.saved_files = []
+    def file_cleanup(self):
+        if len(self.saved_files) == 0:
+            print("No files were saved from this run.")
+            return
+        original_location = os.getcwd()
+        if parsed_args["Directory"] is not None:
+            os.chdir(parsed_args["Directory"])
+            os.chdir("results")
+        else:
+            os.chdir('results')
+        for file in os.listdir():
+            remove = True
+            for string,filename in self.saved_files:
+                if string in file and filename in file:
+                    remove = False
+            if remove:
+                os.remove(file)
+        os.chdir(original_location)
     def run(self):
         try:
             num_cores = int(self.num_cores)
@@ -49,7 +69,7 @@ class BatchQSM():
                 cld['BallRad1'] = [i+.01 for i in cld['PatchDiam1']]
                 cld['BallRad2'] = [i+.01 for i in cld['PatchDiam2Max']]
         for i, input_params in enumerate(inputs):
-            input_params['name'] = self.files[i]+self.runname
+            input_params['name'] = self.files[i].replace(".las","").replace(".laz","")+self.runname
             input_params['savemat'] = 0
             input_params['savetxt'] = 1
             input_params["disp"] = 2 if self.verbose else 0
@@ -93,25 +113,37 @@ class BatchQSM():
                         raise Exception("Error in processing file")
                     p.join()
                     # data,plot = treeqsm(clouds[i],input_params,i)
-                    process_output((batch,data,plot)) 
-                except:
-                    print(f"An error occured on file {input_params['name']}. Please try again. Consider checking the console and reporting the bug to us.")  
+                    self.saved_files += process_output((batch,data,plot),directory = self.directory) 
+                except Exception as e:
+                    print(e)
+                    print(traceback.format_exc())  
             process+=num_cores
             
-            
+        self.file_cleanup()
         print("Processing Complete.\n")
 
-def process_output(output):
+def process_output(output,directory):
+    original_location = os.getcwd()
+    if directory is not None:
+        os.chdir(directory)
+    
     batch,models, cyl_htmls = output
 
+    saved_files = []
     for metric in parsed_args["Optimum"]:
-        optimum = calculate_optimal(models,metric)
+        optimum,value,metric_data = calculate_optimal(models,metric)
         npd1 = models[optimum]['PatchDiam1']
         max_pd = models[optimum]['PatchDiam2Max']
         min_pd = models[optimum]['PatchDiam2Min']
         file = models[optimum]['rundata']['inputs']['name']
-        sys.stdout.write(f"File: {file}, Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n")
-
+        sys.stdout.write(f"File: {file}, For Metric {metric}, Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n\tValue is {value}\n")
+        
+        string = models[optimum]["file_id"]
+        filename = f"{models[optimum]['rundata']['inputs']['name']}_t{models[optimum]['rundata']['inputs']['tree']}_m{models[optimum]['rundata']['inputs']['model']}"
+        Utils.save_fit(metric_data[3]["CylDist"],os.path.join("results",filename+"_"+string))
+        saved_files.append((string,filename))
+    os.chdir(original_location)
+    return saved_files
 
 if __name__== "__main__":
 

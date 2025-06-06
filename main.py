@@ -1,5 +1,4 @@
 from treeqsm import treeqsm
-from batch_process import batched
 import os
 from PySide6.QtCore import QObject,QThread,Signal,Qt,QUrl,QProcess
 from PySide6.QtWidgets import QWidget,QGridLayout,QVBoxLayout,QLabel,QMainWindow,QPushButton,QApplication,QTextEdit,QToolButton,QComboBox,QHBoxLayout,QSlider,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem, QCheckBox,QRadioButton

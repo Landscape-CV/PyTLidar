@@ -80,6 +80,7 @@ def test():
 
 
 def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
+    original_location = os.getcwd()
     if results_location is not None:
         os.chdir(results_location)
 
@@ -314,6 +315,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                             'PatchDiam1': PatchDiam1[h],
                             'PatchDiam2Max': PatchDiam2Max[i],
                             'PatchDiam2Min': PatchDiam2Min[j],
+                            
                         }
 
                         if inputs['Dist']:
@@ -330,46 +332,46 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
 
                         # Save the output into results folder
                         if inputs['savemat']:
-                            str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                            string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
                             if nd > 1 or na > 1 or ni > 1:
                                 if nd > 1:
-                                    str += f"_D{PatchDiam1[h]}"
+                                    string += f"_D{PatchDiam1[h]}"
                                 if na > 1:
-                                    str += f"_DA{PatchDiam2Max[i]}"
+                                    string += f"_DA{PatchDiam2Max[i]}"
                                 if ni > 1:
-                                    str += f"_DI{PatchDiam2Min[j]}"
-                            np.savez(f"results_QSM_{str}.npz", QSM=QSM)
+                                    string += f"_DI{PatchDiam2Min[j]}"
+                            np.savez(f"results_QSM_{string}.npz", QSM=QSM)
 
                         if inputs['savetxt']:
                             if nd > 1 or na > 1 or ni > 1:
-                                str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                                string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
                                 if nd > 1:
-                                    str += f"_D{PatchDiam1[h]}"
+                                    string += f"_D{PatchDiam1[h]}"
                                 if na > 1:
-                                    str += f"_DA{PatchDiam2Max[i]}"
+                                    string += f"_DA{PatchDiam2Max[i]}"
                                 if ni > 1:
-                                    str += f"_DI{PatchDiam2Min[j]}"
+                                    string += f"_DI{PatchDiam2Min[j]}"
                             else:
-                                str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
-                            Utils.save_model_text(qsm, str)
+                                string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                            Utils.save_model_text(qsm, string)
 
                         # Plot models and segmentations
 
                         if nd > 1 or na > 1 or ni > 1:
-                            str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                            string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
                             if nd > 1:
-                                str += f"_D{PatchDiam1[h]}"
+                                string += f"_D{PatchDiam1[h]}"
                             if na > 1:
-                                str += f"_DA{PatchDiam2Max[i]}"
+                                string += f"_DA{PatchDiam2Max[i]}"
                             if ni > 1:
-                                str += f"_DI{PatchDiam2Min[j]}"
+                                string += f"_DI{PatchDiam2Min[j]}"
                         else:
-                            str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                            string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
                         fidelity = min(100000/ P.shape[0],1)  # Adjust fidelity based on point cloud size
                         base_fig = point_cloud_plotting(P, subset=True,fidelity=fidelity,marker_size=1,return_html=False)
                         qsm_plotting(P,cover2,segment2,qsm,return_html=True,subset = True, fidelity=fidelity,marker_size=1)
-                        fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8,str,False,base_fig=base_fig)
-
+                        fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8,string,False,base_fig=base_fig,display = True if inputs['disp']==2 else False)
+                        qsm["file_id"]=string
                         cyl_htmls.append(cyl_html)
 
                         models.append(qsm)
@@ -381,6 +383,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
             sys.stdout.write("\n") 
         if processing_queue is not None:
             processing_queue.put([batch,models,cyl_htmls])
+        os.chdir(original_location)
         return models, cyl_htmls
     except Exception as e:
         sys.stderr.write(f"An error occurred: {traceback.format_exc()}\n")
@@ -393,7 +396,8 @@ def calculate_optimal(models,metric):
         metrics = []
         for i in range(len(models)):
             metrics.append(Utils.compute_metric_value(Utils.select_metric(metric), i,metric_data[0],metric_data[3]))
-        return np.argmax(np.array(metrics))
+        best = np.argmax(np.array(metrics))
+        return best,metrics[best],metric_data
 
 if __name__ == "__main__":
     # cProfile.run("test()",filename="results.txt",sort=1)
@@ -435,14 +439,29 @@ if __name__ == "__main__":
         inputs["disp"] = 2 if parsed_args["Verbose"] else 0
         inputs["plot"] = 0
         models, cyl_htmls = treeqsm(points,inputs,results_location=parsed_args["Directory"])
-
+        saved_files = []
         for metric in parsed_args["Optimum"]:
-            optimum = calculate_optimal(models,metric)
+            optimum,value,metric_data = calculate_optimal(models,metric)
             npd1 = models[optimum]['PatchDiam1']
             max_pd = models[optimum]['PatchDiam2Max']
             min_pd = models[optimum]['PatchDiam2Min']
-            sys.stdout.write(f"Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n")
-            
+            sys.stdout.write(f"For Metric {metric} Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n\tValue is {value}")
+            string = models[optimum]["file_id"]
+            filename = f"{models[optimum]['rundata']['inputs']['name']}_t{models[optimum]['rundata']['inputs']['tree']}_m{models[optimum]['rundata']['inputs']['model']}"
+            Utils.save_fit(metric_data[3]["CylDist"],os.path.join("results",filename+"_"+string))
+            saved_files.append((string,filename))
+        if parsed_args["Directory"] is not None:
+            os.chdir(parsed_args["Directory"])
+            os.chdir("results")
+        else:
+            os.chdir('results')
+        for file in os.listdir():
+            remove = True
+            for string,filename in saved_files:
+                if string in file and filename in file:
+                    remove = False
+            if remove:
+                os.remove(file)
             
     
 
