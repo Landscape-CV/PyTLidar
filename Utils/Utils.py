@@ -2934,7 +2934,7 @@ def parse_args(argv):
     -v: verbose mode"""
     while i <len(argv):
         match argv[i]:
-            case "--intensity":
+            case "--threshold":
                 current_arg = "Intensity"
             case "--custominput":
                 args["Custom"] = True
