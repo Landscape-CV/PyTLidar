@@ -1148,12 +1148,15 @@ class BatchQSM(QObject):
         while process < len(inputs):
             for i in range(num_cores):
                 
-
+                if process+i > len(inputs)-1:
+                    break
                 self.message.emit(f"Processing {inputs[process+i]['name']}. This may take several minutes...\n")
                 
                 P[process+i].start()
 
             for i in range(num_cores):
+                if process+i > len(inputs)-1:
+                    break
                 q=Q[process+i]
                 p = P[process+i]
                 try:

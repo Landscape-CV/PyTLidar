@@ -50,6 +50,8 @@ from plotting.qsm_plotting import qsm_plotting
 import sys
 import json
 import traceback
+import os
+
 
 def test():
     # file_path = r'C:\Users\johnh\Documents\LiDAR\A-04-7007_post.las'
@@ -77,7 +79,10 @@ def test():
 
 
 
-def treeqsm(P,inputs,batch =0,processing_queue = None):
+def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
+    if results_location is not None:
+        os.chdir(results_location)
+
     try:
         # Save computation times for modeling steps
         
@@ -371,7 +376,9 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
                         cyl_htmls.append(cyl_html)
                         iter+=1
         response = Utils.package_outputs(models,cyl_htmls)    
-        sys.stdout.write(json.dumps(response))   
+        if inputs["disp"]==2:
+            sys.stdout.write(json.dumps(response))  
+            sys.stdout.write("\n") 
         if processing_queue is not None:
             processing_queue.put([batch,models,cyl_htmls])
         return models, cyl_htmls
@@ -381,6 +388,12 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
             processing_queue.put([batch, "ERROR", "ERROR"])
         return "ERROR", "ERROR"
 
+def calculate_optimal(models,metric):
+        metric_data = Utils.collect_data(models)
+        metrics = []
+        for i in range(len(models)):
+            metrics.append(Utils.compute_metric_value(Utils.select_metric(metric), i,metric_data[0],metric_data[3]))
+        return np.argmax(np.array(metrics))
 
 if __name__ == "__main__":
     # cProfile.run("test()",filename="results.txt",sort=1)
@@ -388,17 +401,55 @@ if __name__ == "__main__":
     # stats.sort_stats('tottime')
     # stats.reverse_order()
     # stats.print_stats()
+    # try:
     try:
         filename = sys.argv[1]
-        inputs = sys.argv[2].split()
+    except:
+        print("No arguments found, running development test mode")
+        test()
+    parsed_args = Utils.parse_args(sys.argv[2:])
+    
+    
+    if parsed_args not in ["ERROR","Help"]:
+        print(parsed_args)
+        threshold = parsed_args["Intensity"]
 
-        points = load_point_cloud(filename,inputs[0])
+        points = load_point_cloud(filename,threshold)
         if points is not None:
             sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.\n")
         # Step 3: Define inputs for TreeQSM
-        points = points - np.mean(points,axis = 0)
-        inputs = define_input(points, inputs[1], inputs[2], inputs[3])[0]
-        inputs['plot'] = 0
-        treeqsm(points,inputs)
-    except:
-        test()
+        if parsed_args["Normalize"]:
+            points = points - np.mean(points,axis = 0)
+        if parsed_args["Custom"]:
+            inputs = define_input(points, 1, 1, 1)[0]
+            inputs["PatchDiam1"] = parsed_args["PatchDiam1"]
+            inputs["PatchDiam2Min"] = parsed_args["PatchDiam2Min"]
+            inputs["PatchDiam2Max"] = parsed_args["PatchDiam2Max"]
+            inputs['BallRad1'] = [d +.01 for d in parsed_args["PatchDiam1"]]
+            inputs['BallRad2'] = [d +.01 for d in parsed_args["PatchDiam2Max"]]
+            
+            
+        else:
+            inputs = define_input(points,parsed_args["PatchDiam1"],parsed_args["PatchDiam2Min"],parsed_args["PatchDiam2Max"])[0]
+            inputs["name"] = parsed_args["Name"]+inputs["name"]
+        inputs["disp"] = 2 if parsed_args["Verbose"] else 0
+        inputs["plot"] = 0
+        models, cyl_htmls = treeqsm(points,inputs,results_location=parsed_args["Directory"])
+
+        for metric in parsed_args["Optimum"]:
+            optimum = calculate_optimal(models,metric)
+            npd1 = models[optimum]['PatchDiam1']
+            max_pd = models[optimum]['PatchDiam2Max']
+            min_pd = models[optimum]['PatchDiam2Min']
+            sys.stdout.write(f"Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n")
+            
+            
+    
+
+    # except:
+    #     run = input("No arguments provided, would you like to proceed with default file and setup? Y/N")
+    #     if run == "Y":
+    #         test()
+    #     else:
+    #         sys.stdout.write("Closing... Please try again.")
+        
