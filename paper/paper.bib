@@ -1,0 +1,49 @@
+@misc{TreeQSM,
+  author       = {Raumonen, P. and Åkerblom, M. and Kaasalainen, M. and others},
+  title        = {{TreeQSM}: Quantitative Structure Models of Trees from Terrestrial Laser Scanning Point Clouds},
+  year         = {2013},
+  howpublished = {\url{https://github.com/InverseTampere/TreeQSM}},
+  note         = {Accessed: 2025-06-08}
+}
+
+@Article{f6114245,
+  AUTHOR = {Hackenberg, Jan and Spiecker, Heinrich and Calders, Kim and Disney, Mathias and Raumonen, Pasi},
+  TITLE = {SimpleTree —An Efficient Open Source Tool to Build Tree Models from TLS Clouds},
+  JOURNAL = {Forests},
+  VOLUME = {6},
+  YEAR = {2015},
+  NUMBER = {11},
+  PAGES = {4245--4294},
+  URL = {https://www.mdpi.com/1999-4907/6/11/4245},
+  ISSN = {1999-4907},
+  ABSTRACT = {An open source tool named SimpleTree, capable of modelling highly accurate cylindrical tree models from terrestrial laser scan point clouds, is presented and evaluated. All important functionalities, accessible in the software via buttons and dialogues, are described including the explanation of all necessary input parameters. The method is validated utilizing 101 point clouds of six different tree species, in the main evergreen and coniferous trees. All scanned trees have been destructively harvested to get accurate estimates of above ground biomass with which we assess the accuracy of the SimpleTree-reconstructed cylinder models. The trees were grouped into four data sets and for each one a Concordance Correlation Coefficient of at least 0.92 (0.92, 0.97, 0.92, 0.94) and an total relative error at most ~8 % (2.42%, 3.59%, –4.59%, 8.27%) was achieved in the comparison of the model results to the ground truth data. A global statistical improvement of derived cylinder radii is presented as well as an efficient optimization approach to automatically improve user given input parameters. An additional check of the SimpleTree results is presented via comparison to the results of trees reconstructed using an alternative, published method.},
+  DOI = {10.3390/f6114245}
+}
+
+@Article{f5051069,
+  AUTHOR = {Hackenberg, Jan and Morhart, Christopher and Sheppard, Jonathan and Spiecker, Heinrich and Disney, Mathias},
+  TITLE = {Highly Accurate Tree Models Derived from Terrestrial Laser Scan Data: A Method Description},
+  JOURNAL = {Forests},
+  VOLUME = {5},
+  YEAR = {2014},
+  NUMBER = {5},
+  PAGES = {1069--1105},
+  URL = {https://www.mdpi.com/1999-4907/5/5/1069},
+  ISSN = {1999-4907},
+  ABSTRACT = {This paper presents a method for fitting cylinders into a point cloud, derived from a terrestrial laser-scanned tree. Utilizing high scan quality data as the input, the resulting models describe the branching structure of the tree, capable of detecting branches with a diameter smaller than a centimeter. The cylinders are stored as a hierarchical tree-like data structure encapsulating parent-child neighbor relations and incorporating the tree’s direction of growth. This structure enables the efficient extraction of tree components, such as the stem or a single branch. The method was validated both by applying a comparison of the resulting cylinder models with ground truth data and by an analysis between the input point clouds and the models. Tree models were accomplished representing more than 99% of the input point cloud, with an average distance from the cylinder model to the point cloud within sub-millimeter accuracy. After validation, the method was applied to build two allometric models based on 24 tree point clouds as an example of the application. Computation terminated successfully within less than 30 min. For the model predicting the total above ground volume, the coefficient of determination was 0.965, showing the high potential of terrestrial laser-scanning for forest inventories.},
+  DOI = {10.3390/f5051069}
+}
+
+@Article{rs70404581,
+  AUTHOR = {Markku, Åkerblom and Raumonen, Pasi and Kaasalainen, Mikko and Casella, Eric},
+  TITLE = {Analysis of Geometric Primitives in Quantitative Structure Models of Tree Stems},
+  JOURNAL = {Remote Sensing},
+  VOLUME = {7},
+  YEAR = {2015},
+  NUMBER = {4},
+  PAGES = {4581--4603},
+  URL = {https://www.mdpi.com/2072-4292/7/4/4581},
+  ISSN = {2072-4292},
+  ABSTRACT = {One way to model a tree is to use a collection of geometric primitives to represent the surface and topology of the stem and branches of a tree. The circular cylinder is often used as the geometric primitive, but it is not the only possible choice. We investigate various geometric primitives and modelling schemes, discuss their properties and give practical estimates for expected modelling errors associated with the primitives. We find that the circular cylinder is the most robust primitive in the sense of a well-bounded volumetric modelling error, even with noise and gaps in the data. Its use does not cause errors significantly larger than those with more complex primitives, while the latter are much more sensitive to data quality. However, in some cases, a hybrid approach with more complex primitives for the stem is useful.},
+  DOI = {10.3390/rs70404581}
+}
