@@ -58,7 +58,7 @@ def branches(cylinder):
     nc = Rad.shape[0]  # number of cylinders
     ns = int(np.max(Branch)) + 1  # number of segments (branches)
     # BData will store branch attributes: order, diameter, volume, area, length, angle, height, azimuth, zenith
-    BData = np.zeros((ns, 9), dtype=np.float32)
+    BData = np.zeros((ns, 12), dtype=np.float32)
     ind = np.arange(0, nc)
     # CiB will hold the list of cylinder indices
     CiB = [None] * ns
@@ -99,6 +99,9 @@ def branches(cylinder):
             # Branch azimuth
             BData[i, 7] = 180 / np.pi * np.arctan2(Axe[C[0], 1], Axe[C[0], 0])  # branch azimuth
             BData[i, 8] = 180 / np.pi * np.arccos(Axe[C[0], 2]) 
+            BData[i, 9] = start[first_idx,0]
+            BData[i, 10] = start[first_idx,1]
+            BData[i,11] = start[first_idx,2]
             # BData[i, 7] = 180 / math.pi * math.atan2(Axe[FC, 1], Axe[FC, 0])
             # # Branch zenith
             # BData[i, 8] = 180 / math.pi * math.acos(np.clip(Axe[FC, 2], -1.0, 1.0))
@@ -151,5 +154,8 @@ def branches(cylinder):
     branch_dict['height'] = BData[:, 6]  # in meters
     branch_dict['azimuth'] = BData[:, 7]  # in degrees
     branch_dict['zenith'] = BData[:, 8]  # in degrees
+    branch_dict['x'] = BData[:,9]
+    branch_dict['y'] = BData[:,10]
+    branch_dict['z'] = BData[:,11]
 
     return branch_dict

@@ -52,7 +52,7 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
         if point_data.shape[1] == 3:
             point_cloud = point_data
         elif point_data.shape[1] == 4:
-            I = point_data[:, 3] > intensity_threshold
+            I = point_data[:, 3] >= intensity_threshold
             point_cloud = point_data[I, :3]
         else:
             raise ValueError("Unsupported format in XYZ file.")
@@ -60,7 +60,7 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
     with laspy.open(file_path) as las:
         point_data = las.read()
         point_data = np.vstack((point_data.x, point_data.y, point_data.z,point_data.intensity)).T.astype('float64')
-        I = point_data[:,3]>intensity_threshold
+        I = point_data[:,3]>=intensity_threshold
         point_data = point_data[I]
         point_cloud = point_data[:,0:3]
     return point_cloud if not full_data else (point_cloud,point_data)
@@ -1189,10 +1189,13 @@ def save_model_text(QSM, savename):
     BHei = np.round(1000 * branch["height"]) / 1000
     BAzi = np.round(10 * branch["azimuth"]) / 10
     BZen = np.round(10 * branch["zenith"]) / 10
+    Bx = np.round(1000 * branch["x"]) / 1000
+    By = np.round(1000 * branch["y"]) / 1000
+    Bz = np.round(1000 * branch["z"]) / 1000
 
-    BranchData = np.column_stack((BOrd, BPar, BDia, BVol, BAre, BLen, BHei, BAng, BAzi, BZen))
+    BranchData = np.column_stack((BOrd, BPar, BDia, BVol, BAre, BLen, BHei, BAng, BAzi, BZen,Bx,By,Bz))
     NamesB = ["order", "parent", "diameter (m)", "volume (L)", "area (m^2)",
-                "length (m)", "height (m)", "angle (deg)", "azimuth (deg)", "zenith (deg)"]
+                "length (m)", "height (m)", "angle (deg)", "azimuth (deg)", "zenith (deg)","Location X", "Location Y", "Location Z"]
 
     # --------------------
     # Process treedata.
@@ -3028,5 +3031,7 @@ def parse_args(argv):
             args["PatchDiam2Max"]=args["PatchDiam2Max"][0]
 
     return args
+
+
 
 

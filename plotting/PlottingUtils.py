@@ -151,3 +151,22 @@ def plot_distribution(QSM, fig, rela, cumu, dis, dis2=None, dis3=None, dis4=None
         plt.legend(L, loc='best')
     # plt.show()
 
+
+def plot_branch_hist(QSM,fig,metric,bins = 20):
+    """
+        Plots histogram of branches according to chosen metric.
+
+        Possible metrics include "order","parent","diameter","volume","area","length","angle","height","azimuth", and "zenith"
+    """
+    data = QSM["branch"][metric]
+    data = data[data<.1]
+    datahist = np.histogram(data,bins=bins)
+    print(datahist)
+    plt.figure(fig)
+    # plt.stairs(datahist[0],datahist[1])
+    plt.hist(data*100,bins=bins)
+    plt.title(f"Quantity of Branches by {metric}")
+    plt.xlabel("Branch Diameter (cm)")
+    plt.ylabel("Quantity of Branches")
+
+
