@@ -1,7 +1,7 @@
 import math
 import numpy as np
-from Eigen_transform import svd_eigen, pca_transform
-from LS_circle import circleFitError
+from .Eigen_transform import svd_eigen, pca_transform
+from .LS_circle import circleFitError
 
 def components_classify(pcd, components, path_list, t_linearity=0.92, t_error=0.2, split_interval=0.2):
     """

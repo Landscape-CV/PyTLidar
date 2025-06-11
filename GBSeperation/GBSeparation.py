@@ -2,12 +2,12 @@ import datetime
 import numpy as np
 import open3d as o3d
 import networkx as nx
-from Graph_Path import array_to_graph, extract_path_info
-from LS_circle import getRootPt
-from ExtractInitWood import extract_init_wood
-from ExtractFinalWood import extract_final_wood
-from Accuracy_evaluation import evaluate_indicators
-from Visualization import show_graph, sp_graph, show_pcd
+from .Graph_Path import array_to_graph, extract_path_info
+from .LS_circle import getRootPt
+from .ExtractInitWood import extract_init_wood
+from .ExtractFinalWood import extract_final_wood
+from .Accuracy_evaluation import evaluate_indicators
+from .Visualization import show_graph, sp_graph, show_pcd
 
 # load single tree point cloud.
 tree_file = 'tree_48_49'

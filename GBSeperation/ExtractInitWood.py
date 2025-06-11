@@ -1,9 +1,9 @@
 import math
 import numpy as np
-from Components_classify import getAngle3D
-from Components_classify import components_classify
+from .Components_classify import getAngle3D
+from .Components_classify import components_classify
 import networkx as nx
-from Visualization import graph_cluster, graph_cluster2, show_clusters
+from .Visualization import graph_cluster, graph_cluster2, show_clusters
 
 def extract_init_wood(pcd, G, base_id, path_dis, path_list, split_interval=[0.1,0.2,0.3,0.5,1],
                      max_angle=np.pi):
