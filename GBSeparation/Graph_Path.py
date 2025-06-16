@@ -28,7 +28,7 @@ __status__ = "Development"
 import networkx as nx
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
+def array_to_graph(arr, base_id, kpairs=3, knn=50, nbrs_threshold=0.1,
                    nbrs_threshold_step=0.02, graph_threshold=np.inf):
 
     """
@@ -76,7 +76,7 @@ def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
 
     # Initializing NearestNeighbors search and searching for all 'knn'
     # neighboring points arround each point in 'arr'.
-    nbrs = NearestNeighbors(n_neighbors=knn, metric='euclidean',
+    nbrs = NearestNeighbors(n_neighbors=min(knn,len(arr)), metric='euclidean',
                             leaf_size=15, n_jobs=-1).fit(arr)
     distances, indices = nbrs.kneighbors(arr)
     indices = indices.astype(int)
@@ -135,10 +135,12 @@ def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
             # that remain to be processed.
             unprocessed_nn = indices[unprocessed_idx]
             unprocessed_dd = distances[unprocessed_idx]
-
+            
             # Masking indices in idx2 that have already been processed. The
             # idea is to connect remaining points to existing graph nodes.
             mask1 = np.in1d(unprocessed_nn, processed_idx).reshape(unprocessed_nn.shape)
+            if np.sum(mask1) == 0:
+                break
             # Masking neighboring points that are withing threshold distance.
             mask2 = unprocessed_dd < temp_nbrs_threshold
             # mask1 AND mask2. This will mask only indices that are part of
@@ -187,7 +189,7 @@ def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
         # Generating list of remaining proints to process.
         unprocessed_idx = idx_base[np.in1d(idx_base, processed_idx, invert=True)]
 
-        print("unprocessed_count:", unprocessed_idx.shape[0])
+        # print("unprocessed_count:", unprocessed_idx.shape[0])
 
     return G
 

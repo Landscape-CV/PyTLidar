@@ -80,9 +80,11 @@ class LeafRemover:
         wood = xyz_point_cloud[final_wood_mask]
         final_wood_mask[-1] = True
         leaf = xyz_point_cloud[~final_wood_mask]
+        
         if not return_mask:
             return wood, leaf
         else:
+            final_wood_mask = final_wood_mask[:-1]
             return final_wood_mask,~final_wood_mask
 
 if __name__ == "__main__":

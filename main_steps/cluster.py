@@ -218,7 +218,7 @@ def connect_covers(tile, cover,  z_thresh=2, max_dist =.25):
 
 
 
-def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
+def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3):
     tile.to(tile.device)
     tile.cover_sets = torch.Tensor(tile.cover_sets).to(tile.device).to(int)
     I = torch.argsort(tile.cover_sets)
@@ -233,14 +233,25 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
     dim = tile.point_data.size(1)
 
 
-    center_points = torch.zeros((num_masks, dim), device=tile.point_data.device)
-    center_points.scatter_reduce_(
+    #representative points for each cover set
+    # center_points = torch.zeros((num_masks, dim), device=tile.point_data.device)
+    # center_points.scatter_reduce_(
+    # 0, 
+    # tile.cover_sets.unsqueeze(-1).expand(-1, dim), 
+    # tile.point_data, 
+    # reduce='mean',
+    # include_self=False
+    # )
+    min_points = torch.zeros((num_masks, dim), device=tile.point_data.device)
+   
+    min_points.scatter_reduce_(
     0, 
     tile.cover_sets.unsqueeze(-1).expand(-1, dim), 
     tile.point_data, 
-    reduce='mean',
+    reduce='min',
     include_self=False
     )
+    center_points = min_points.clone()
     
     
     
@@ -288,7 +299,7 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
     sorted_indices = I.copy()
 
     cloud = center_points[:,:3].cpu().numpy()
-
+    # min_cloud = min_points[:,:3]
     full_pcd = o3d.geometry.PointCloud()
     full_pcd.points = o3d.utility.Vector3dVector(cloud)
     full_pcd_tree = o3d.geometry.KDTreeFlann(full_pcd)
@@ -303,8 +314,15 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
     multiplier = 2
     while base_height+min_Z-1<torch.max(tile.cloud[:,2]):
         
+        # if prev_base_height ==0:
+        #     I = ((min_points[:,2]-min_Z)<base_height) & (prev_base_height<(min_points[:,2]-min_Z))
+            
+            
+        #     cloud = cloud[I.cpu().numpy()]
+        #     included_cover_sets = np.where(I.cpu().numpy())
+        #     # center_points[I] =min_points[I]
+        # else:
         I = ((cloud[:,2]-min_Z)<base_height) & (prev_base_height<(cloud[:,2]-min_Z))
-        
         
         cloud = cloud[I]
         included_cover_sets = np.where(I)
@@ -316,16 +334,27 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
         # pcd = pcd.voxel_down_sample(voxel_size=.03)
     
         pcd_tree = o3d.geometry.KDTreeFlann(pcd)
-
+        # if prev_base_height ==0:
+            
+        #     #set base points with DBSCAN
+        #     segments = np.array(pcd.cluster_dbscan(eps=max_dist*multiplier, min_points=1))
+        #     tree_bases = np.unique(segments)
+        #     _segments,_segment_num,not_explored = add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist*multiplier,network,full_pcd_tree,full_pcd,included_cover_sets[0],size_limit)
+            
+            
+        # else:
         segments,segment_num,not_explored = add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist*multiplier,network,full_pcd_tree,full_pcd,included_cover_sets[0],size_limit)
         full_segments[included_cover_sets] = segments
         if prev_base_height ==0:
+
             tree_bases = np.unique(segments)
+            
+        
         # full_not_explored[included_cover_sets]= not_explored
         cloud = center_points[:,:3].cpu().numpy()
         prev_base_height = base_height
         base_height+=layer_size
-        size_limit = 50
+        size_limit = 10
         multiplier =1
     segments = full_segments.copy()
     full_not_explored = np.ones(len(center_points),dtype = bool)
@@ -339,22 +368,29 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
     filtered_tree_bases = []
     for base in tree_bases:
         base_set = center_points[segments ==base]
-        if  len(base_set[:,2]<min_Z+.3)>25:
-
+        # if  len(base_set[:,2]<min_Z+.3)>1:
+        if  len(base_set[:,2])>5:
             filtered_tree_bases.append(base)
-    
+    filtered_tree_bases=combine_close_bases(segments,center_points,filtered_tree_bases,.2)
+    filtered_tree_bases = filtered_tree_bases.cpu().numpy()
+
+    # filtered_tree_bases=combine_close_bases(segments,center_points,tree_bases)
 
     
     
     print("Connect Segments")
-    segments,not_explored = connect_segments(pcd_tree,pcd,segments,full_not_explored,filtered_tree_bases,max_dist*1.5,network,False)
-    segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist*1.5,network,False)
-    
+    segments,not_explored = connect_segments(pcd_tree,pcd,segments,full_not_explored,filtered_tree_bases,max_dist*2,network,False,True)
+    print("Connect More Segments")
+    segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist,network,False,False)
+    print("Connect Final Segments")
+    segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist*1.5,network,True,True)
+    # print("Fix Overlap")
+    # segments = fix_overlap(segments,center_points,network)
 
     unassigned_sets = np.where(~np.isin(segments,filtered_tree_bases))
     segments[unassigned_sets]=-1
 
-
+    print(np.unique(segments))
     I = torch.argsort(tile.cover_sets)
     tile.cover_sets = tile.cover_sets[I]
     tile.point_data = tile.point_data[I]
@@ -363,19 +399,20 @@ def segment_point_cloud(tile, max_dist = .2, base_height = 1, layer_size =.25):
     segments = segments[np.argsort(sorted_indices)]
     segments=torch.tensor(segments,device=tile.device,dtype=int)
     if len(num_indices) < len(segments):
-        num_indices = torch.cat([num_indices, torch.zeros(len(segments)-len(num_indices), device=tile.device,dtype=int)])
+        num_indices = torch.cat([num_indices, torch.zeros(len(segments)-len(num_indices), device=tile.device,dtype=int)-1])
     if len(segments)<len(num_indices):
-        segments = torch.cat([segments, torch.zeros(len(num_indices)-len(segments), device=tile.device,dtype=int)])
+        segments = torch.cat([segments, torch.zeros(len(num_indices)-len(segments), device=tile.device,dtype=int)-1])
     
     tile.segment_labels= torch.repeat_interleave(segments, num_indices)
     tile.cover_sets = tile.cover_sets.cpu().numpy()
     tile.numpy()
+    print(np.unique(tile.segment_labels))
     # tile.cluster_labels = segments
     # tile.cloud = cloud
     
 
 # @numba.jit(forceobj=True)
-def add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist,network:Graph,full_pcd_tree,full_pcd,included_sets,size_limit = 100):
+def add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist,network:Graph,full_pcd_tree,full_pcd,included_sets,size_limit = 100,graph_multiplier=2):
     K=20
     edges = []
     weights = []
@@ -387,7 +424,7 @@ def add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist,network:Gr
         not_explored[base]=False
         
         k,points,dist = pcd_tree.search_hybrid_vector_3d(pcd.points[base],max_dist,K)
-        k,graph_points,dist =full_pcd_tree.search_hybrid_vector_3d(full_pcd.points[included_sets[base]],max_dist*3,K)
+        k,graph_points,dist =full_pcd_tree.search_hybrid_vector_3d(full_pcd.points[included_sets[base]],max_dist*graph_multiplier,K)
         edges.extend(make_edges(included_sets[base],list(graph_points)))
         
         weights.extend(list(dist))
@@ -405,7 +442,7 @@ def add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist,network:Gr
             if not_explored[next_point]:
                 segments[next_point]=segment_num
                 k,new_points,dist = pcd_tree.search_hybrid_vector_3d(pcd.points[next_point],max_dist,K)
-                k,graph_points,dist =full_pcd_tree.search_hybrid_vector_3d(full_pcd.points[included_sets[next_point]],max_dist*3,K)
+                k,graph_points,dist =full_pcd_tree.search_hybrid_vector_3d(full_pcd.points[included_sets[next_point]],max_dist*graph_multiplier,K)
                 edges.extend(make_edges(included_sets[next_point],list(graph_points)))
                 weights.extend(list(dist))
                 # new_points.pop(0)
@@ -432,16 +469,20 @@ def make_edges(source,target):
         edges.append((source,node))
     return edges
 # @numba.jit(forceobj=True)
-def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,network,search_non_connecting):
+def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,network,search_non_connecting,min_point=False):
     not_expanded = np.zeros(len(not_explored),dtype=bool)
 
     point_data = np.array(pcd.points)
     tree_base_points = []
-    for base in tree_bases:
-        # lexord = (point_data[np.where(segments == base)][:,0],point_data[np.where(segments == base)][:,1],point_data[np.where(segments == base)][:,2])
-        base_set = point_data[np.where(segments == base)]
-        base_estimate = np.lexsort((base_set[:,0],base_set[:,1],base_set[:,2]))[len(base_set)//2]
-        tree_base_points.append(np.where(segments == base)[0][base_estimate])
+    if min_point:
+       for base in tree_bases:
+            tree_base_points.append(np.where(segments == base)[0][point_data[np.where(segments == base)][:,2].argmin()])
+    else:
+        for base in tree_bases:
+            # lexord = (point_data[np.where(segments == base)][:,0],point_data[np.where(segments == base)][:,1],point_data[np.where(segments == base)][:,2])
+            base_set = point_data[np.where(segments == base)]
+            base_estimate = np.lexsort((base_set[:,0],base_set[:,1],base_set[:,2]))[len(base_set)//2]
+            tree_base_points.append(np.where(segments == base)[0][base_estimate])
         # tree_base_points.append(np.where(segments == base)[0][point_data[np.where(segments == base)][:,2].argmin()])
 
     tree_base_points=np.array(tree_base_points,dtype=int)
@@ -477,7 +518,10 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
                     continue
                 else:
                     path_dist=np.array(network.distances(base,tree_base_points,weights='weight'))[0]
-                    base_seg=np.argmin(path_dist)
+                    if np.min(path_dist)==np.inf:
+                        not_expanded[base]=True
+                        continue
+                    base_seg=tree_bases[np.argmin(path_dist)]
             else:
 
                 base_idx = np.where(np.isin(tree_bases, tree_base_seg))[0]
@@ -488,7 +532,8 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
                 base_seg=tree_base_seg[np.argmin(path_dist)]
             # for seg in segs:
             #     if seg not in tree_bases:
-            
+            if segments[base]==-1:
+                continue
             segments[segments==segments[base] ] = base_seg
         
 
@@ -497,6 +542,120 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
         
         
     return segments,not_expanded
+
+def combine_close_bases(segments,center_points,bases, bound = .1):
+    bases = torch.tensor(bases,dtype=int,device=center_points.device)
+    again =True
+    while again:
+        
+        new_bases = bases.clone()
+        changed=torch.zeros(size=(len(bases),),dtype=bool,device=center_points.device)
+        bounds = get_bounds(bases,segments,center_points)
+        
+
+        for i in range(len(bases)):
+            if not changed[i]:
+                base = center_points[segments ==bases[i].cpu().numpy()]
+                min_y = torch.min(base[:,1])
+                min_x = torch.min(base[:,0])
+                min_z = torch.min(base[:,2])
+                max_y = torch.max(base[:,1])
+                max_x = torch.max(base[:,0])
+                max_z = torch.max(base[:,2])
+                seg_bound = torch.tensor([min_x,min_y,min_z,max_x,max_y,max_z],device=center_points.device)
+                overlap = get_overlap(bounds,seg_bound)
+                segments[np.isin(segments,bases[overlap].cpu().numpy())]=bases[i].cpu().numpy()
+                new_bases[overlap] = bases[i]
+                changed+=overlap
+        if not torch.all(new_bases == bases):
+            again =True
+        else:
+            again=False
+        bases =torch.unique(new_bases).clone()
+    return torch.unique(new_bases)
+
+
+def get_overlap(bounds,seg_bound):
+    """
+    bounds: [N,6] tensor of min_x,min_y,min_z,max_x,max_y,max_z for each segment
+    seg_bound: [6] tensor of min_x,min_y,min_z,max_x,max_y,max_z for the segment to check overlap with
+    returns: [N] tensor of bools indicating if the segment overlaps with the given segment
+    """
+    #Corners (0,0,0) and (1,1,1)
+    overlap = torch.all(bounds[:,:3]<seg_bound[3:],axis=1)&torch.all(bounds[:,:3]>seg_bound[:3],axis=1) | torch.all(bounds[:,3:]<seg_bound[3:],axis=1)&torch.all(bounds[:,3:]>seg_bound[:3],axis=1)
+    
+    #Corner (0,0,1)
+    overlap =overlap | torch.all(torch.column_stack([bounds[:,0],bounds[:,1],bounds[:,5]])<seg_bound[3:])&torch.all(torch.column_stack([bounds[:,0],bounds[:,1],bounds[:,5]])>seg_bound[:3],axis=1)
+    #Corner (0,1,1)
+    overlap =overlap | torch.all(torch.column_stack([bounds[:,0],bounds[:,4],bounds[:,5]])<seg_bound[3:])&torch.all(torch.column_stack([bounds[:,0],bounds[:,4],bounds[:,5]])>seg_bound[:3],axis=1)
+    #Corner (0,1,0)
+    overlap =overlap | torch.all(torch.column_stack([bounds[:,0],bounds[:,4],bounds[:,2]])<seg_bound[3:])&torch.all(torch.column_stack([bounds[:,0],bounds[:,4],bounds[:,2]])>seg_bound[:3],axis=1)
+    #Corner (1,1,0)
+    overlap =overlap | torch.all(torch.column_stack([bounds[:,3],bounds[:,4],bounds[:,2]])<seg_bound[3:])&torch.all(torch.column_stack([bounds[:,3],bounds[:,4],bounds[:,2]])>seg_bound[:3],axis=1)
+    #Corner (1,0,0)
+    overlap =overlap | torch.all(torch.column_stack([bounds[:,3],bounds[:,1],bounds[:,2]])<seg_bound[3:])&torch.all(torch.column_stack([bounds[:,3],bounds[:,1],bounds[:,2]])>seg_bound[:3],axis=1)
+    #Corner (1,0,1)
+    overlap =overlap | torch.all(torch.column_stack([bounds[:,3],bounds[:,1],bounds[:,5]])<seg_bound[3:])&torch.all(torch.column_stack([bounds[:,3],bounds[:,1],bounds[:,5]])>seg_bound[:3],axis=1)
+    
+    return overlap
+
+def get_bounds(bases,segments,center_points):
+    _bases = torch.tensor(bases,dtype=int,device=center_points.device)
+    bounds = torch.zeros((len(bases),6),device=center_points.device)
+    for i in range(len(bases)):
+        base = center_points[segments ==_bases[i].cpu().numpy()]
+        min_y = torch.min(base[:,1])
+        min_x = torch.min(base[:,0])
+        min_z = torch.min(base[:,2])
+        max_y = torch.max(base[:,1])
+        max_x = torch.max(base[:,0])
+        max_z = torch.max(base[:,2])
+        bounds[i] = torch.tensor([min_x,min_y,min_z,max_x,max_y,max_z],device=center_points.device)
+    return bounds
+
+
+def fix_overlap(segments,center_points,network):
+    bases = np.unique(segments)
+    bounds = get_bounds(bases,segments,center_points)
+    base_mins = get_minimums(segments,center_points)
+
+    for i in range(len(bases)):
+        base = center_points[segments ==bases[i]]
+        min_y = torch.min(base[:,1])
+        min_x = torch.min(base[:,0])
+        min_z = torch.min(base[:,2])
+        max_y = torch.max(base[:,1])
+        max_x = torch.max(base[:,0])
+        max_z = torch.max(base[:,2])
+        seg_bound = torch.tensor([min_x,min_y,min_z,max_x,max_y,max_z],device=center_points.device)
+        overlap = get_overlap(bounds,seg_bound)
+        if sum(overlap)>1:
+            for j in range(len(bases)):
+                test_bases = [base_mins[i],base_mins[j]]
+                point_data = center_points[segments ==bases[i]]
+
+                I = torch.all(point_data[:,:3]<bounds[i,:3],axis=1) & torch.all(point_data[:,:3]>bounds[i,3:],axis=1) 
+                for k, point in enumerate(point_data[I]):
+                    path_dist=np.array(network.distances(point,test_bases,weights='weight'))[0]
+                    base_seg=test_bases[np.argmin(path_dist)]
+                    segments[segments==bases[i]][k]=base_seg
+
+                    
+
+                   
+
+    return segments
+
+def get_minimums(segments,center_points):
+    minimums = np.zeros((len(np.unique(segments)),3))
+    for i,base in enumerate(np.unique(segments)):
+        point_data = center_points[segments ==base]
+        minimums[i]=np.where(segments == base)[0][point_data[np.where(segments == base)][:,2].argmin()]
+    return minimums
+        
+            
+
+
 
 
 
