@@ -204,7 +204,7 @@ class Ecomodel:
             tile.to_xyz(f"clustered_{i}.xyz", True)
 
             
-    def get_qsm_segments(self,intensity_threshold = 0):
+    def get_qsm_segments(self,intensity_threshold = 45000):
         """
         Get the modeled cylinder and QSM segments from the point cloud P.
         Parameters: 
@@ -218,8 +218,6 @@ class Ecomodel:
                 continue
             
             tile.numpy()
-            if i != 2:
-                continue
             # tile.cloud = tile.cloud[tile.point_data[:,3]>intensity_threshold]
             # tile.cover_sets = tile.cover_sets[tile.point_data[:,3]>intensity_threshold]
             # tile.segment_labels = tile.segment_labels[tile.point_data[:,3]>intensity_threshold]
@@ -278,6 +276,11 @@ class Ecomodel:
                 
                 wood_mask = np.isin(labels,np.where(wood_mask)[0])
                 leaf_mask = np.isin(labels,np.where(leaf_mask)[0])
+                intensity_mask = tile.point_data[mask][:,3]>intensity_threshold
+
+                #Only remove leaves if intensity threshold is not met
+                wood_mask = np.logical_or(wood_mask,intensity_mask)
+                leaf_mask = np.logical_and(leaf_mask,~intensity_mask)
                 # wood_I = np.where(wood_mask)[0]
                 # leaf_I = np.where(leaf_mask)[0]
                 segment_cloud = segment_cloud[wood_mask]
@@ -854,17 +857,17 @@ if __name__ == "__main__":
     
     # combined_cloud.segment_trees()
     # combined_cloud.pickle("test_model_trees_segmented.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
-    combined_cloud.get_qsm_segments(0)
+    # combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
+    # combined_cloud.get_qsm_segments(45000)
     # combined_cloud.pickle("test_model_post_qsm.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm.pickle")
     combined_cloud.recombine_tiles()
     # Palm
-    # cylinder,base_plot = combined_cloud.get_cylinders(-15,-3,-3,5,fidelity = .3)
+    cylinder,base_plot = combined_cloud.get_cylinders(-15,-3,-3,5,fidelity = .3)
     # # Small Voxel
     # cylinder,base_plot = combined_cloud.get_cylinders(-11,1,-1,3,fidelity = 1)
     # # Large Voxel
-    cylinder,base_plot = combined_cloud.get_cylinders(-3,-3,-4,3,fidelity = .6)
+    # cylinder,base_plot = combined_cloud.get_cylinders(-3,-3,-4,3,fidelity = .6)
     base_plot.write_html("results/segment_test_plot_no_continuation.html")
     # cylinders_line_plotting(cylinder, scale_factor=20,file_name="test_plot",base_fig=base_plot)
     # cylinders_plotting(cylinder,base_fig=base_plot)

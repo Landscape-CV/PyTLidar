@@ -28,7 +28,7 @@ __status__ = "Development"
 import networkx as nx
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-def array_to_graph(arr, base_id, kpairs=3, knn=50, nbrs_threshold=0.1,
+def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
                    nbrs_threshold_step=0.02, graph_threshold=np.inf):
 
     """
@@ -76,6 +76,34 @@ def array_to_graph(arr, base_id, kpairs=3, knn=50, nbrs_threshold=0.1,
 
     # Initializing NearestNeighbors search and searching for all 'knn'
     # neighboring points arround each point in 'arr'.
+    """
+    JOHN'S NOTE:
+        This will require the most updates. The way this currently works is to use the sklearn nearest neighbors up front and then still 
+        iterate through the neighbors to add them to the graph.
+        Instead, we can create a KDTree then iterate through the points to calculate the neighbors and add them to the graph in a single while loop.
+
+        To see an example of this, see add_layer in cluster.py. 
+        There, we make two graphs simultaneously for separate purposes, so focus on the full_pcd_tree and graph_points lines.
+        The basic steps are:
+        1. Create a KDTree from the points. (In cluster.py, this is done like so: 
+            full_pcd_tree = cKDTree(full_pcd[:, :3], leafsize=15)pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(cloud)
+            pcd_tree = o3d.geometry.KDTreeFlann(pcd)
+            
+            The main benefit of using open3d over sklearn is that it has the method search_hybrid_vector_3d which 
+            allows us to limit the search range while we get the neighbors, instead of removing the neighbors out of range as is done the initial implementation.
+        2. Initialize the graph vertices with all the points in the array. It is siginificantly faster to add all the points at once than to add them one by one.
+        3. Iterate through the points and use search_hybrid_vector_3d to get the neighbors.
+        4. For each neighbor, add edges to a list/array
+           You may want to utilize the method make_edges from cluster.py, as it is optimized with numba so will be quite fast.
+        5. After iterating through all the points, add the edges to the graph in a single call. Igraph is optimized for buk edge addition
+        
+        You may try implementing this exactly here, or you may want to incorporate some of the logic from the current implementation using this method.
+        The main behavior worth keeping from the current implementation is the way it handles the nbrs_threshold and nbrs_threshold_step, i.e.
+        continously increasing the threshold on unconnected nodes until the graph is fully connected.
+    
+    
+    """
     nbrs = NearestNeighbors(n_neighbors=min(knn,len(arr)), metric='euclidean',
                             leaf_size=15, n_jobs=-1).fit(arr)
     distances, indices = nbrs.kneighbors(arr)
@@ -94,6 +122,7 @@ def array_to_graph(arr, base_id, kpairs=3, knn=50, nbrs_threshold=0.1,
     temp_nbrs_threshold = nbrs_threshold
 
     # Looping while there are still indices (idx) left to process.
+
     while unprocessed_idx.shape[0] > 0:
 
         # If current_idx is a list containing several indices.
