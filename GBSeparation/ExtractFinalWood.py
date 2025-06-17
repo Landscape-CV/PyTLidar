@@ -41,7 +41,8 @@ def extract_final_wood(pcd, base_id, path_dis, path_list, init_wood_ids, G, max_
         for ids in path_list[i]:
             temp_ids.append(ids)
     current_idx = np.unique(temp_ids)
-
+    if len(current_idx) == 0:
+        return np.zeros(pcd.shape[0], dtype=bool)
     final_wood_mask = np.zeros(pcd.shape[0], dtype=bool)
     final_wood_mask[current_idx] = True
 

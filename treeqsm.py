@@ -127,7 +127,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
             sys.stdout.write(f'  Tria = {inputs["Tria"]}, OnlyTree = {inputs["OnlyTree"]}\n')
             sys.stdout.write('Progress:\n')
 
-        # Remove leaves? 
+        # # Remove leaves? 
         # leaf_remover = LeafRemover()
         # P, _ = leaf_remover.process(P)
 

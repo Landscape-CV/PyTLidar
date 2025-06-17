@@ -1,0 +1,26 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Test Args",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["/Users/johnhagood/Downloads/tree_0160.laz", "--threshold" ,"45000", "--custominput" ,"--normalize", "--ipd" ,".05", ".08", "--minpd" ,".03" ,".05" ,"--maxpd", ".1",  "--optimum", "trunk+1branch_mean_dis", "--outputdirectory","results"]
+        },
+
+        {
+            "name": "Test Args Batch",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": ["/Users/johnhagood/Documents/Github/Public/PyTLiDAR/Dataset", "--threshold" ,"45000", "--custominput" ,"--normalize", "--ipd" ,".05", ".08", "--minpd" ,".03" ,".05" ,"--maxpd", ".1",  "--optimum", "trunk+1branch_mean_dis","all_mean_dis","--numcores","4", "--outputdirectory","results"]
+        }
+    ]
+}
