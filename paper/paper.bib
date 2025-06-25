@@ -6,6 +6,21 @@
   note         = {Accessed: 2025-06-08}
 }
 
+@Article{rs5020491,
+AUTHOR = {Raumonen, Pasi and Kaasalainen, Mikko and Åkerblom, Markku and Kaasalainen, Sanna and Kaartinen, Harri and Vastaranta, Mikko and Holopainen, Markus and Disney, Mathias and Lewis, Philip},
+TITLE = {Fast Automatic Precision Tree Models from Terrestrial Laser Scanner Data},
+JOURNAL = {Remote Sensing},
+VOLUME = {5},
+YEAR = {2013},
+NUMBER = {2},
+PAGES = {491--520},
+URL = {https://www.mdpi.com/2072-4292/5/2/491},
+ISSN = {2072-4292},
+ABSTRACT = {This paper presents a new method for constructing quickly and automatically precision tree models from point clouds of the trunk and branches obtained by terrestrial laser scanning. The input of the method is a point cloud of a single tree scanned from multiple positions. The surface of the visible parts of the tree is robustly reconstructed by making a flexible cylinder model of the tree. The thorough quantitative model records also the topological branching structure. In this paper, every major step of the whole model reconstruction process, from the input to the finished model, is presented in detail. The model is constructed by a local approach in which the point cloud is covered with small sets corresponding to connected surface patches in the tree surface. The neighbor-relations and geometrical properties of these cover sets are used to reconstruct the details of the tree and, step by step, the whole tree. The point cloud and the sets are segmented into branches, after which the branches are modeled as collections of cylinders. From the model, the branching structure and size properties, such as volume and branch size distributions, for the whole tree or some of its parts, can be approximated. The approach is validated using both measured and modeled terrestrial laser scanner data from real trees and detailed 3D models. The results show that the method allows an easy extraction of various tree attributes from terrestrial or mobile laser scanning point clouds.},
+DOI = {10.3390/rs5020491}
+}
+
+
 @Article{f6114245,
   AUTHOR = {Hackenberg, Jan and Spiecker, Heinrich and Calders, Kim and Disney, Mathias and Raumonen, Pasi},
   TITLE = {SimpleTree —An Efficient Open Source Tool to Build Tree Models from TLS Clouds},
@@ -46,4 +61,18 @@
   ISSN = {2072-4292},
   ABSTRACT = {One way to model a tree is to use a collection of geometric primitives to represent the surface and topology of the stem and branches of a tree. The circular cylinder is often used as the geometric primitive, but it is not the only possible choice. We investigate various geometric primitives and modelling schemes, discuss their properties and give practical estimates for expected modelling errors associated with the primitives. We find that the circular cylinder is the most robust primitive in the sense of a well-bounded volumetric modelling error, even with noise and gaps in the data. Its use does not cause errors significantly larger than those with more complex primitives, while the latter are much more sensitive to data quality. However, in some cases, a hybrid approach with more complex primitives for the stem is useful.},
   DOI = {10.3390/rs70404581}
+}
+
+@article{TERRYN2020170,
+title = {Tree species classification using structural features derived from terrestrial laser scanning},
+journal = {ISPRS Journal of Photogrammetry and Remote Sensing},
+volume = {168},
+pages = {170-181},
+year = {2020},
+issn = {0924-2716},
+doi = {https://doi.org/10.1016/j.isprsjprs.2020.08.009},
+url = {https://www.sciencedirect.com/science/article/pii/S0924271620302173},
+author = {Louise Terryn and Kim Calders and Mathias Disney and Niall Origo and Yadvinder Malhi and Glenn Newnham and Pasi Raumonen and Markku {Å kerblom} and Hans Verbeeck},
+keywords = {Quantitative structure model, Structural tree features, Terrestrial laser scanning, Tree species classification, Machine learning classifiers},
+abstract = {Fast and automated collection of forest data, such as species composition information, is required to support climate mitigation actions. Recently, there have been significant advances in the use of terrestrial laser scanning (TLS) instruments, which facilitate the capture of detailed forest structure. However, for tree species recognition the structural information from TLS has mainly been used to complement spectral information. TLS-only classification studies have been limited in size and diversity of plot forest types. In this paper, we investigate the potential of TLS for tree species classification. We used quantitative structure models to determine 17 structural tree features. These features were computed for 758 trees of five tree species, including two understory species, of a 1.4 hectare mixed deciduous forest plot. Three classification methods were compared: k-nearest neighbours, multinomial logistic regression and support vector machine. We assessed the potential underlying causes for structural differences with principal component analysis. We obtained classification success rates of approximately 80%, however, with producer accuracies for three of the five species ranging from 0 to 60%. Low producer accuracies were the result of a high intra- and low inter-species variability. These effects were, respectively, caused by a high size-dependency of the structural features and a convergence of structural traits across species as a result of the individual tree position in the forest canopy and shade tolerance. Nevertheless, the producer accuracies could be improved through sensitivity vs. specificity trade-offs, with over 50% for all species being obtainable. The high intra -and low inter-species variability complicate the classification. Furthermore, the classification performance and best classification method greatly depend on its targeted application. In conclusion, this study proves the added value of TLS for tree species classification but also shows that TLS opens up potential for testing and further development of ecological theory.}
 }
