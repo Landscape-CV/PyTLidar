@@ -18,11 +18,12 @@
 <article-id pub-id-type="publisher-id">0</article-id>
 <article-id pub-id-type="doi">N/A</article-id>
 <title-group>
-<article-title>PyTLiDAR: A Python Framework for Tree QSM Modeling from
+<article-title>PyTLiDAR: A Python Package for Tree QSM Modeling from
 Terrestrial LiDAR Data</article-title>
 </title-group>
 <contrib-group>
 <contrib contrib-type="author">
+<contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-3894-4464</contrib-id>
 <name>
 <surname>Hagood</surname>
 <given-names>John</given-names>
@@ -39,20 +40,42 @@ Terrestrial LiDAR Data</article-title>
 </contrib>
 <contrib contrib-type="author">
 <name>
-<surname>TBD</surname>
-<given-names></given-names>
+<surname>Cannon</surname>
+<given-names>Jeffery</given-names>
 </name>
-<xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="aff" rid="aff-2"/>
+</contrib>
+<contrib contrib-type="author" corresp="yes">
+<name>
+<surname>Stroud</surname>
+<given-names>James</given-names>
+</name>
+<xref ref-type="aff" rid="aff-3"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
 </contrib>
 <aff id="aff-1">
 <institution-wrap>
-<institution>Georgia Institute of Technology, United
-States</institution>
+<institution>School of Computer Science, Georgia Institute of
+Technology, United States</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-2">
+<institution-wrap>
+<institution>Jones Center at Ichauway, United States</institution>
+</institution-wrap>
+</aff>
+<aff id="aff-3">
+<institution-wrap>
+<institution>School of Biological Sciences, Georgia Institute of
+Technology, United States</institution>
 </institution-wrap>
 </aff>
 </contrib-group>
-<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-06-14">
-<day>14</day>
+<author-notes>
+<corresp id="cor-1">* E-mail: <email></email></corresp>
+</author-notes>
+<pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-06-30">
+<day>30</day>
 <month>6</month>
 <year>2025</year>
 </pub-date>
@@ -83,12 +106,17 @@ a Creative Commons Attribution 4.0 International License (CC BY
 <sec id="summary">
   <title>Summary</title>
   <p>PyTLiDAR is an open-source Python software package that ports the
-  MATLAB-based TreeQSM algorithm into Python, also providing an
+  MATLAB-based
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/InverseTampere/TreeQSM?tab=readme-ov-file">TreeQSM</ext-link>
+  method
+  (<xref alt="P. Raumonen et al., 2013" rid="ref-TreeQSM" ref-type="bibr">P.
+  Raumonen et al., 2013</xref>) into Python, also providing an
   accessible, extensible, and GUI-driven alternative for researchers and
   practitioners in forestry, ecology, and 3D vegetation modeling. The
   software reconstructs Quantitative Structure Models (QSMs) of trees
-  from terrestrial LiDAR scans and provides interactive visualization
-  tools for inspecting model quality and derived tree metrics.</p>
+  from Terrestrial LiDAR Scans (TLS) and provides interactive
+  visualization tools for inspecting model quality and derived tree
+  metrics.</p>
   <p>Key features of PyTLiDAR include:</p>
   <p>-A full reimplementation of TreeQSM’s core logic in Python</p>
   <p>-A user-friendly GUI built with PyQt6 for batch or single-file
@@ -101,54 +129,211 @@ a Creative Commons Attribution 4.0 International License (CC BY
 </sec>
 <sec id="statement-of-need">
   <title>Statement of need</title>
+  <p>Terrestrial Laser Scanning typically utilizes LiDAR systems to
+  collect millions of points on the surface of objects and preserves
+  spatial information. For estimating above ground biomass (AGB), gap
+  fraction, crown shape, and other ecological properties, accurate and
+  efficient tree QSM reconstruction from TLS point cloud data is
+  essential
+  (<xref alt="Hackenberg et al., 2015" rid="ref-f6114245" ref-type="bibr">Hackenberg
+  et al., 2015</xref>).</p>
   <p>TreeQSM has been widely used in forestry and ecology for modeling
-  three-dimensional tree structures from terrestrial laser scanning
-  (TLS) point clouds. However, its reliance on MATLAB creates a barrier
-  for users without a commercial license or familiarity with the MATLAB
-  environment. Furthermore, the lack of a graphical interface and
-  real-time visualization options makes parameter tuning and model
-  validation labor-intensive and opaque.</p>
-  <p>PyTLiDAR addresses these challenges by providing a native Python
+  three-dimensional tree structures from TLS point clouds
+  (<xref alt="Terryn et al., 2020" rid="ref-TERRYN2020170" ref-type="bibr">Terryn
+  et al., 2020</xref>). However, its reliance on MATLAB makes it less
+  accessible for users without a commercial license or familiarity with
+  the MATLAB environment. Furthermore, the lack of a graphical interface
+  makes the tool less user-friendly and its parameter tuning less
+  efficient.</p>
+  <p>PyTLiDAR addresses these issues by providing a native Python
   implementation of TreeQSM’s core algorithms, wrapped in a streamlined
   graphical interface that allows researchers to visualize and evaluate
-  their models dynamically. It promotes reproducible and exploratory
-  research by offering transparent parameter control, open-source
-  licensing, and seamless integration into Python-based analysis
-  workflows. This work lowers the barrier for adoption of QSM modeling
-  by removing the MATLAB dependency, enhancing accessibility for the
-  broader open-source geospatial and ecological modeling community.</p>
+  their models. It promotes reproducible and exploratory research by
+  offering transparent parameter control, open-source licensing, and
+  seamless integration into Python-based analysis workflows. This work
+  lowers the barrier for adoption of QSM modeling by removing the MATLAB
+  dependency, enhancing accessibility for the broader open-source
+  geospatial and ecological modeling community.</p>
+</sec>
+<sec id="method">
+  <title>Method</title>
+  <p>TreeQSM models individual trees from terrestrial LiDAR scans by
+  covering the input point cloud with small, connected surface patches.
+  These patches form the building-bricks for reconstructing the tree’s
+  global shape. Based on neighbor-relation of the cover sets, the point
+  cloud is segmented into individual branches, with parent-children
+  relationships recorded. Then each segment is approximated as a
+  collection of connected cylinders of varying radius, length, and
+  orientation. This cylinder-based representation offers a simple yet
+  effective regularization of the complex tree structure, supporting
+  downstream analyses such as stem volume estimation or structural trait
+  extraction
+  (<xref alt="Pasi Raumonen et al., 2013" rid="ref-rs5020491" ref-type="bibr">Pasi
+  Raumonen et al., 2013</xref>)
+  (<xref alt="Markku et al., 2015" rid="ref-rs70404581" ref-type="bibr">Markku
+  et al., 2015</xref>).</p>
 </sec>
 <sec id="software-description">
   <title>Software Description</title>
-  <p>PyTLiDAR is implemented in Python and uses PyQt6 to create an
-  intuitive interface for parameter configuration and data processing.
-  Upon launching the application, users are presented with fields to
-  input or generate values for key modeling parameters, including the
-  initial, minimum, and maximum patch diameters. The application
+  <p>PyTLiDAR implements the same method stated above in Python, and
+  uses
+  <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/PyQt6/">PyQt6</ext-link>
+  to create an intuitive interface for parameter configuration and data
+  processing. Upon launching the application, users are presented with
+  fields to input or generate values for key modeling parameters,
+  including the minimum, and maximum patch diameters. The application
   supports both numeric entry and automatic generation of value ranges
-  based on user-defined counts.</p>
+  based on user-defined counts. Also, an intensity threshold can be set
+  to filter the point cloud data, helping to remove noise and irrelevant
+  data before modeling.</p>
   <p>Users may choose between batch processing of an entire directory of
-  point cloud files or processing a single file. An intensity threshold
-  can be set to filter the point cloud data, helping to remove noise and
-  irrelevant data before modeling. The GUI also includes options for
-  showing only the optimal model, based on selectable performance
-  metrics such as ‘all_mean_dis’, and provides a dropdown menu to choose
-  the preferred metric.</p>
-  <p>Once processing is complete, PyTLiDAR provides interactive 3D
-  visualization of the generated QSM using plotly. Users can inspect the
-  structural fidelity of the reconstructed model, including trunk and
-  branch geometry, and compare different parameter configurations for
-  best fit. This combination of visual feedback and customizable
-  processing offers an efficient path toward accurate and transparent
-  tree structure analysis.</p>
+  point cloud files or processing a single file. The GUI also includes
+  options for showing only the optimal model, based on selectable
+  performance metrics such as ‘all_mean_dis’, and provides a dropdown
+  menu to choose the preferred metric.</p>
+  <fig>
+    <caption><p>Software interface for user input and data selection.
+    <styled-content id="figU003Apc1"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="jpeg" xlink:href="fig1.jpg" />
+  </fig>
+  <p>After data selection, the software opens a new interface allows for
+  data processing and visualization. Once the QSM reconstruction process
+  is complete, PyTLiDAR provides interactive 3D visualization of the
+  generated QSM using
+  <ext-link ext-link-type="uri" xlink:href="https://plotly.com/">plotly</ext-link>.
+  Users can inspect the structural fidelity of the reconstructed model,
+  including trunk and branch geometry, and compare different parameter
+  configurations for best fit. This combination of visual feedback and
+  customizable processing offers an efficient path toward accurate and
+  transparent tree structure analysis.</p>
+  <fig>
+    <caption><p>Software interface for processing and interactive
+    visualization.
+    <styled-content id="figU003Apc1"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="jpeg" xlink:href="fig2.jpg" />
+  </fig>
+  <p>Users can also review the relavant morphological data of the QSM,
+  including stem diameters, branch volume, surface area, and length with
+  regard to diameter or order from stem.</p>
+  <fig>
+    <caption><p>Software interface for user input and data selection.
+    <styled-content id="figU003Apc1"></styled-content></p></caption>
+    <graphic mimetype="image" mime-subtype="jpeg" xlink:href="fig3.jpg" />
+  </fig>
 </sec>
 <sec id="acknowledgements">
   <title>Acknowledgements</title>
-  <p>We acknowledge contributions from Amir Hossein Alikhah
-  Mishamandani, and the support from James T Stroud and Jeffery Cannon,
-  during the development of the software and this project.</p>
+  <p>We acknowledge contributions from XXX, XXX, and Amir Hossein
+  Alikhah Mishamandani during the development of the package. This work
+  is enabled in part by funding from XXXXX.</p>
 </sec>
 </body>
 <back>
+<ref-list>
+  <title></title>
+  <ref id="ref-TreeQSM">
+    <element-citation>
+      <person-group person-group-type="author">
+        <name><surname>Raumonen</surname><given-names>P.</given-names></name>
+        <name><surname>Åkerblom</surname><given-names>M.</given-names></name>
+        <name><surname>Kaasalainen</surname><given-names>M.</given-names></name>
+        <name><surname>others</surname></name>
+      </person-group>
+      <article-title>TreeQSM: Quantitative structure models of trees from terrestrial laser scanning point clouds</article-title>
+      <publisher-name>https://github.com/InverseTampere/TreeQSM</publisher-name>
+      <year iso-8601-date="2013">2013</year>
+    </element-citation>
+  </ref>
+  <ref id="ref-rs5020491">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Raumonen</surname><given-names>Pasi</given-names></name>
+        <name><surname>Kaasalainen</surname><given-names>Mikko</given-names></name>
+        <name><surname>Åkerblom</surname><given-names>Markku</given-names></name>
+        <name><surname>Kaasalainen</surname><given-names>Sanna</given-names></name>
+        <name><surname>Kaartinen</surname><given-names>Harri</given-names></name>
+        <name><surname>Vastaranta</surname><given-names>Mikko</given-names></name>
+        <name><surname>Holopainen</surname><given-names>Markus</given-names></name>
+        <name><surname>Disney</surname><given-names>Mathias</given-names></name>
+        <name><surname>Lewis</surname><given-names>Philip</given-names></name>
+      </person-group>
+      <article-title>Fast automatic precision tree models from terrestrial laser scanner data</article-title>
+      <source>Remote Sensing</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>5</volume>
+      <issue>2</issue>
+      <issn>2072-4292</issn>
+      <uri>https://www.mdpi.com/2072-4292/5/2/491</uri>
+      <pub-id pub-id-type="doi">10.3390/rs5020491</pub-id>
+      <fpage>491</fpage>
+      <lpage>520</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-f6114245">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hackenberg</surname><given-names>Jan</given-names></name>
+        <name><surname>Spiecker</surname><given-names>Heinrich</given-names></name>
+        <name><surname>Calders</surname><given-names>Kim</given-names></name>
+        <name><surname>Disney</surname><given-names>Mathias</given-names></name>
+        <name><surname>Raumonen</surname><given-names>Pasi</given-names></name>
+      </person-group>
+      <article-title>SimpleTree —an efficient open source tool to build tree models from TLS clouds</article-title>
+      <source>Forests</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>6</volume>
+      <issue>11</issue>
+      <issn>1999-4907</issn>
+      <uri>https://www.mdpi.com/1999-4907/6/11/4245</uri>
+      <pub-id pub-id-type="doi">10.3390/f6114245</pub-id>
+      <fpage>4245</fpage>
+      <lpage>4294</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rs70404581">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Markku</surname><given-names>Åkerblom</given-names></name>
+        <name><surname>Raumonen</surname><given-names>Pasi</given-names></name>
+        <name><surname>Kaasalainen</surname><given-names>Mikko</given-names></name>
+        <name><surname>Casella</surname><given-names>Eric</given-names></name>
+      </person-group>
+      <article-title>Analysis of geometric primitives in quantitative structure models of tree stems</article-title>
+      <source>Remote Sensing</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>7</volume>
+      <issue>4</issue>
+      <issn>2072-4292</issn>
+      <uri>https://www.mdpi.com/2072-4292/7/4/4581</uri>
+      <pub-id pub-id-type="doi">10.3390/rs70404581</pub-id>
+      <fpage>4581</fpage>
+      <lpage>4603</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-TERRYN2020170">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Terryn</surname><given-names>Louise</given-names></name>
+        <name><surname>Calders</surname><given-names>Kim</given-names></name>
+        <name><surname>Disney</surname><given-names>Mathias</given-names></name>
+        <name><surname>Origo</surname><given-names>Niall</given-names></name>
+        <name><surname>Malhi</surname><given-names>Yadvinder</given-names></name>
+        <name><surname>Newnham</surname><given-names>Glenn</given-names></name>
+        <name><surname>Raumonen</surname><given-names>Pasi</given-names></name>
+        <name><surname>Å kerblom</surname><given-names>Markku</given-names></name>
+        <name><surname>Verbeeck</surname><given-names>Hans</given-names></name>
+      </person-group>
+      <article-title>Tree species classification using structural features derived from terrestrial laser scanning</article-title>
+      <source>ISPRS Journal of Photogrammetry and Remote Sensing</source>
+      <year iso-8601-date="2020">2020</year>
+      <volume>168</volume>
+      <issn>0924-2716</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0924271620302173</uri>
+      <pub-id pub-id-type="doi">https://doi.org/10.1016/j.isprsjprs.2020.08.009</pub-id>
+      <fpage>170</fpage>
+      <lpage>181</lpage>
+    </element-citation>
+  </ref>
+</ref-list>
 </back>
 </article>
