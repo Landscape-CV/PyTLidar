@@ -780,8 +780,12 @@ def least_squares_cylinder(P, cyl0, weight=None, Q=None):
     # Initial estimates: translation and rotation angles are zero; radius is from cyl0.
     par = np.array([0, 0, 0, 0, cyl0['radius']], dtype=float)
 
+
+    max_rad = np.max(np.max(P,axis = 0)-np.min(P,axis = 0))
+    best_par = par
     # Gauss–Newton iterations to fit rotation-translation and radius parameters
-    while iter_count < maxiter and (not conv) and rel:
+    best_err = float("inf")
+    while iter_count < maxiter and (not conv) and rel :
         if NoWeights:
             d0, J = func_grad_cylinder(par, Pt)
         else:
@@ -806,13 +810,19 @@ def least_squares_cylinder(P, cyl0, weight=None, Q=None):
         else:
             dist_new, _ = func_grad_cylinder(par, Pt, weight)
         SS1 = np.linalg.norm(dist_new)
-        if abs(SS0 - SS1) < 1e-4:
+        err = abs(SS0 - SS1)
+        if  err < 1e-4:
             conv = True
+        if err < best_err:
+            best_err = err
+            best_par = par
         # Check reliability via the condition number of A.
         if np.linalg.cond(-A) != 0 and (1.0 / np.linalg.cond(-A)) < 10000 * np.finfo(float).eps:
             rel = False
         iter_count += 1
 
+    if par[4]>max_rad or par[4]<.001:
+        par = best_par
     # Compute final cylinder parameters.
     cyl_out = {}
     cyl_out['radius'] = float(par[4])

@@ -384,9 +384,9 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3):
     segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist,network,False,False)
     print("Connect Final Segments")
     segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist*1.5,network,True,True)
-    # print("Fix Overlap")
-    # segments = fix_overlap(segments,center_points,network)
-
+    print("Fix Overlap")
+    segments = fix_overlap(segments,center_points,network)
+    print(len(segments))
     unassigned_sets = np.where(~np.isin(segments,filtered_tree_bases))
     segments[unassigned_sets]=-1
 
@@ -481,7 +481,7 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
         for base in tree_bases:
             # lexord = (point_data[np.where(segments == base)][:,0],point_data[np.where(segments == base)][:,1],point_data[np.where(segments == base)][:,2])
             base_set = point_data[np.where(segments == base)]
-            base_estimate = np.lexsort((base_set[:,0],base_set[:,1],base_set[:,2]))[len(base_set)//2]
+            base_estimate = np.lexsort((base_set[:,0],base_set[:,1],base_set[:,2]))[len(base_set)//2]##POTENTIAL BUG/Improvement: axis=0 on lexsort may be preferable
             tree_base_points.append(np.where(segments == base)[0][base_estimate])
         # tree_base_points.append(np.where(segments == base)[0][point_data[np.where(segments == base)][:,2].argmin()])
 
@@ -517,11 +517,14 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
                     not_expanded[base]=True
                     continue
                 else:
-                    path_dist=np.array(network.distances(base,tree_base_points,weights='weight'))[0]
+                    euc_dist = np.sqrt(np.array([(pcd.points[idx]- pcd.points[base])**2 for idx in tree_base_points]).sum(axis=1))
+                    top = np.argsort(euc_dist)[0]
+                    path_dist=np.array(network.distances(base,tree_base_points[top],weights='weight'))[0]
                     if np.min(path_dist)==np.inf:
                         not_expanded[base]=True
                         continue
-                    base_seg=tree_bases[np.argmin(path_dist)]
+                    # base_seg=tree_bases[np.argmin(path_dist)]
+                    base_seg=tree_bases[top]
             else:
 
                 base_idx = np.where(np.isin(tree_bases, tree_base_seg))[0]

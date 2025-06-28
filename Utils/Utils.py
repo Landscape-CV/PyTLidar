@@ -2185,7 +2185,7 @@ def package_outputs(models,cyl_htmls):
 
     return {"tree_data":tuple(tree_data_figures),"cylinders":tuple(cyl_htmls)}
 
-@jit(nopython=True)
+@jit(nopython=True,parallel=True,nogil=True)
 def assign_segments(cloud,segments,cover_sets):
     point_segments = np.zeros((cloud.shape[0]),dtype = np.int64)-1
     for i,segment in enumerate(segments):
@@ -2891,6 +2891,125 @@ def save_fit(cyl_dist,filename):
         writer.writerows(cyl_dist)
 
 
+
+def check_for_bends(segment_cloud,num_test_regions = 5,threshold = .2):
+    """
+    Check for bends in a point cloud segment by analyzing the angles between segments.
+    
+    Args:
+        segment_cloud: Point cloud data as a numpy array of shape (N, 3).
+        num_test_regions: Number of regions to test for bends.
+        
+    Returns:
+        Boolean indicating if bends were detected.
+    """
+    segsize = len(segment_cloud)//num_test_regions
+    if segsize <20:
+        return False
+    
+    
+    
+
+    
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(segment_cloud)
+    obb = pcd.get_oriented_bounding_box()
+
+    center = obb.center
+
+
+    bend = True
+    prev_dims = np.sort(obb.extent)
+    for i in range(num_test_regions):
+        
+        # next_seg = segment_cloud[i*segsize:(i+1)*segsize]
+        # pcd.points = o3d.utility.Vector3dVector(next_seg)
+        next_seg = segment_cloud[:(i+1)*segsize]
+        pcd.points = o3d.utility.Vector3dVector(next_seg)
+        try:
+            obb = pcd.get_oriented_bounding_box()
+        except:
+            pass
+
+        # try:
+        #     obb = pcd.get_oriented_bounding_box()
+
+        # except:
+        #     return False
+        max_bound = obb.get_max_bound()
+        min_bound = obb.get_min_bound()
+        bound_range = max_bound - min_bound
+        if np.all(center < max_bound-bound_range*.2) and np.all(center > min_bound+bound_range*.2):
+            bend = False
+
+        dims = np.sort(obb.extent)
+        # if i>0:
+        both_dims = np.array([dims,prev_dims])
+        min_dims = np.min(both_dims,axis=0)
+        max_dims = np.max(both_dims,axis=0)
+        if min_dims[0]*2<max_dims[0] or (min_dims[0]<max_dims[0] and min_dims[1]*2<max_dims[1]):
+            return True
+            
+        # prev_dims = dims
+        
+
+    return bend
+    
+
+def split_segments(segment_cloud, num_test_regions = 5, angle_threshold = 60):
+    """
+    Find bends in a point cloud based on the distance between points.
+    
+    Args:
+        cloud: Point cloud data as a numpy array of shape (N, 3).
+        num_test_regions: Number of regions to test for bends.
+        
+    Returns:
+        Array indicating if point is in new segment
+    """
+
+
+    segs = np.zeros(len(segment_cloud))
+
+    
+    if not check_for_bends(segment_cloud,num_test_regions):
+        return segs
+
+    segsize = len(segment_cloud)//num_test_regions
+    initial_seg = segment_cloud[:segsize]
+    last_seg = segment_cloud[1*segsize:2*segsize]
+    a = np.mean(initial_seg, axis=0)
+    b = np.mean(last_seg, axis=0)
+    initial_vec = (b-a)/(np.linalg.vector_norm(b-a))
+    last_vec = initial_vec
+
+    # full_pcd = o3d.geometry.PointCloud()
+    # full_pcd.points = o3d.utility.Vector3dVector(segment_cloud)
+
+
+    for i in range(2,num_test_regions):
+        
+        next_seg = segment_cloud[i*segsize:(i+1)*segsize]
+
+        
+        if len(next_seg) < 10: 
+            break
+        new_vec1 = (next_seg[-1]-next_seg[0])#/(np.linalg.vector_norm(c-b))
+        
+        
+        angle = np.rad2deg(np.arccos(np.dot(last_vec, new_vec1)/(np.linalg.norm(last_vec)*np.linalg.norm(new_vec1))))
+        if angle > angle_threshold:
+            segs[i*segsize:] = 1
+            return segs
+            
+        last_vec = new_vec1
+        last_seg = next_seg
+
+    return segs
+
+    
+
+
 def cloud_to_image(cloud,resolution=.05):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(cloud)
@@ -3031,6 +3150,14 @@ def parse_args(argv):
             args["PatchDiam2Max"]=args["PatchDiam2Max"][0]
 
     return args
+
+
+def color_o3d_clouds(clouds):
+    for cloud in clouds:
+        color = np.random.random(3)
+        color_array = np.repeat(np.array([color]),len(np.asarray(cloud.points)),axis = 0)
+        cloud.colors =  o3d.utility.Vector3dVector(color_array)
+
 
 
 
