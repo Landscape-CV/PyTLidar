@@ -2966,8 +2966,8 @@ def check_for_bends(segment_cloud,num_test_regions = 5,threshold = .2):
 
     return bend
     
-# @jit(nopython=True)
-def split_segments(segment_cloud,labels,N):#split_segments(segment_cloud, num_test_regions = 5, angle_threshold = 60):
+
+def split_segments(segment_cloud, num_test_regions = 5, angle_threshold = 60):
     """
     Find bends in a point cloud based on the distance between points.
     
@@ -2979,69 +2979,44 @@ def split_segments(segment_cloud,labels,N):#split_segments(segment_cloud, num_te
         Array indicating if point is in new segment
     """
 
-    initial_seg = segment_cloud[labels == 0]
-    last_seg = segment_cloud[labels ==1]
-    a = np.array([np.mean(initial_seg[:,0]),np.mean(initial_seg[:,1]),np.mean(initial_seg[:,2])])
-    b = np.array([np.mean(last_seg[:,0]),np.mean(last_seg[:,1]),np.mean(last_seg[:,2])])
-    initial_vec = (b-a)
-    last_seg = b
+    
+    segs = np.zeros(len(segment_cloud))
+
+    
+    if not check_for_bends(segment_cloud,num_test_regions):
+        return segs
+
+    segsize = len(segment_cloud)//num_test_regions
+    initial_seg = segment_cloud[:segsize]
+    last_seg = segment_cloud[1*segsize:2*segsize]
+    a = np.mean(initial_seg, axis=0)
+    b = np.mean(last_seg, axis=0)
+    initial_vec = (b-a)/(np.linalg.vector_norm(b-a))
     last_vec = initial_vec
-    new_segs = np.zeros(N,dtype = np.bool)
-    for i in range(2,N):
+
+    # full_pcd = o3d.geometry.PointCloud()
+    # full_pcd.points = o3d.utility.Vector3dVector(segment_cloud)
+
+
+    for i in range(2,num_test_regions):
         
-        next_seg = segment_cloud[labels == i]
-        next_seg = np.array([np.mean(next_seg[:,0]),np.mean(next_seg[:,1]),np.mean(next_seg[:,2])])
+        next_seg = segment_cloud[i*segsize:(i+1)*segsize]
 
         
-    
-        new_vec1 = (next_seg-last_seg)
-        
-        
-        angle = np.rad2deg(np.arccos(np.dot(last_vec, new_vec1)/(np.sqrt(np.sum(last_vec**2))*np.sqrt(np.sum((new_vec1))))))
-        if angle > 30:
-            new_segs[i:]=True
+        if len(next_seg) < 10: 
             break
+        new_vec1 = (next_seg[-1]-next_seg[0])#/(np.linalg.vector_norm(c-b))
+        
+        
+        angle = np.rad2deg(np.arccos(np.dot(last_vec, new_vec1)/(np.linalg.norm(last_vec)*np.linalg.norm(new_vec1))))
+        if angle > angle_threshold:
+            segs[i*segsize:] = 1
+            return segs
             
         last_vec = new_vec1
         last_seg = next_seg
-    return new_segs
-    # segs = np.zeros(len(segment_cloud))
 
-    
-    # if not check_for_bends(segment_cloud,num_test_regions):
-    #     return segs
-
-    # segsize = len(segment_cloud)//num_test_regions
-    # initial_seg = segment_cloud[:segsize]
-    # last_seg = segment_cloud[1*segsize:2*segsize]
-    # a = np.mean(initial_seg, axis=0)
-    # b = np.mean(last_seg, axis=0)
-    # initial_vec = (b-a)/(np.linalg.vector_norm(b-a))
-    # last_vec = initial_vec
-
-    # # full_pcd = o3d.geometry.PointCloud()
-    # # full_pcd.points = o3d.utility.Vector3dVector(segment_cloud)
-
-
-    # for i in range(2,num_test_regions):
-        
-    #     next_seg = segment_cloud[i*segsize:(i+1)*segsize]
-
-        
-    #     if len(next_seg) < 10: 
-    #         break
-    #     new_vec1 = (next_seg[-1]-next_seg[0])#/(np.linalg.vector_norm(c-b))
-        
-        
-    #     angle = np.rad2deg(np.arccos(np.dot(last_vec, new_vec1)/(np.linalg.norm(last_vec)*np.linalg.norm(new_vec1))))
-    #     if angle > angle_threshold:
-    #         segs[i*segsize:] = 1
-    #         return segs
-            
-    #     last_vec = new_vec1
-    #     last_seg = next_seg
-
-    # return segs
+    return segs
 
     
 

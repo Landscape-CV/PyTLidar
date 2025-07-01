@@ -235,7 +235,8 @@ class Ecomodel:
                 if segment == -1:
                     continue
                 
-                mask = (tile.segment_labels == segment) & (tile.point_data[:,3] >intensity_threshold)
+                # mask = (tile.segment_labels == segment) & (tile.point_data[:,3] >intensity_threshold)
+                mask = (tile.segment_labels == segment)
                 if len(tile.cloud[mask]) < 100:
                     print(f"Segment {segment} too small")
                     tile.cluster_labels[mask] = -2
@@ -333,14 +334,14 @@ class Ecomodel:
                 segs = np.concatenate([np.array([-2,]),segs])
                 
                 
-                cloud_segments= np.repeat(segs, num_indices) #unique indices
+                cloud_segments= np.repeat(segs, num_indices) 
                 new_cloud_segments = cloud_segments.copy()
                 cloud_range_mask = np.arange(len(cloud_segments))
 
                 
                
                 
-                for seg in np.unique(tile.cluster_labels):
+                for seg in np.unique(cloud_segments):
                     # if segment > 200000:
                     #     break
                     # if segment <140000:
@@ -373,51 +374,11 @@ class Ecomodel:
                         sub_segments = Utils.split_segments(segment_cloud,5,30)
 
 
+                cloud_segments = new_cloud_segments+max_segment
+                    
+                    
 
                 
-
-
-                # for seg in np.unique(cloud_segments):
-                #     seg_mask = cloud_segments == seg
-                #     segment_cloud = tree_cloud[seg_mask]
-                #     if len(segment_cloud)<30:
-                #         continue
-                #     inputs = {'PatchDiam1': 0.2, 'BallRad1':.2, 'nmin1': 5}
-                #     cover = cover_sets(segment_cloud, inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
-                #     labels = cover['sets']
-                #     N = len(np.unique(labels))
-                #     nmin = 5
-                #     while N <5 and inputs['PatchDiam1']>.06:
-                        
-                #         inputs = {'PatchDiam1': inputs['PatchDiam1']*.5, 'BallRad1':inputs['BallRad1']*.5, 'nmin1': nmin}
-                #         cover = cover_sets(segment_cloud, inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
-                #         labels = cover['sets']
-                #         N = len(np.unique(labels))
-                #         if np.sum(labels==-1)<.5*len(segment_cloud):
-                #             nmin=1
-                #     if N <5:
-                #         continue
-
-                #     if -1 in labels:
-                #         N-=1
-                #     ignore_mask = labels == -1
-                #     labels = labels[~ignore_mask]
-                #     segment_cloud = segment_cloud[~ignore_mask]
-
-             
-                #     new_segs = Utils.split_segments(segment_cloud,labels,N)
-                #     new_segment_labels = np.where(new_segs)[0]
-                #     I = np.where(np.isin(labels,new_segment_labels))[0]
-                #     # update_mask = range_mask[mask][~ignore_mask][I]
-                #     removal_mask = cloud_range_mask[seg_mask][ignore_mask]
-                #     update_mask = cloud_range_mask[seg_mask][I]
-                #     new_cloud_segments[update_mask] = np.max(new_cloud_segments)+1
-                #     new_cloud_segments[removal_mask] = -2
-                cloud_segments = new_cloud_segments
-                    
-                    
-
-                # cloud_segments= np.repeat(segs, num_indices) #original indices
                 max_segment = cloud_segments.max()+max_segment
                 # mask_cluster_labels = np.zeros(np.sum(mask))-1
                 # mask_cluster_labels[wood_mask] = cloud_segments
@@ -437,196 +398,6 @@ class Ecomodel:
                 # print("Writing File")
             # tile.to_xyz(f"clustered_{i}.xyz", True)
 
-
-    def refine_wood_segments(self):
-        """
-        Refine the wood segments in the point cloud P.
-        Parameters: 
-                None
-        Returns:        
-                numpy.ndarray: Refined point cloud, shape (n_points, 3).
-        """
-        pcd = o3d.geometry.PointCloud()
-        start = time.time()
-        
-        for i,tile in enumerate(self._raw_tiles):
-            tile.numpy()
-            j = 0
-            num_segments = len(np.unique(tile.cluster_labels))
-            range_mask = np.arange(len(tile.cluster_labels))
-
-
-            max_label = 0
-            start = time.time()
-
-            for segment in np.unique(tile.cluster_labels)[110000:]:
-                if j%1000==0:
-
-                    print("Segment: ",segment,"Segments remaining: ",num_segments-j, "Current Runtime: ", time.time()-start," seconds")
-                j+=1
-                mask = (tile.cluster_labels == segment) 
-
-                segment_cloud = tile.cloud[mask]
-                # if len(segment_cloud)<30:
-                #     continue
-                # inputs = {'PatchDiam1': 0.2, 'BallRad1':.2, 'nmin1': 5}
-                # cover = cover_sets(segment_cloud, inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
-                # labels = cover['sets']
-                # N = len(np.unique(labels))
-                # nmin = 5
-                # while N <10 and inputs['PatchDiam1']>.03:
-                    
-                #     inputs = {'PatchDiam1': inputs['PatchDiam1']*.5, 'BallRad1':inputs['BallRad1']*.5, 'nmin1': nmin}
-                #     cover = cover_sets(segment_cloud, inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
-                #     labels = cover['sets']
-                #     N = len(np.unique(labels))
-                #     if np.sum(labels==-1)<.5*len(segment_cloud):
-                #         nmin=1
-                # if N <3:
-                #     continue
-                
-                # global_labels = labels+max_label
-                # tile.cover_sets[mask] = global_labels
-                # max_label = np.max(global_labels)
-
-
-                # ignore_mask = labels == -1
-                # labels = labels[~ignore_mask]
-                # segment_cloud = segment_cloud[~ignore_mask]
-                
-                # # labels = tile.cover_sets[mask]
-                # # if len(np.unique(labels))<5:
-                # #     continue
-                # labels_tensor = torch.tensor(labels,device=tile.device)
-                # num_masks = torch.max(labels_tensor)+1
-                # dim = 3
-
-                # #representative points for each cover set
-
-                # center_points = torch.zeros((num_masks, dim), device=tile.device)
-                # center_points.scatter_reduce_(
-                # 0, 
-                # labels_tensor.unsqueeze(-1).expand(-1, dim), 
-                # torch.tensor(segment_cloud.astype(np.float32),device=tile.device), 
-                # reduce='mean',
-                # include_self=False
-                # )
-
-                # center_points = center_points.cpu().numpy()
-                # I = np.all(center_points!=0,axis=1)
-                # center_points = center_points[I]
-                # lexsort_indices = np.lexsort((center_points[:, 2], center_points[:, 1], center_points[:, 0]),axis=0)
-                # center_points = center_points[lexsort_indices]
-
-                # center_labels = np.unique(labels)[lexsort_indices]
-
-                # initial_seg = center_points[0]
-                # last_seg = center_points[1]
-                # a = initial_seg
-                # b = last_seg
-                # initial_vec = (b-a)/(np.linalg.vector_norm(b-a))
-                # last_vec = initial_vec
-
-                # # # full_pcd = o3d.geometry.PointCloud()
-                # # # full_pcd.points = o3d.utility.Vector3dVector(segment_cloud)
-
-                # segs = np.zeros(len(center_points),dtype = bool)
-                # for i in range(2,len(center_points)):
-                    
-                #     next_seg = center_points[i]
-
-                    
-                   
-                #     new_vec1 = (next_seg-last_seg)
-                    
-                    
-                #     angle = np.rad2deg(np.arccos(np.dot(last_vec, new_vec1)/(np.linalg.norm(last_vec)*np.linalg.norm(new_vec1))))
-                #     if angle > 30:
-                #         segs[i]=True
-                        
-                #     last_vec = new_vec1
-                #     last_seg = next_seg
-                # new_segment_labels = center_labels[segs]
-                # I = np.where(np.isin(labels,new_segment_labels))[0]
-                # # update_mask = range_mask[mask][~ignore_mask][I]
-                # # removal_mask = range_mask[mask][ignore_mask]
-                # update_mask = range_mask[mask][I]
-                # removal_mask = range_mask[mask]
-                # tile.cluster_labels[update_mask] = np.max(tile.cluster_labels)+1
-                # tile.cluster_labels[removal_mask] = -2
-
-                
-
-
-
-
-
-
-            # for segment in np.unique(tile.cluster_labels):
-            #     # if segment > 200000:
-            #     #     break
-            #     # if segment <140000:
-            #     #     continue
-            #     if (num_segments-j)%1000==0:
-
-            #         print("Segment: ",segment,"Segments remaining: ",num_segments-j)
-            #     j+=1
-            #     if segment <0:
-            #         continue
-            #     mask = tile.cluster_labels == segment
-            #     if len(tile.cloud[mask]) < 10:
-            #         tile.cluster_labels[mask] = -2
-            #         continue
-
-            #     segment_cloud = tile.cloud[mask].copy()
-            #     lexsort_indices = np.lexsort((segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),axis=0)
-            #     segment_cloud = segment_cloud[lexsort_indices]
-            #     # pcd.points = o3d.utility.Vector3dVector(segment_cloud)
-            #     # db_labels = np.array(pcd.cluster_dbscan(eps=0.05, min_points=10))
-            #     # db_mask = db_labels == -1
-            #     # tile_db_mask = range_mask[mask][db_mask]
-            #     # tile.cluster_labels[tile_db_mask]=-2
-
-
-
-            #     # inputs = {'PatchDiam1': 0.5, 'BallRad1':.5, 'nmin1': 1}
-
-            #     # cover = cover_sets(tile.get_cloud_as_array(), inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
-            #     # if len(cover['sets']) == 0:
-            #     #     print("No cover sets found")
-            #     #     continue
-                
-            #     # labels = cover['sets']
-            #     # tile.cover_sets = labels
-                
-            #     sub_segments = Utils.split_segments(segment_cloud,5,30)
-            #     while np.sum(sub_segments)>10:
-
-
-            #         sub_segments = sub_segments[np.argsort(lexsort_indices)]
-            #         I =np.where(sub_segments==1)[0]
-            #         cluster_mask = range_mask[mask][I]
-            #         tile.cluster_labels[cluster_mask]= np.max(tile.cluster_labels)+1
-            #         segment_cloud = segment_cloud[I]
-            #         lexsort_indices = lexsort_indices[I]
-            #         sub_segments = [1]
-            #         # sub_segments = Utils.split_segments(segment_cloud,5,30)
-
-                
-                
-
-
-
-                
-                
-                
-
-                    
-                
-                
-                
-                
-        print("Time to refine wood segments:",time.time()-start)
 
     def adjust_location(self):
         """
@@ -717,75 +488,28 @@ class Ecomodel:
             Q0 = tile.cloud[seg_mask]
             voxel_mask = np.all((Q0< max_bound) & (Q0 >min_bound),axis = 1)
             Q0 = Q0[voxel_mask]
-
-            # pcd.points = o3d.utility.Vector3dVector(Q0)
-            
-            # db_labels = np.array(pcd.cluster_dbscan(eps=0.02, min_points=10))
-            # db_mask = db_labels == -1
-            
-            
-            # removal_mask = range_mask[seg_mask][voxel_mask][db_mask]
-            # tile.cluster_labels[removal_mask] = -2
-            # if len(Q0)<10:
-            #     continue
-            # n = 2
-            
-            # centroid, clusters, _ = k_means(Q0,n)
-            # dist = cdist(Q0,Q0)
-            # min_dist = np.min(dist[clusters==0][:,clusters==1])
-            # n+=1
-            # while n < 8 and min_dist>.05:
-            #     centroid, clusters, _ = k_means(Q0,n)
-            #     dist = cdist(Q0,Q0)
-            #     _min_dist = []
-            #     for k in np.unique(clusters):
-            #         _min_dist.append(np.min(dist[clusters==k][:,clusters!=k]))
-            #     min_dist = np.min(min_dist)
-            #     n+=1
+            pcd.points = o3d.utility.Vector3dVector(Q0)
             
 
-            
-
-            # dist =cdist(Q0,Q0)
-            # dist = np.sort(dist, axis = 1)
-            # bdist = np.column_stack([dist[:,1:],dist[:,0]])
-            # gaps = np.abs(bdist-dist)
-            # max_gaps = np.max(gaps[:,:-1],axis = 1) 
-            # I = max_gaps >.04
-            # points1 = Q0[I]
-            # points2 = Q0[~I]
-            # pcd1 = o3d.geometry.PointCloud()
-            # pcd1.points = o3d.utility.Vector3dVector(points1)
-            # pcd2 = o3d.geometry.PointCloud()
-            # pcd2.points = o3d.utility.Vector3dVector(points2)
-            # pcds = []
-            # for cluster in np.unique(clusters):
-            #     if cluster == -1:
-            #         continue
-            #     db_mask = clusters == cluster
-            #     pcd1 = o3d.geometry.PointCloud()
-            #     points1 = Q0[db_mask]
-            #     pcd1.points = o3d.utility.Vector3dVector(points1)
-            #     pcds.append(pcd1)
-
-            #     cluster_mask = range_mask[seg_mask][voxel_mask][db_mask]
-            #     new_label = np.max(tile.cluster_labels)+cluster
-            #     tile.cluster_labels[cluster_mask] = new_label
-            
-  
-            # cluster_mask = range_mask[seg_mask][voxel_mask][db_mask]
-            # tile.cluster_labels[cluster_mask] = np.max(tile.cluster_labels)+1
-            # pcd.points = o3d.utility.Vector3dVector(Q0[db_mask])
             
             try:
                 obb = pcd.get_oriented_bounding_box()
             except:
                 continue
-            
+
+            dist =cdist(Q0,Q0)
+            np.fill_diagonal(dist,1.0)
+            avg_closest_point_dist = np.mean(np.min(dist,axis = 1))
+            if avg_closest_point_dist > .01: #can make this a parameter
+                tile.cluster_labels[seg_mask]=-2
+                continue
+
             
             c0 = {}
 
             box = np.asarray(obb.get_box_points())
+
+            
             highest_point = np.mean(box[:4],axis = 0) 
             lowest_point = np.mean(box[4:],axis = 0)
             Axis = highest_point-lowest_point
@@ -795,6 +519,8 @@ class Ecomodel:
             c0['start'] = lowest_point
 
             c0['length'] = np.linalg.norm(Axis)
+
+
 
             
             tile.cylinder_starts =np.concatenate([tile.cylinder_starts,np.array([lowest_point])])
@@ -1274,24 +1000,13 @@ if __name__ == "__main__":
     # combined_cloud.recombine_tiles()
     # combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
-    
-    """
-    OBE, much more efficient to do during QSM_segments
-    cProfile.run("combined_cloud.refine_wood_segments()",filename="results.txt",sort=1)
-    stats = pstats.Stats('results.txt')
-    stats.sort_stats('tottime')
-    stats.reverse_order()
-    stats.print_stats()
-    # combined_cloud.refine_wood_segments()
-    combined_cloud.pickle("test_model_post_refinement_correct_segments.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model_post_refinement_correct_segments.pickle")
-    """
+
     # Palm
-    cylinder,base_plot = combined_cloud.get_voxel(-15,-3,-3,5,fidelity = .3)
+    # cylinder,base_plot = combined_cloud.get_voxel(-15,-3,-3,5,fidelity = .3)
     # # Small Voxel
     # cylinder,base_plot = combined_cloud.get_voxel(-11,1,-1,3,fidelity = 1)
     # # Large Voxel
-    # cylinder,base_plot = combined_cloud.get_voxel(-2,-2,-3,2,fidelity = .6)
+    cylinder,base_plot = combined_cloud.get_voxel(-2,-2,-3,2,fidelity = .6)
     base_plot.write_html("results/segment_test_plot_no_continuation.html")
     cylinders_line_plotting(cylinder, scale_factor=1,file_name="test_plot",base_fig=base_plot)
     # cylinders_plotting(cylinder,base_fig=base_plot)
