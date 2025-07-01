@@ -245,6 +245,8 @@ def variable_cover(P, inputs, RelSize, np_points):
                                CC[Q,1]-N-1:CC[Q,1]+N,
                                CC[Q,2]-N-1:CC[Q,2]+N]
             
+            if len(points.flatten()) == 0:
+                continue
             points = np.concatenate([p for p in points.flatten() if p is not None ])
             if len(points) == 0:
                 continue

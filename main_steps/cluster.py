@@ -233,7 +233,7 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3):
     dim = tile.point_data.size(1)
 
 
-    #representative points for each cover set
+    # #representative points for each cover set
     # center_points = torch.zeros((num_masks, dim), device=tile.point_data.device)
     # center_points.scatter_reduce_(
     # 0, 
