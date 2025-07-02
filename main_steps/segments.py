@@ -170,6 +170,7 @@ def segments(cover, Base, Forb,qsm=True):
     schi = SChi[:b]
 
     # Define output
+    assigned_segs = np.zeros(np.max(cover["sets"])+1)-1
     SChi = [None] * b
     for i in range(b):
         if NChi[i] > 0:
@@ -179,12 +180,15 @@ def segments(cover, Base, Forb,qsm=True):
         S = Segs[i]
         for j in range(len(S)):
             S[j] = S[j].astype(np.uint32)
+            assigned_segs[S[j].astype(np.uint32)] = i
+
         Segs[i] = S
 
     segment = {
         'segments': Segs,
         'ParentSegment': SPar,
         'ChildSegment': SChi,
+        'SegmentArray': assigned_segs
     }
 
     return segment

@@ -9,6 +9,7 @@ import torch
 import laspy
 from sklearn import linear_model
 from sklearn.cluster import DBSCAN
+from sklearn.cluster import k_means
 import matplotlib.pyplot as plt
 from main_steps.cover_sets import cover_sets
 from main_steps.segments import segments
@@ -23,6 +24,9 @@ from plotting.cylinders_line_plotting import cylinders_line_plotting
 from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.cylinders_plotting import cylinders_plotting
 from plotting.qsm_plotting import qsm_plotting
+import LeastSquaresFitting.LSF as LSF
+from scipy.spatial.transform import Rotation 
+from scipy.spatial.distance import cdist
 import time
 import cProfile
 import pstats
@@ -32,6 +36,8 @@ from alphashape import alphashape
 import pickle
 import dotenv
 from GBSeparation.remove_leaves import LeafRemover
+from robpy.covariance import DetMCD,FastMCD
+from sklearn.covariance import MinCovDet
 dotenv.load_dotenv()
 
 class Ecomodel:
@@ -204,7 +210,7 @@ class Ecomodel:
             tile.to_xyz(f"clustered_{i}.xyz", True)
 
             
-    def get_qsm_segments(self,intensity_threshold = 45000):
+    def get_qsm_segments(self,intensity_threshold = 40000):
         """
         Get the modeled cylinder and QSM segments from the point cloud P.
         Parameters: 
@@ -212,126 +218,180 @@ class Ecomodel:
         Returns:        
                 numpy.ndarray: Segmented point cloud, shape (n_points, 3).
         """
+        
         max_segment = 0
         for i,tile in enumerate(self.tiles.flatten()):
             if tile == 0:
                 continue
             
             tile.numpy()
-            # tile.cloud = tile.cloud[tile.point_data[:,3]>intensity_threshold]
-            # tile.cover_sets = tile.cover_sets[tile.point_data[:,3]>intensity_threshold]
-            # tile.segment_labels = tile.segment_labels[tile.point_data[:,3]>intensity_threshold]
-            # tile.point_data = tile.point_data[tile.point_data[:,3]>intensity_threshold]
             
             
 
-            tile.cylinder_starts = np.empty(shape=(0,3))
-            tile.cylinder_radii = np.array([])
-            tile.cylinder_axes = np.empty(shape=(0,3))
-            tile.cylinder_lengths = np.array([])
-            tile.branch_labels = np.array([])
-            tile.branch_orders = np.array([])
             
-            tile.cluster_labels = np.array([-1]*len(tile.cloud))
+            tile.cluster_labels = np.array([-2]*len(tile.cloud))
             start = time.time()
+            range_mask = np.arange(len(tile.cluster_labels))
             for segment in np.unique(tile.segment_labels):
+                
                 if segment == -1:
                     continue
                 
-                mask = tile.segment_labels == segment
+                # mask = (tile.segment_labels == segment) & (tile.point_data[:,3] >intensity_threshold)
+                mask = (tile.segment_labels == segment)
                 if len(tile.cloud[mask]) < 100:
                     print(f"Segment {segment} too small")
-                    tile.segment_labels[mask] = -1
+                    tile.cluster_labels[mask] = -2
                     continue
-                segment_cloud = tile.cloud[mask]
+
+                
+                
+
+                tree_cloud = tile.cloud[mask]
                 print("Segment: ",segment)
 
-                inputs = {'PatchDiam1': 0.005, 'BallRad1':.005, 'nmin1': 1}
-                cover = cover_sets(segment_cloud, inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
-                if len(cover['sets']) == 0:
-                    print("No cover sets found")
-                    continue
+                # inputs = {'PatchDiam1': 0.01, 'BallRad1':.01, 'nmin1': 1}
+                # cover = cover_sets(tree_cloud, inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
+                # if len(cover['sets']) == 0:
+                #     print("No cover sets found")
+                #     continue
                 
-                labels = cover['sets']
+                # labels = cover['sets']
                 
-                cover_mask = labels >-1
-                segment_cloud = segment_cloud[cover_mask]
-                labels = torch.tensor(labels[cover_mask])
+                # cover_mask = labels >-1
+                # tree_cloud = tree_cloud[cover_mask]
+                # labels = torch.tensor(labels[cover_mask])
                 
-                num_masks = torch.max(labels)+1
-                dim = 3
+                # num_masks = torch.max(labels)+1
+                # dim = 3
 
-                center_points = torch.zeros((num_masks, dim), device=tile.point_data.device)
-                center_points.scatter_reduce_(
-                0, 
-                labels.unsqueeze(-1).expand(-1, dim), 
-                torch.tensor(segment_cloud,dtype=torch.float32), 
-                reduce='mean',
-                include_self=False
-                )
-                np.savetxt(f"tree_{i}_{segment}.xyz",center_points,delimiter=',')
-                center_points = center_points.cpu().numpy().astype(np.float64)
-                LR = LeafRemover()
-                wood_mask,leaf_mask = LR.process(center_points, True)
+                # center_points = torch.zeros((num_masks, dim), device=tile.point_data.device)
+                # center_points.scatter_reduce_(
+                # 0, 
+                # labels.unsqueeze(-1).expand(-1, dim), 
+                # torch.tensor(tree_cloud,dtype=torch.float32), 
+                # reduce='mean',
+                # include_self=False
+                # )
+                # np.savetxt(f"tree_{i}_{segment}.xyz",center_points,delimiter=',')
+                # center_points = center_points.cpu().numpy().astype(np.float64)
+                # LR = LeafRemover()
+                # wood_mask,leaf_mask = LR.process(center_points, True)
                 
-                wood_mask = np.isin(labels,np.where(wood_mask)[0])
-                leaf_mask = np.isin(labels,np.where(leaf_mask)[0])
-                intensity_mask = tile.point_data[mask][:,3]>intensity_threshold
+                # wood_mask = np.isin(labels,np.where(wood_mask)[0])
+                # leaf_mask = np.isin(labels,np.where(leaf_mask)[0])
+                # intensity_mask = tile.point_data[mask][:,3]>intensity_threshold
 
-                #Only remove leaves if intensity threshold is not met
-                wood_mask = np.logical_or(wood_mask,intensity_mask)
-                leaf_mask = np.logical_and(leaf_mask,~intensity_mask)
-                # wood_I = np.where(wood_mask)[0]
-                # leaf_I = np.where(leaf_mask)[0]
-                segment_cloud = segment_cloud[wood_mask]
-                np.savetxt(f"tree_{i}_{segment}_no_leaves.xyz",segment_cloud,delimiter=',')
-                if len(segment_cloud) < 100:
-                    print(f"Segment {segment} too small after leaf removal")
-                    tile.segment_labels[mask] = -1
-                    continue
+                # #Only remove leaves if intensity threshold is not met
+                # wood_mask = np.logical_or(wood_mask,intensity_mask)
+                # leaf_mask = np.logical_and(leaf_mask,~intensity_mask)
+                # tree_cloud = tree_cloud[wood_mask]
+                # np.savetxt(f"tree_{i}_{segment}_no_leaves.xyz",tree_cloud,delimiter=',')
+                # if len(tree_cloud) < 100:
+                #     print(f"Segment {segment} too small after leaf removal")
+                #     tile.segment_labels[mask] = -1
+                #     continue
 
 
-                qsm_input = define_input(segment_cloud,1,1,1)[0]
-                qsm_input['PatchDiam1'] = 0.05
+                qsm_input = define_input(tree_cloud,1,1,1)[0]
+                qsm_input['PatchDiam1'] = 0.03
                 qsm_input['PatchDiam2Min'] = 0.03
-                qsm_input['PatchDiam2Max'] = 0.12
-                qsm_input['BallRad1'] = 0.06
-                qsm_input['BallRad2'] = 0.13
-                cover1 = cover_sets(segment_cloud, qsm_input)
-                print("cover")
-                cover1, Base, Forb = tree_sets(segment_cloud, cover1, qsm_input)
-                print("tree sets")
-                segment1 = segments( cover1, Base, Forb)
-                print("segments")
-                # segment1 = correct_segments(segment_cloud,cover1,segment1,qsm_input,0,1,1)
-                # try:
-                #     RS = relative_size(segment_cloud,cover1,segment1)
-                #     cover2 = cover_sets(segment_cloud, qsm_input,RS)
-                #     cover2, Base, Forb = tree_sets(segment_cloud, cover2, qsm_input, segment1)
-                #     segment2 = segments( cover2, Base, Forb)
-                #     segment2 = correct_segments(segment_cloud,cover2,segment2,qsm_input,0,1,1)
-                # except:
-                #     print("Unable to create more detailed QSM, using initial segments")
-                #     pass
-
-                # cylinder = cylinders(segment_cloud,cover1,segment1,qsm_input)
-                # tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
-                # tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
-                # tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
-                # tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
-                # tile.branch_labels = np.append(tile.branch_labels,cylinder["branch"])
-                # tile.branch_orders = np.append(tile.branch_orders,cylinder["BranchOrder"])
+                qsm_input['PatchDiam2Max'] = 0.08
+                qsm_input['BallRad1'] = 0.04
+                qsm_input['BallRad2'] = 0.09
+                print("Cover sets")
+                cover1 = cover_sets(tree_cloud, qsm_input)
+                print("Tree sets")
+                cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input)
+                print("Segments")
+                segment1 = segments( cover1, Base, Forb,qsm=False)
+                # print("Correct")
+                # segment1 =correct_segments(tree_cloud,cover1,segment1,qsm_input,0,1,1)#
+                # RS = relative_size(tree_cloud, cover1, segment1)
+                # print("Cover 2")
+                # cover1 = cover_sets(tree_cloud, qsm_input, RS)
+                # print("Tree Set 2")
+                # cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input, segment1)
+                # print("Segment 2")
+                # segment1 = segments(cover1, Base, Forb)
 
 
-                #store cylinders for tile to be accessed later
-                segs = [np.concatenate(seg).astype(np.int64) for seg in segment1["segments"]]
 
-                cloud_segments = Utils.assign_segments(segment_cloud,segs,cover1["sets"])+max_segment+1
+                # segs = [np.concatenate(seg).astype(np.int64) for seg in segment1["segments"]]
+                segs = segment1["SegmentArray"]
+
+
+                cover = cover1["sets"]
+                # S = np.argsort(cover)
+                # tree_cloud = tree_cloud[S]
+                # cover = cover[S]
+                
+                I = np.argsort(cover)
+                cover = cover
+                tile.point_data[mask] = tile.point_data[mask][I]
+                tree_cloud= tree_cloud[I]
+                neg_mask = cover ==-1
+                num_indices = np.bincount(cover[~neg_mask])
+                num_indices = np.concatenate([np.array([np.sum(neg_mask)]),num_indices])
+                segs = np.concatenate([np.array([-2,]),segs])
+                
+                
+                cloud_segments= np.repeat(segs, num_indices) 
+                new_cloud_segments = cloud_segments.copy()
+                cloud_range_mask = np.arange(len(cloud_segments))
+
+                
+               
+                
+                for seg in np.unique(cloud_segments):
+                    # if segment > 200000:
+                    #     break
+                    # if segment <140000:
+                    #     continue
+                    seg_mask = cloud_segments == seg
+                    segment_cloud = tree_cloud[seg_mask]
+                    if len(segment_cloud)<30:
+                        continue
+                    
+                    lexsort_indices = np.lexsort((segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),axis=0)
+                    segment_cloud = segment_cloud[lexsort_indices]
+                    # pcd.points = o3d.utility.Vector3dVector(segment_cloud)
+                    # db_labels = np.array(pcd.cluster_dbscan(eps=0.05, min_points=10))
+                    # db_mask = db_labels == -1
+                    # tile_db_mask = range_mask[mask][db_mask]
+                    # tile.cluster_labels[tile_db_mask]=-2
+
+                    
+                    sub_segments = Utils.split_segments(segment_cloud,5,30)
+                    while np.sum(sub_segments)>10:
+
+
+                        sub_segments = sub_segments[np.argsort(lexsort_indices)]
+                        I =np.where(sub_segments==1)[0]
+                        cluster_mask = cloud_range_mask[seg_mask][I]
+                        new_cloud_segments[cluster_mask] = np.max(new_cloud_segments)+1
+                        segment_cloud = segment_cloud[I]
+                        lexsort_indices = lexsort_indices[I]
+                        # sub_segments = [1]
+                        sub_segments = Utils.split_segments(segment_cloud,5,30)
+
+
+                cloud_segments = new_cloud_segments+max_segment
+                    
+                    
+
+                
                 max_segment = cloud_segments.max()+max_segment
-                mask_cluster_labels = np.zeros(np.sum(mask))-1
-                mask_cluster_labels[wood_mask] = cloud_segments
-                # tile.cluster_labels[mask] = cloud_segments
-                tile.cluster_labels[mask] = mask_cluster_labels
+                # mask_cluster_labels = np.zeros(np.sum(mask))-1
+                # mask_cluster_labels[wood_mask] = cloud_segments
+                cluster_mask = range_mask[mask]
+                tile.cluster_labels[cluster_mask] = cloud_segments
+                tile.cloud[mask] = tree_cloud
+                
+                # tile.cloud[cluster_mask] =segment_cloud
+
+                # tile.point_data[cluster_mask] =tile.point_data[mask][I][S]
+                # tile.cluster_labels[mask] = mask_cluster_labels
                 
             print(f"Time to create QSMs in tile {i}:",time.time()-start) 
             # tile.to_xyz(f"clustered_{i}.xyz", True,True)
@@ -339,6 +399,7 @@ class Ecomodel:
                 # print("Writing File")
                 # print("Writing File")
             # tile.to_xyz(f"clustered_{i}.xyz", True)
+
 
     def adjust_location(self):
         """
@@ -363,9 +424,11 @@ class Ecomodel:
             tile.cylinder_axes = tile.cylinder_axes + self.mean
 
 
-    def get_cylinders(self,min_x,min_y,min_z,voxel_size=1,fidelity =.3):
+
+
+    def get_voxel(self,min_x,min_y,min_z,voxel_size=1,fidelity =.3):
         """
-        Get the cylinders from the point cloud P.
+        Get the data from the point cloud P.
         Parameters: 
                 min_x (float): Minimum x coordinate of the point cloud.
                 min_y (float): Minimum y coordinate of the point cloud.
@@ -380,44 +443,113 @@ class Ecomodel:
           
             cube_min = np.array([min_x, min_y, min_z])
             cube_max = np.array([min_x + voxel_size, min_y + voxel_size, min_z + voxel_size])
-            # mask = np.all((tile.cylinder_starts >= cube_min) & (tile.cylinder_starts <= cube_max), axis=1)
-            # cylinder_starts = tile.cylinder_starts[mask]
-            # cylinder_radii = tile.cylinder_radii[mask]
-            # cylinder_axes = tile.cylinder_axes[mask]
-            # cylinder_lengths = tile.cylinder_lengths[mask]
+            point_mask = np.all((tile.cloud>=cube_min) & (tile.cloud <= cube_max),axis=1)
+
+
+
+            
+            
+            
+            labels = tile.cluster_labels[point_mask]
+            tile.reset_cylinders()
+            self.calc_volumes(tile,np.unique(labels),cube_min,cube_max)
+            labels = tile.cluster_labels[point_mask]
+            mask = np.all((tile.cylinder_starts >= cube_min) & (tile.cylinder_starts <= cube_max), axis=1)
+            cylinder_starts = tile.cylinder_starts[mask]
+            cylinder_radii = tile.cylinder_radii[mask]
+            cylinder_axes = tile.cylinder_axes[mask]
+            cylinder_lengths = tile.cylinder_lengths[mask]
             # branch_labels = tile.branch_labels[mask]
             # branch_orders = tile.branch_orders[mask]
-            point_mask = np.all((tile.cloud>=cube_min) & (tile.cloud <= cube_max),axis=1)
+            
             cloud = tile.cloud[point_mask]
-            cylinder ={}# {"start": cylinder_starts, "radius": cylinder_radii, "axis": cylinder_axes, "length": cylinder_lengths, "branch": branch_labels, "BranchOrder": branch_orders}
-            # pmdis = point_model_distance(cloud, cylinder)
-            # D = [pmdis['TrunkMean'], pmdis['BranchMean'],
-            #     pmdis['Branch1Mean'], pmdis['Branch2Mean']]
-            # D = np.round(10000 * np.array(D)) / 10
-            # print(D)
-            # cyl_plot = point_cloud_plotting(cloud, subset=True,fidelity=fidelity,marker_size=1,return_html=False)
-            cyl_plot = qsm_plotting(cloud,tile.cover_sets[point_mask],tile.cluster_labels[point_mask],return_html=False,subset = True, fidelity=fidelity,marker_size=1)
+            cylinder ={"start": cylinder_starts, "radius": cylinder_radii, "axis": cylinder_axes, "length": cylinder_lengths}#, "branch": branch_labels, "BranchOrder": branch_orders}
+            # cylinder = {}
+            
+            cyl_plot = qsm_plotting(cloud,tile.cover_sets[point_mask],labels,return_html=False,subset = True, fidelity=fidelity,marker_size=1)
+
             return cylinder, cyl_plot
     
-    def calc_volumes(self):
+    def calc_volumes(self,tile, segments,min_bound,max_bound):
         """
         UNDER CONSTRUCTION, NOT USED
         """
         print("Calculating volumes")
-        start = time.time()
-        for i,tile in enumerate(self.tiles.flatten()):
-            if tile == 0:
+
+        start_time = time.time()
+        shapes = []
+        pcd = o3d.geometry.PointCloud()
+        
+        range_mask = np.arange(len(tile.cluster_labels))
+        mcd = FastMCD()
+
+        for label in np.unique(segments):
+            if label <0:
                 continue
-            for label in torch.unique(tile.cluster_labels):
-                shape_def_start = time.time()
-               
-                
-                shape = alphashape(tile.cloud[tile.cluster_labels == label].cpu().numpy(), alpha=0.1)
-                print("Volume of object : {}".format( shape.volume))
-                print("Time to calculate volume:",time.time()-shape_def_start)
+            shape_def_start = time.time()
+            seg_mask = tile.cluster_labels==label
+
+            Q0 = tile.cloud[seg_mask]
+            voxel_mask = np.all((Q0< max_bound) & (Q0 >min_bound),axis = 1)
+            Q0 = Q0[voxel_mask]
+            pcd.points = o3d.utility.Vector3dVector(Q0)
             
 
-        print("Time to calculate volumes:",time.time()-start)
+            
+            try:
+                obb = pcd.get_oriented_bounding_box()
+            except:
+                continue
+
+            dist =cdist(Q0,Q0)
+            np.fill_diagonal(dist,1.0)
+            avg_closest_point_dist = np.mean(np.min(dist,axis = 1))
+            if avg_closest_point_dist > .01: #can make this a parameter
+                tile.cluster_labels[seg_mask]=-2
+                continue
+
+            
+            c0 = {}
+
+            # box = np.asarray(obb.get_box_points())
+
+            
+            highest_point = Q0[np.argmax(Q0[:,2])]
+            lowest_point = Q0[np.argmin(Q0[:,2])]
+            # Axis = highest_point-lowest_point
+
+            print(f"finding axis for {label}, segment len{len(Q0)}")
+            print("covariance")
+            try:
+                covariance = mcd.calculate_covariance(Q0)
+            except:
+                covariance = DetMCD().calculate_covariance(Q0)
+            # covariance = MinCovDet.fit(Q0).covariance_
+            print("svd")
+            U, S, Vt = np.linalg.svd(covariance, full_matrices=False)
+            print("rest")
+            first_pc = Vt[0, :] 
+            second_pc = Vt[1, :] 
+            third_pc = Vt[2, :] 
+            Axis = first_pc
+
+            c0['axis'] = Axis / np.linalg.norm(Axis)  # normalized
+            
+            c0['start'] = lowest_point
+
+            c0['length'] = np.linalg.norm(Axis)
+
+
+
+            
+            tile.cylinder_starts =np.concatenate([tile.cylinder_starts,np.array([lowest_point])])
+            tile.cylinder_radii = np.append(tile.cylinder_radii,float(np.min(obb.extent)))
+            tile.cylinder_axes = np.concatenate([tile.cylinder_axes,np.array([Axis / np.linalg.norm(Axis)])])
+            tile.cylinder_lengths = np.append(tile.cylinder_lengths,float(np.max(obb.extent)))
+            
+               
+            
+        print("Time to calculate volumes:",time.time()-start_time)
             
 
     def subdivide_tiles(self, cube_size = 1, meter_conversion = 1):
@@ -559,7 +691,14 @@ class Ecomodel:
             if point_cloud is not None:
                 
                 ecomodel.add_tile(Tile(point_cloud,point_data,True))
+                
         return ecomodel
+
+    def remove_duplicate_points(self):
+        for tile in self.tiles.flatten():
+            tile.numpy()
+            tile.remove_duplicate_points()
+
 
     def denoise(self,eps = .1, min_samples = 10):
         """
@@ -611,6 +750,7 @@ class Tile:
         self.device = 'mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu')
         self.cloud = cloud# torch.from_numpy(cloud.astype('float32')).to(self.device)
         self.point_data = point_data if point_data is not None else cloud
+        
         # self.point_data =self.get_point_data_as_array()
         if type(self.cloud) == np.ndarray:
             
@@ -631,14 +771,27 @@ class Tile:
         self.cover_sets = np.zeros(len(cloud))-1
         self.cluster_labels = np.zeros(len(cloud))-1
         self.segment_labels = np.zeros(len(cloud))-1
-        self.cylinder_starts = np.array([])
+        self.cylinder_starts = np.empty((0,3))
         self.cylinder_radii = np.array([])
-        self.cylinder_axes = np.array([])
+        self.cylinder_axes = np.empty((0,3))
         self.cylinder_lengths = np.array([])
         self.branch_labels = np.array([])
         self.branch_orders = np.array([])
-    
 
+    def remove_duplicate_points(self):
+        cloud, mask = np.unique(self.cloud,return_index = True, axis=0)
+        self.point_data = self.point_data[mask]
+        self.cloud = self.point_data[:,:3]
+        self.cover_sets = self.cover_sets[mask]
+        self.cluster_labels = self.cluster_labels[mask]
+        self.segment_labels = self.segment_labels[mask]
+
+    
+    def reset_cylinders(self):
+        self.cylinder_starts = np.empty((0,3))
+        self.cylinder_radii = np.array([])
+        self.cylinder_axes = np.empty((0,3))
+        self.cylinder_lengths = np.array([])
     def to_xyz(self, file_path, with_clusters = False, with_intensity = False):
         """
         Save the point cloud to a XYZ file.
@@ -832,8 +985,10 @@ if __name__ == "__main__":
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
     # model = Ecomodel()
     # combined_cloud = Ecomodel.combine_las_files(folder,model)
+
     # combined_cloud.filter_ground(combined_cloud._raw_tiles,.5)
     # combined_cloud.normalize_raw_tiles()
+    
     # for tile in combined_cloud._raw_tiles:
     #     tile.to(tile.device)
     
@@ -853,23 +1008,26 @@ if __name__ == "__main__":
     # combined_cloud.pickle("test_model_ground_removed.pickle")
     # combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
     # combined_cloud.subdivide_tiles(cube_size = 15)
+    # combined_cloud.remove_duplicate_points()
 
     
     # combined_cloud.segment_trees()
     # combined_cloud.pickle("test_model_trees_segmented.pickle")
     # combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
-    # combined_cloud.get_qsm_segments(45000)
-    # combined_cloud.pickle("test_model_post_qsm.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model_post_qsm.pickle")
-    combined_cloud.recombine_tiles()
+
+    # combined_cloud.get_qsm_segments(40000)
+    # combined_cloud.recombine_tiles()
+    # combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
+
     # Palm
-    cylinder,base_plot = combined_cloud.get_cylinders(-15,-3,-3,5,fidelity = .3)
+    # cylinder,base_plot = combined_cloud.get_voxel(-15,-3,-3,5,fidelity = .3)
     # # Small Voxel
-    # cylinder,base_plot = combined_cloud.get_cylinders(-11,1,-1,3,fidelity = 1)
+    # cylinder,base_plot = combined_cloud.get_voxel(-11,1,-1,3,fidelity = 1)
     # # Large Voxel
-    # cylinder,base_plot = combined_cloud.get_cylinders(-3,-3,-4,3,fidelity = .6)
+    cylinder,base_plot = combined_cloud.get_voxel(-2,-2,-3,2,fidelity = .6)
     base_plot.write_html("results/segment_test_plot_no_continuation.html")
-    # cylinders_line_plotting(cylinder, scale_factor=20,file_name="test_plot",base_fig=base_plot)
+    cylinders_line_plotting(cylinder, scale_factor=1,file_name="test_plot",base_fig=base_plot)
     # cylinders_plotting(cylinder,base_fig=base_plot)
     # combined_cloud.calc_volumes()
     # subdivided_cloud = combined_cloud.subdivide_tiles(cube_size = 10)

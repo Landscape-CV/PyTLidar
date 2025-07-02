@@ -131,6 +131,8 @@ def cylinders_plotting(cylinders, num_points=10,base_fig=None):
         ),
         margin=dict(l=0, r=0, b=0, t=0)
     )
+    html_file = f"cylinder_plot_volume_.html"
+    fig.write_html(html_file, include_plotlyjs=True, full_html=True)
     return fig
 
 
@@ -156,6 +158,6 @@ if __name__ == "__main__":
 
     'length': [1.0, 2.0, 3.0, 4.0]  # Colors for each cylinder
     }
-
+    
     fig = cylinders_plotting(cylinders)
     #fig.show()
