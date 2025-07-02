@@ -15,7 +15,7 @@ import copy
 import os
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
-
+import csv
 import sys
 # from scipy.spatial import ConvexHull
 # import alphashape
@@ -24,6 +24,8 @@ from numba import jit
 from numba.experimental import jitclass
 import laspy
 from plotting.qsm_plotting import qsm_plotting
+import open3d as o3d
+
 # class Utils:
 
 # class Utils:
@@ -50,7 +52,7 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
         if point_data.shape[1] == 3:
             point_cloud = point_data
         elif point_data.shape[1] == 4:
-            I = point_data[:, 3] > intensity_threshold
+            I = point_data[:, 3] >= intensity_threshold
             point_cloud = point_data[I, :3]
         else:
             raise ValueError("Unsupported format in XYZ file.")
@@ -58,7 +60,7 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
     with laspy.open(file_path) as las:
         point_data = las.read()
         point_data = np.vstack((point_data.x, point_data.y, point_data.z,point_data.intensity)).T.astype('float64')
-        I = point_data[:,3]>intensity_threshold
+        I = point_data[:,3]>=intensity_threshold
         point_data = point_data[I]
         point_cloud = point_data[:,0:3]
     return point_cloud if not full_data else (point_cloud,point_data)
@@ -1187,10 +1189,13 @@ def save_model_text(QSM, savename):
     BHei = np.round(1000 * branch["height"]) / 1000
     BAzi = np.round(10 * branch["azimuth"]) / 10
     BZen = np.round(10 * branch["zenith"]) / 10
+    Bx = np.round(1000 * branch["x"]) / 1000
+    By = np.round(1000 * branch["y"]) / 1000
+    Bz = np.round(1000 * branch["z"]) / 1000
 
-    BranchData = np.column_stack((BOrd, BPar, BDia, BVol, BAre, BLen, BHei, BAng, BAzi, BZen))
+    BranchData = np.column_stack((BOrd, BPar, BDia, BVol, BAre, BLen, BHei, BAng, BAzi, BZen,Bx,By,Bz))
     NamesB = ["order", "parent", "diameter (m)", "volume (L)", "area (m^2)",
-                "length (m)", "height (m)", "angle (deg)", "azimuth (deg)", "zenith (deg)"]
+                "length (m)", "height (m)", "angle (deg)", "azimuth (deg)", "zenith (deg)","Location X", "Location Y", "Location Z"]
 
     # --------------------
     # Process treedata.
@@ -2166,7 +2171,7 @@ def package_outputs(models,cyl_htmls):
         run_name = models[i]['rundata']['inputs']['name']+"_"+str(i)
         figs =[]
         for j,fig in enumerate(models[i]['treedata']['figures']):
-            save_name = f"results/tree_data_{run_name}_{models[i]['rundata']['inputs']['tree']}_{models[i]['rundata']['inputs']['model']}_{j}.pdf"
+            save_name = os.path.join("results",f"tree_data_{run_name}_charts_{j}_{models[i]['file_id']}.pdf")
             fig.dpi=1000
             fig.savefig(save_name,format ='pdf')
             figs.append(save_name)
@@ -2180,13 +2185,24 @@ def package_outputs(models,cyl_htmls):
 
     return {"tree_data":tuple(tree_data_figures),"cylinders":tuple(cyl_htmls)}
 
-@jit(nopython=True)
-def assign_segments(cloud,segments,cover_sets):
-    point_segments = np.zeros((cloud.shape[0]),dtype = np.int64)-1
-    for i,segment in enumerate(segments):
-        I = np.where(np.isin(cover_sets, segment))[0]
-        point_segments[I] = i
-    return point_segments
+# @jit(nopython=True,parallel=True,nogil=True)
+def assign_segments(cloud,segments,cover_sets,array =False):
+    if not array:
+        point_segments = np.zeros((cloud.shape[0]),dtype = np.int64)-1
+        for i,segment in enumerate(segments):
+            I = np.where(np.isin(cover_sets, segment))[0]
+            point_segments[I] = i
+        
+        return point_segments
+    else:
+        point_segments = np.zeros((cloud.shape[0]),dtype = np.int64)-1
+        
+        for segment in np.unique(segments):
+            I = np.where(cover_sets == segment)[0]
+            
+            point_segments[I] = segment
+        
+        return point_segments
 
 def select_metric(Metric):
     """Convert metric string to corresponding numeric code.
@@ -2548,7 +2564,7 @@ def collect_data(QSMs):
 
             # Collect surface coverages
             D = QSMs[i]['cylinder']['SurfCov']
-            T = QSMs[i]['cylinder']['branch'] == 1
+            T = QSMs[i]['cylinder']['branch'] == 0
             B1 = QSMs[i]['cylinder']['BranchOrder'] == 1
             B2 = QSMs[i]['cylinder']['BranchOrder'] == 2
             
@@ -2876,3 +2892,284 @@ def compute_metric_value(met, T, treedata, Data):
             D = D[8] + D[9]
     
     return D
+
+def save_fit(cyl_dist,filename):
+    filename = filename+"_qsm_cyldist.csv"
+    header = ['mean' ,'TrunkMean', 'BranchMean', 'Branch1Mean', 'Branch2Mean', 'max', 'TrunkMax', 'BranchMax', 'Branch1Max', 'Branch2Max']
+    with open(filename,"w") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        writer.writerows(cyl_dist)
+
+
+
+def check_for_bends(segment_cloud,num_test_regions = 5,threshold = .2):
+    """
+    Check for bends in a point cloud segment by analyzing the angles between segments.
+    
+    Args:
+        segment_cloud: Point cloud data as a numpy array of shape (N, 3).
+        num_test_regions: Number of regions to test for bends.
+        
+    Returns:
+        Boolean indicating if bends were detected.
+    """
+    segsize = len(segment_cloud)//num_test_regions
+    if segsize <20:
+        return False
+    
+    
+    
+
+    
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(segment_cloud)
+    obb = pcd.get_oriented_bounding_box()
+
+    center = obb.center
+
+
+    bend = True
+    prev_dims = np.sort(obb.extent)
+    for i in range(num_test_regions):
+        
+        # next_seg = segment_cloud[i*segsize:(i+1)*segsize]
+        # pcd.points = o3d.utility.Vector3dVector(next_seg)
+        next_seg = segment_cloud[:(i+1)*segsize]
+        pcd.points = o3d.utility.Vector3dVector(next_seg)
+        try:
+            obb = pcd.get_oriented_bounding_box()
+        except:
+            pass
+
+        # try:
+        #     obb = pcd.get_oriented_bounding_box()
+
+        # except:
+        #     return False
+        max_bound = obb.get_max_bound()
+        min_bound = obb.get_min_bound()
+        bound_range = max_bound - min_bound
+        if np.all(center < max_bound-bound_range*.2) and np.all(center > min_bound+bound_range*.2):
+            bend = False
+
+        dims = np.sort(obb.extent)
+        # if i>0:
+        both_dims = np.array([dims,prev_dims])
+        min_dims = np.min(both_dims,axis=0)
+        max_dims = np.max(both_dims,axis=0)
+        if min_dims[0]*2<max_dims[0] or (min_dims[0]<max_dims[0] and min_dims[1]*2<max_dims[1]):
+            return True
+            
+        # prev_dims = dims
+        
+
+    return bend
+    
+
+def split_segments(segment_cloud, num_test_regions = 5, angle_threshold = 60):
+    """
+    Find bends in a point cloud based on the distance between points.
+    
+    Args:
+        cloud: Point cloud data as a numpy array of shape (N, 3).
+        num_test_regions: Number of regions to test for bends.
+        
+    Returns:
+        Array indicating if point is in new segment
+    """
+
+    
+    segs = np.zeros(len(segment_cloud))
+
+    
+    if not check_for_bends(segment_cloud,num_test_regions):
+        return segs
+
+    segsize = len(segment_cloud)//num_test_regions
+    initial_seg = segment_cloud[:segsize]
+    last_seg = segment_cloud[1*segsize:2*segsize]
+    a = np.mean(initial_seg, axis=0)
+    b = np.mean(last_seg, axis=0)
+    initial_vec = (b-a)/(np.linalg.vector_norm(b-a))
+    last_vec = initial_vec
+
+    # full_pcd = o3d.geometry.PointCloud()
+    # full_pcd.points = o3d.utility.Vector3dVector(segment_cloud)
+
+
+    for i in range(2,num_test_regions):
+        
+        next_seg = segment_cloud[i*segsize:(i+1)*segsize]
+
+        
+        if len(next_seg) < 10: 
+            break
+        new_vec1 = (next_seg[-1]-next_seg[0])#/(np.linalg.vector_norm(c-b))
+        
+        
+        angle = np.rad2deg(np.arccos(np.dot(last_vec, new_vec1)/(np.linalg.norm(last_vec)*np.linalg.norm(new_vec1))))
+        if angle > angle_threshold:
+            segs[i*segsize:] = 1
+            return segs
+            
+        last_vec = new_vec1
+        last_seg = next_seg
+
+    return segs
+
+    
+
+
+def cloud_to_image(cloud,resolution=.05):
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(cloud)
+
+    voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd,voxel_size = resolution)
+    voxels = voxel_grid.get_voxels()
+    indices = np.stack(np.array([np.array(vx.grid_index) for vx in voxels]))
+    voxel_array = np.ones((indices.max(axis=0)+1))
+    for x, y, z in indices: voxel_array[x, y, z] = 0
+    return voxel_array,voxel_grid,indices
+
+
+
+
+def parse_args(argv):
+    """
+        Define run values based on command line args. Options for params are:
+        --intensity: filter point cloud based on intensity
+        --custominput: user sets specific patch diameters to test
+        --ipd: initial patch diameter
+        --minpd: min patch diameter
+        --maxpd: maximum patch diameter
+        --name: specificies a name of the tree different than the file
+        --parallel: runs in parallel
+        --numcores: specify number of cores to use in parallel mode
+        --optimum: specify an optimum value to select best model to save
+        --help: displays the run options
+        -verbose: verbose mode
+        -h: displays the run options
+        -v: verbose mode
+    """
+    i = 0
+    current_arg = "Invalid Arg"
+    args = {"Custom":False,"Verbose":False,"Parallel":False,"Normalize":False,"Intensity":0, "PatchDiam1":1,"PatchDiam2Min":1,"PatchDiam2Max":1,"Name":"","Cores":1,"Optimum":[],"Directory":None}
+    help= """List of valid arguments. Filename must be first, followed by the below arguments
+    --intensity: filter point cloud based on intensity: 
+        Must be followed with a valid integer
+    --normalize: recenter point cloud locations. Use this if your point cloud location values are very large
+    --custominput: user sets specific patch diameters to test
+    --ipd: initial patch diameter 
+        Must be followed by at least one value. A single integer if --custominput is not indicated, a series of decimals if --custominput is indicated
+    --minpd: min patch diameter
+        Must be followed by at least one value. A single integer if --custominput is not indicated, a series of decimals if --custominput is indicated
+    --maxpd: maximum patch diameter
+        Must be followed by at least one value. A single integer if --custominput is not indicated, a series of decimals if --custominput is indicated
+    --name: specifies a name of the run. This will be appended to the name generated by TreeQSM
+    --outputdirectory: specifies the directory to put the "results" folder
+    --numcores: specify number of cores to use to process files in parallel. Only valid in batched mode
+        Must be a single integer
+    --optimum: specify an optimum metric to select best model to save
+        Must be a valid optimum as defined by the documentation. If multiple optimums are listed, the best model will be saved for each optimum metric
+    --help: displays the run options
+    -verbose: verbose mode, displays outputs from TreeQSM as it runs
+    -h: displays the run options
+    -v: verbose mode"""
+    while i <len(argv):
+        match argv[i]:
+            case "--threshold":
+                current_arg = "Intensity"
+            case "--custominput":
+                args["Custom"] = True
+                current_arg = "Invalid Arg"
+            case "--ipd":
+                current_arg = "PatchDiam1"
+            case "--minpd":
+                current_arg = "PatchDiam2Min"
+            case "--maxpd":
+                current_arg = "PatchDiam2Max"
+            case "--name":
+                current_arg = "Name"
+            case "--parallel":
+                args["Parallel"] = True
+                current_arg = "Invalid Arg"
+            case "--numcores":
+                current_arg = "Cores"
+            case "--optimum":
+                current_arg = "Optimum"
+            case "--help":
+                sys.stdout.write(help)
+                return "Help"
+            case "-h":
+                sys.stdout.write(help)
+                return "Help"
+            case "--verbose":
+                args["Verbose"]=True
+                current_arg = "Invalid Arg"
+            case "-v":
+                args["Verbose"]=True
+                current_arg = "Invalid Arg"
+            case "--normalize":
+                args["Normalize"]=True
+                current_arg = "Invalid Arg"
+            case "--outputdirectory":
+                current_arg="Directory"
+            case _:
+                if current_arg == "Invalid Arg":
+                    sys.stdout.write(f"Argument {argv[i]} not valid in this position. See --help if you need help with arguments. System will continue with remaining arguments")
+                elif current_arg in ["PatchDiam1","PatchDiam2Min","PatchDiam2Max"]:
+                    for item in argv[i].split(","):
+                        arg = item.strip().strip(",")
+                        try:
+                            arg = float(arg)
+                        except:
+                            sys.stdout.write(f"Argument {argv[i]} should be a valid number")
+                            continue
+                        if arg != "":
+                            if args[current_arg]==1:
+                                args[current_arg] = [arg]
+                            else:
+                                args[current_arg].append(arg)
+                elif current_arg == 'Optimum':
+                    arg = argv[i].strip().strip(",")
+                    args[current_arg].append(arg)  
+                elif current_arg in ["Name","Directory"]:
+                    arg = argv[i].strip().strip(",")
+                    args[current_arg] = arg 
+                else:
+                    try:
+                        arg = int(float(argv[i].strip().strip(",")))
+                        args[current_arg] = arg  
+                    except:
+                        sys.stdout.write(f"Argument {argv[i]} should be a valid integer")
+                    
+
+                
+        i+=1
+    if args["Custom"]:
+        if type(args["PatchDiam1"]) != list or type(args["PatchDiam2Min"]) != list or type(args["PatchDiam2Max"]) != list:
+            print(args)
+            sys.stdout.write(f"If --custominput is selected, values for --ipd (PatchDiam1) --minpd (PatchDiam2Min) --maxpd (PatchDiam2Max). See --help if needed")
+            return "ERROR"
+    else:
+        if type(args["PatchDiam1"]) != list:
+            args["PatchDiam1"]=args["PatchDiam1"][0]
+        if type(args["PatchDiam2Min"]) != list:
+            args["PatchDiam2Min"]=args["PatchDiam2Min"][0]
+        if type(args["PatchDiam2Max"]) != list:
+            args["PatchDiam2Max"]=args["PatchDiam2Max"][0]
+
+    return args
+
+
+def color_o3d_clouds(clouds):
+    for cloud in clouds:
+        color = np.random.random(3)
+        color_array = np.repeat(np.array([color]),len(np.asarray(cloud.points)),axis = 0)
+        cloud.colors =  o3d.utility.Vector3dVector(color_array)
+
+
+
+
+

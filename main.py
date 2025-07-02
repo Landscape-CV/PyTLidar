@@ -1,5 +1,4 @@
 from treeqsm import treeqsm
-from batch_process import batched
 import os
 from PySide6.QtCore import QObject,QThread,Signal,Qt,QUrl,QProcess
 from PySide6.QtWidgets import QWidget,QGridLayout,QVBoxLayout,QLabel,QMainWindow,QPushButton,QApplication,QTextEdit,QToolButton,QComboBox,QHBoxLayout,QSlider,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem, QCheckBox,QRadioButton
@@ -190,7 +189,7 @@ MaxPatchDiam separated by commas for the values you would like to test
         if not self.check_inputs(inputs):
             return
 
-        file, _ = QFileDialog.getOpenFileName(self, "Select File", "", "LAS Files (*.las *.laz)")
+        file, _ = QFileDialog.getOpenFileName(self, "Select File", "", "LAS/XYZ Files (*.las *.laz *.xyz)")
         if not file:
             QMessageBox.warning(self, "No File Selected", "Please select a LAS or LAZ file.")
             return
@@ -881,6 +880,7 @@ class SingleFileProcessingWindow(QMainWindow):
         self.points = load_point_cloud(self.file,intensity_threshold=float(self.intensity_threshold))
 
         # Step 3: Define inputs for TreeQSM
+        print(np.mean(self.points,axis = 0))
         self.points = self.points - np.mean(self.points,axis = 0)
         if generate_values:
             self.inputs = define_input(self.file,self.nPD1, self.nPD2Min, self.nPD2Max)[0]
@@ -1108,7 +1108,9 @@ class BatchQSM(QObject):
         for i, file in enumerate(self.files):
             point_cloud = load_point_cloud(os.path.join(self.folder, file), self.intensity_threshold)
             if point_cloud is not None:
+                
                 point_cloud = point_cloud - np.mean(point_cloud,axis = 0)
+
                 clouds.append(point_cloud)
                 self.plot_data.emit((i,point_cloud))
         if self.generate_values:
@@ -1148,12 +1150,15 @@ class BatchQSM(QObject):
         while process < len(inputs):
             for i in range(num_cores):
                 
-
+                if process+i > len(inputs)-1:
+                    break
                 self.message.emit(f"Processing {inputs[process+i]['name']}. This may take several minutes...\n")
                 
                 P[process+i].start()
 
             for i in range(num_cores):
+                if process+i > len(inputs)-1:
+                    break
                 q=Q[process+i]
                 p = P[process+i]
                 try:

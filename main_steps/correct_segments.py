@@ -114,7 +114,8 @@ def correct_segments(P,cover,segment,inputs,RemSmall=None,ModBases=None,AddChild
     C = SChi[0]
     segment['branch1indexes'] = C
     if C.size > 0:
-        C = np.concatenate([SChi[c] for c in C if len(SChi[c])>0])
+        segs = [SChi[c] for c in C if len(SChi[c])>0] 
+        C = np.concatenate(segs) if len(segs)>0 else np.array([])
         segment['branch2indexes'] = C
         if C.size > 0:
             segs = [SChi[c] for c in C if len(SChi[c])>0]

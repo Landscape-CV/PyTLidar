@@ -22,5 +22,5 @@ pip install -r requirements.txt
 ## Create a .env file
 make a file in your parent director named `.env` and paste the following into it replace the ... with the filepath to your data
 ```
-DATA_FILE_PATH = ...
+DATA_FOLDER_FILEPATH = ...
 ```

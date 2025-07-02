@@ -667,7 +667,7 @@ def make_tree_connected(cover, aux, Forb, Base, Trunk, inputs):
             for i in range(nc):
                 # print(nc_ind, again_ind,i)
                 if NonClassified[i] and Pass[i]:
-                    comp = Comps[i]#np.concatenate([arr for arr in Comps[i]])   # candidate component for joining to the tree
+                    comp = Comps[i].astype(int)#np.concatenate([arr for arr in Comps[i]])   # candidate component for joining to the tree
 
                     # If the component is neighbor of forbidden sets, remove it
                     J = Forb[np.concatenate([Nei[i] for i in comp])]

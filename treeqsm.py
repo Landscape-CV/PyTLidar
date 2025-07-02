@@ -49,12 +49,17 @@ from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.qsm_plotting import qsm_plotting
 import sys
 import json
+import traceback
+import os
+from GBSeparation.remove_leaves import LeafRemover
+
 
 def test():
     # file_path = r'C:\Users\johnh\Documents\LiDAR\A-04-7007_post.las'
     # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/A-04-7007_post.las'
     # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/tree_1.las'
-    file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/test_palm.xyz'
+    # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/test_palm.xyz'
+    file_path = r'/Users/johnhagood/Downloads/tree_0160.laz'
     # file_path = r'E:\5-Study\OMSCS\CS8903_Research\TreeQSM\PyTLidar\Dataset\tree_1.las'
     points = load_point_cloud(file_path,0)
     if points is not None:
@@ -62,20 +67,24 @@ def test():
     # Step 3: Define inputs for TreeQSM
     points = points - np.mean(points,axis = 0)
 
-    inputs = define_input(points, 1, 1, 1)[0]
+    inputs = define_input(points, 3, 3, 3)[0]
 
-    #specific inputs for testing
-    inputs['PatchDiam1'] = [0.05]
-    inputs['PatchDiam2Min'] = [0.03]
-    inputs['PatchDiam2Max'] = [0.12]
-    inputs['BallRad1'] = [0.06]
-    inputs['BallRad2'] = [0.13]
-    inputs['plot'] = 0
+    # #specific inputs for testing
+    # inputs['PatchDiam1'] = [0.05]
+    # inputs['PatchDiam2Min'] = [0.03]
+    # inputs['PatchDiam2Max'] = [0.12]
+    # inputs['BallRad1'] = [0.06]
+    # inputs['BallRad2'] = [0.13]
+    # inputs['plot'] = 0
     treeqsm(points,inputs)
 
 
 
-def treeqsm(P,inputs,batch =0,processing_queue = None):
+def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
+    original_location = os.getcwd()
+    if results_location is not None:
+        os.chdir(results_location)
+
     try:
         # Save computation times for modeling steps
         
@@ -117,6 +126,10 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
             sys.stdout.write(f'  BallRad2 = {BallRad2}\n')
             sys.stdout.write(f'  Tria = {inputs["Tria"]}, OnlyTree = {inputs["OnlyTree"]}\n')
             sys.stdout.write('Progress:\n')
+
+        # # Remove leaves? 
+        # leaf_remover = LeafRemover()
+        # P, _ = leaf_remover.process(P)
 
         # Make the point cloud into proper form
         # Only 3-dimensional data
@@ -177,7 +190,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
                 Inputs['BallRad2'] = BallRad2[i]
                 
                 if na > 1 and inputs['disp'] >= 1:
-                    sys.stdout('    -----------------\n')
+                    sys.stdout.write('    -----------------\n')
                     sys.stdout.write(f'    PatchDiam2Max = {PatchDiam2Max[i]}\n')
                     sys.stdout.write('    -----------------\n')
                 
@@ -307,6 +320,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
                             'PatchDiam1': PatchDiam1[h],
                             'PatchDiam2Max': PatchDiam2Max[i],
                             'PatchDiam2Min': PatchDiam2Min[j],
+                            
                         }
 
                         if inputs['Dist']:
@@ -323,62 +337,72 @@ def treeqsm(P,inputs,batch =0,processing_queue = None):
 
                         # Save the output into results folder
                         if inputs['savemat']:
-                            str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                            string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
                             if nd > 1 or na > 1 or ni > 1:
                                 if nd > 1:
-                                    str += f"_D{PatchDiam1[h]}"
+                                    string += f"_D{PatchDiam1[h]}"
                                 if na > 1:
-                                    str += f"_DA{PatchDiam2Max[i]}"
+                                    string += f"_DA{PatchDiam2Max[i]}"
                                 if ni > 1:
-                                    str += f"_DI{PatchDiam2Min[j]}"
-                            np.savez(f"results_QSM_{str}.npz", QSM=QSM)
+                                    string += f"_DI{PatchDiam2Min[j]}"
+                            np.savez(f"results_QSM_{string}.npz", QSM=QSM)
 
                         if inputs['savetxt']:
                             if nd > 1 or na > 1 or ni > 1:
-                                str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                                string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
                                 if nd > 1:
-                                    str += f"_D{PatchDiam1[h]}"
+                                    string += f"_D{PatchDiam1[h]}"
                                 if na > 1:
-                                    str += f"_DA{PatchDiam2Max[i]}"
+                                    string += f"_DA{PatchDiam2Max[i]}"
                                 if ni > 1:
-                                    str += f"_DI{PatchDiam2Min[j]}"
+                                    string += f"_DI{PatchDiam2Min[j]}"
                             else:
-                                str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
-                            Utils.save_model_text(qsm, str)
+                                string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                            Utils.save_model_text(qsm, string)
 
                         # Plot models and segmentations
 
                         if nd > 1 or na > 1 or ni > 1:
-                            str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                            string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
                             if nd > 1:
-                                str += f"_D{PatchDiam1[h]}"
+                                string += f"_D{PatchDiam1[h]}"
                             if na > 1:
-                                str += f"_DA{PatchDiam2Max[i]}"
+                                string += f"_DA{PatchDiam2Max[i]}"
                             if ni > 1:
-                                str += f"_DI{PatchDiam2Min[j]}"
+                                string += f"_DI{PatchDiam2Min[j]}"
                         else:
-                            str = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
+                            string = f"{inputs['name']}_t{inputs['tree']}_m{inputs['model']}"
                         fidelity = min(100000/ P.shape[0],1)  # Adjust fidelity based on point cloud size
                         base_fig = point_cloud_plotting(P, subset=True,fidelity=fidelity,marker_size=1,return_html=False)
                         qsm_plotting(P,cover2,segment2,qsm,return_html=True,subset = True, fidelity=fidelity,marker_size=1)
-                        fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8,str,False,base_fig=base_fig)
-
+                        fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8,string,False,base_fig=base_fig,display = True if inputs['disp']==2 else False)
+                        qsm["file_id"]=string
                         cyl_htmls.append(cyl_html)
 
                         models.append(qsm)
                         cyl_htmls.append(cyl_html)
                         iter+=1
         response = Utils.package_outputs(models,cyl_htmls)    
-        sys.stdout.write(json.dumps(response))   
+        if inputs["disp"]==2:
+            sys.stdout.write(json.dumps(response))  
+            sys.stdout.write("\n") 
         if processing_queue is not None:
             processing_queue.put([batch,models,cyl_htmls])
+        os.chdir(original_location)
         return models, cyl_htmls
     except Exception as e:
-        sys.stderr.write(f"An error occurred: {e}\n")
+        sys.stderr.write(f"An error occurred: {traceback.format_exc()}\n")
         if processing_queue is not None:
             processing_queue.put([batch, "ERROR", "ERROR"])
         return "ERROR", "ERROR"
 
+def calculate_optimal(models,metric):
+        metric_data = Utils.collect_data(models)
+        metrics = []
+        for i in range(len(models)):
+            metrics.append(Utils.compute_metric_value(Utils.select_metric(metric), i,metric_data[0],metric_data[3]))
+        best = np.argmax(np.array(metrics))
+        return best,metrics[best],metric_data
 
 if __name__ == "__main__":
     # cProfile.run("test()",filename="results.txt",sort=1)
@@ -386,17 +410,70 @@ if __name__ == "__main__":
     # stats.sort_stats('tottime')
     # stats.reverse_order()
     # stats.print_stats()
+    # try:
     try:
         filename = sys.argv[1]
-        inputs = sys.argv[2].split()
+    except:
+        print("No arguments found, running development test mode")
+        test()
+    parsed_args = Utils.parse_args(sys.argv[2:])
+    
+    
+    if parsed_args not in ["ERROR","Help"]:
+        print(parsed_args)
+        threshold = parsed_args["Intensity"]
 
-        points = load_point_cloud(filename,inputs[0])
+        points = load_point_cloud(filename,threshold)
         if points is not None:
             sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.\n")
         # Step 3: Define inputs for TreeQSM
-        points = points - np.mean(points,axis = 0)
-        inputs = define_input(points, inputs[1], inputs[2], inputs[3])[0]
-        inputs['plot'] = 0
-        treeqsm(points,inputs)
-    except:
-        test()
+        if parsed_args["Normalize"]:
+            points = points - np.mean(points,axis = 0)
+        if parsed_args["Custom"]:
+            inputs = define_input(points, 1, 1, 1)[0]
+            inputs["PatchDiam1"] = parsed_args["PatchDiam1"]
+            inputs["PatchDiam2Min"] = parsed_args["PatchDiam2Min"]
+            inputs["PatchDiam2Max"] = parsed_args["PatchDiam2Max"]
+            inputs['BallRad1'] = [d +.01 for d in parsed_args["PatchDiam1"]]
+            inputs['BallRad2'] = [d +.01 for d in parsed_args["PatchDiam2Max"]]
+            
+            
+        else:
+            inputs = define_input(points,parsed_args["PatchDiam1"],parsed_args["PatchDiam2Min"],parsed_args["PatchDiam2Max"])[0]
+            inputs["name"] = parsed_args["Name"]+inputs["name"]
+        inputs["disp"] = 2 if parsed_args["Verbose"] else 0
+        inputs["plot"] = 0
+        models, cyl_htmls = treeqsm(points,inputs,results_location=parsed_args["Directory"])
+        saved_files = []
+        for metric in parsed_args["Optimum"]:
+            optimum,value,metric_data = calculate_optimal(models,metric)
+            npd1 = models[optimum]['PatchDiam1']
+            max_pd = models[optimum]['PatchDiam2Max']
+            min_pd = models[optimum]['PatchDiam2Min']
+            sys.stdout.write(f"For Metric {metric} Optimal PatchDiam1: {npd1}, Max PatchDiam: {max_pd}, Min PatchDiam: {min_pd}\n\tValue is {value}")
+            string = models[optimum]["file_id"]
+            filename = f"{models[optimum]['rundata']['inputs']['name']}_t{models[optimum]['rundata']['inputs']['tree']}_m{models[optimum]['rundata']['inputs']['model']}"
+            Utils.save_fit(metric_data[3]["CylDist"],os.path.join("results",filename+"_"+string))
+            saved_files.append((string,filename))
+        if parsed_args["Directory"] is not None:
+            os.chdir(parsed_args["Directory"])
+            os.chdir("results")
+        else:
+            os.chdir('results')
+        for file in os.listdir():
+            remove = True
+            for string,filename in saved_files:
+                if string in file and filename in file:
+                    remove = False
+            if remove:
+                os.remove(file)
+            
+    
+
+    # except:
+    #     run = input("No arguments provided, would you like to proceed with default file and setup? Y/N")
+    #     if run == "Y":
+    #         test()
+    #     else:
+    #         sys.stdout.write("Closing... Please try again.")
+        
