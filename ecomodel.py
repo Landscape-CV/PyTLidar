@@ -36,6 +36,8 @@ from alphashape import alphashape
 import pickle
 import dotenv
 from GBSeparation.remove_leaves import LeafRemover
+from robpy.covariance import DetMCD,FastMCD
+from sklearn.covariance import MinCovDet
 dotenv.load_dotenv()
 
 class Ecomodel:
@@ -479,7 +481,9 @@ class Ecomodel:
         pcd = o3d.geometry.PointCloud()
         
         range_mask = np.arange(len(tile.cluster_labels))
-        for label in segments:
+        mcd = FastMCD()
+
+        for label in np.unique(segments):
             if label <0:
                 continue
             shape_def_start = time.time()
@@ -507,12 +511,27 @@ class Ecomodel:
             
             c0 = {}
 
-            box = np.asarray(obb.get_box_points())
+            # box = np.asarray(obb.get_box_points())
 
             
-            highest_point = np.mean(box[:4],axis = 0) 
-            lowest_point = np.mean(box[4:],axis = 0)
-            Axis = highest_point-lowest_point
+            highest_point = Q0[np.argmax(Q0[:,2])]
+            lowest_point = Q0[np.argmin(Q0[:,2])]
+            # Axis = highest_point-lowest_point
+
+            print(f"finding axis for {label}, segment len{len(Q0)}")
+            print("covariance")
+            try:
+                covariance = mcd.calculate_covariance(Q0)
+            except:
+                covariance = DetMCD().calculate_covariance(Q0)
+            # covariance = MinCovDet.fit(Q0).covariance_
+            print("svd")
+            U, S, Vt = np.linalg.svd(covariance, full_matrices=False)
+            print("rest")
+            first_pc = Vt[0, :] 
+            second_pc = Vt[1, :] 
+            third_pc = Vt[2, :] 
+            Axis = first_pc
 
             c0['axis'] = Axis / np.linalg.norm(Axis)  # normalized
             
@@ -526,7 +545,7 @@ class Ecomodel:
             tile.cylinder_starts =np.concatenate([tile.cylinder_starts,np.array([lowest_point])])
             tile.cylinder_radii = np.append(tile.cylinder_radii,float(np.min(obb.extent)))
             tile.cylinder_axes = np.concatenate([tile.cylinder_axes,np.array([Axis / np.linalg.norm(Axis)])])
-            tile.cylinder_lengths = np.append(tile.cylinder_lengths,float(np.linalg.norm(Axis)))
+            tile.cylinder_lengths = np.append(tile.cylinder_lengths,float(np.max(obb.extent)))
             
                
             
