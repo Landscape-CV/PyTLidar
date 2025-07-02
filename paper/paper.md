@@ -2,9 +2,9 @@
 title: 'PyTLiDAR: A Python Package for Tree QSM Modeling from Terrestrial LiDAR Data'
 tags:
   - Python
-  - biology
-  - lidar
-  - qsm
+  - Ecology
+  - Terrestrial Lidar Scan
+  - Quantitative Structure Model
 authors:
   - name: John Hagood
     orcid: 0009-0002-3894-4464
@@ -47,9 +47,9 @@ Key features of PyTLiDAR include:
 
 -Batch data processing
 
-# Statement of need
+# Statement of Need
 
-Terrestrial Laser Scanning typically utilizes LiDAR systems to collect millions of points on the surface of objects and preserves spatial information. For estimating above ground biomass (AGB), gap fraction, crown shape, and other ecological properties, accurate and efficient tree QSM reconstruction from TLS point cloud data is essential [@f6114245].
+Terrestrial Laser Scanning typically utilizes LiDAR systems to collect millions of points on the surface of objects and preserves spatial information. For estimating Above Ground Biomass (AGB), gap fraction, crown shape, and other ecological properties, accurate and efficient tree QSM reconstruction from TLS point cloud data is essential [@f6114245].
 
 TreeQSM has been widely used in forestry and ecology for modeling three-dimensional tree structures from TLS point clouds [@TERRYN2020170]. However, its reliance on MATLAB makes it less accessible for users without a commercial license or familiarity with the MATLAB environment. Furthermore, the lack of a graphical interface makes the tool less user-friendly and its parameter tuning less efficient.
 
@@ -73,7 +73,7 @@ After data selection, the software opens a new interface allows for data process
 
 Users can also review the relavant morphological data of the QSM, including stem diameters, branch volume, surface area, and length with regard to diameter or order from stem.
 
-![Software interface for user input and data selection. \label{fig:pc1}](figs/fig3.jpg){ width=80% }
+![Tree QSM data display \label{fig:pc1}](figs/fig3.jpg){ width=80% }
 
 # Acknowledgements
 
