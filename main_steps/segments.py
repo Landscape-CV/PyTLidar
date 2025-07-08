@@ -113,6 +113,7 @@ def segments(cover, Base, Forb,qsm=True):
                 Seg[nl] = Cut
         elif nc > 1:
             # Classify the components of the Study region
+            
             Class = component_classification(CompSize, Cont, BaseSize, CutSize,qsm)
 
             for i in range(nc):
@@ -459,7 +460,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
 
     return Components, Bases, CompSize, Cont, BaseSize
 
-def component_classification(CompSize, Cont, BaseSize, CutSize, qsm =True):
+def component_classification(CompSize, Cont, BaseSize, CutSize, qsm =True,trunk = False):
     """
     Classifies study region components into "continuation" or "branch".
 
@@ -506,7 +507,7 @@ def component_classification(CompSize, Cont, BaseSize, CutSize, qsm =True):
     # If no continuation component is found and there are branches,
     # mark the largest branch as the continuation
     Branches = Class == 1
-    if ContiComp == -1 and np.any(Branches) and qsm:
+    if ContiComp == -1 and np.any(Branches) and (qsm or trunk):
         Ind = np.arange(nc)  # Indices of all components
         Branches = Ind[Branches]  # Indices of branch components
         I = np.argmax(CompSize[Branches])  # Index of the largest branch

@@ -304,7 +304,7 @@ class Ecomodel:
                 print("Tree sets")
                 cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input)
                 print("Segments")
-                segment1 = segments( cover1, Base, Forb,qsm=False)
+                segment1 = segments( cover1, Base, Forb,qsm=True)
                 # print("Correct")
                 # segment1 =correct_segments(tree_cloud,cover1,segment1,qsm_input,0,1,1)#
                 # RS = relative_size(tree_cloud, cover1, segment1)
@@ -339,7 +339,9 @@ class Ecomodel:
                 cloud_segments= np.repeat(segs, num_indices) 
                 new_cloud_segments = cloud_segments.copy()
                 cloud_range_mask = np.arange(len(cloud_segments))
-
+                
+                
+                
                 
                
                 
@@ -350,6 +352,7 @@ class Ecomodel:
                     #     continue
                     seg_mask = cloud_segments == seg
                     segment_cloud = tree_cloud[seg_mask]
+                    
                     if len(segment_cloud)<30:
                         continue
                     
@@ -363,29 +366,38 @@ class Ecomodel:
 
                     
                     sub_segments = Utils.split_segments(segment_cloud,5,30)
-                    while np.sum(sub_segments)>10:
+                    while np.sum(sub_segments)>len(sub_segments)/5:
 
-
+                        
                         sub_segments = sub_segments[np.argsort(lexsort_indices)]
                         I =np.where(sub_segments==1)[0]
+                        # J = np.where(sub_segments==0)[0]
+
                         cluster_mask = cloud_range_mask[seg_mask][I]
                         new_cloud_segments[cluster_mask] = np.max(new_cloud_segments)+1
-                        segment_cloud = segment_cloud[I]
-                        lexsort_indices = lexsort_indices[I]
+                        segment_cloud = tree_cloud[seg_mask][I]
+                        seg_mask= cluster_mask
+                        lexsort_indices = np.lexsort((segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),axis=0)
+                        segment_cloud = segment_cloud[lexsort_indices]
+                        
                         # sub_segments = [1]
                         sub_segments = Utils.split_segments(segment_cloud,5,30)
 
 
                 cloud_segments = new_cloud_segments+max_segment
-                    
+                trunk = new_cloud_segments ==0
                     
 
                 
                 max_segment = cloud_segments.max()+max_segment
-                # mask_cluster_labels = np.zeros(np.sum(mask))-1
-                # mask_cluster_labels[wood_mask] = cloud_segments
+                # # mask_cluster_labels = np.zeros(np.sum(mask))-1
+                # # mask_cluster_labels[wood_mask] = cloud_segments
                 cluster_mask = range_mask[mask]
+                trunk_mask = range_mask[mask][trunk]
+                
                 tile.cluster_labels[cluster_mask] = cloud_segments
+                tile.cluster_labels[trunk_mask] = -3
+                tile.trunk_points[trunk_mask]= 1
                 tile.cloud[mask] = tree_cloud
                 
                 # tile.cloud[cluster_mask] =segment_cloud
@@ -501,11 +513,16 @@ class Ecomodel:
             except:
                 continue
 
+            
             dist =cdist(Q0,Q0)
             np.fill_diagonal(dist,1.0)
             avg_closest_point_dist = np.mean(np.min(dist,axis = 1))
-            if avg_closest_point_dist > .01: #can make this a parameter
+            if avg_closest_point_dist > .02: #can make this a parameter
                 tile.cluster_labels[seg_mask]=-2
+                continue
+
+            if np.min(obb.extent) <.01 and np.max(obb.extent)>.05:
+                tile.cluster_labels[seg_mask]=-1
                 continue
 
             
@@ -518,16 +535,20 @@ class Ecomodel:
             lowest_point = Q0[np.argmin(Q0[:,2])]
             # Axis = highest_point-lowest_point
 
-            print(f"finding axis for {label}, segment len{len(Q0)}")
-            print("covariance")
+            # print(f"finding axis for {label}, segment len{len(Q0)}")
+            # print("covariance")
             try:
                 covariance = mcd.calculate_covariance(Q0)
             except:
-                covariance = DetMCD().calculate_covariance(Q0)
+                try:
+                    covariance = DetMCD().calculate_covariance(Q0)
+                except:
+                    print("Failed")
+                    continue
             # covariance = MinCovDet.fit(Q0).covariance_
-            print("svd")
+            # print("svd")
             U, S, Vt = np.linalg.svd(covariance, full_matrices=False)
-            print("rest")
+            # print("rest")
             first_pc = Vt[0, :] 
             second_pc = Vt[1, :] 
             third_pc = Vt[2, :] 
@@ -645,6 +666,7 @@ class Ecomodel:
         base_tile.segment_labels = np.concatenate([tile.segment_labels for tile in tiles])
         base_tile.cover_sets = np.concatenate([tile.cover_sets for tile in tiles])
         base_tile.cluster_labels = np.concatenate([tile.cluster_labels for tile in tiles])
+        base_tile.trunk_points =np.concatenate([tile.trunk_points for tile in tiles])
         # base_tile.cylinder_starts = np.concatenate([tile.cylinder_starts for tile in tiles])
         # base_tile.cylinder_axes = np.concatenate([tile.cylinder_axes for tile in tiles])
         # base_tile.cylinder_lengths = np.concatenate([tile.cylinder_lengths for tile in tiles])
@@ -771,6 +793,7 @@ class Tile:
         self.cover_sets = np.zeros(len(cloud))-1
         self.cluster_labels = np.zeros(len(cloud))-1
         self.segment_labels = np.zeros(len(cloud))-1
+        self.trunk_points = np.zeros(len(cloud))
         self.cylinder_starts = np.empty((0,3))
         self.cylinder_radii = np.array([])
         self.cylinder_axes = np.empty((0,3))
@@ -785,6 +808,7 @@ class Tile:
         self.cover_sets = self.cover_sets[mask]
         self.cluster_labels = self.cluster_labels[mask]
         self.segment_labels = self.segment_labels[mask]
+        self.trunk_points =self.trunk_points[mask]
 
     
     def reset_cylinders(self):
@@ -862,11 +886,6 @@ class Tile:
         elif type(self.cloud) == torch.Tensor:
             return self.cloud.cpu().numpy().astype('float64')
     
-    def numpy(self):
-        if torch.is_tensor(self.cloud):
-            self.cloud = self.cloud.cpu().numpy()
-        if torch.is_tensor(self.point_data):
-            self.point_data = self.point_data.cpu().numpy()
     
     def plot(self):
         """
@@ -959,6 +978,8 @@ class Tile:
             self.branch_labels = self.branch_labels.cpu().numpy().astype('float64')
         if type(self.branch_orders) == torch.Tensor:
             self.branch_orders = self.branch_orders.cpu().numpy().astype('float64')
+        if type(self.trunk_points) ==torch.Tensor:
+            self.trunk_points =self.trunk_points.cpu().numpy().astype('float64')
         
     def concat(self,tile):
         """
@@ -972,6 +993,7 @@ class Tile:
         self.segment_labels = np.concatenate([self.segment_labels,tile.segment_labels]) if len(tile.segment_labels) else self.segment_labels
         self.cover_sets = np.concatenate([self.cover_sets,tile.cover_sets]) if len(tile.cover_sets)>0 else self.cover_sets
         self.cluster_labels = np.concatenate([self.cluster_labels,tile.cluster_labels]) if len(tile.cluster_labels)>0 else self.cluster_labels
+        self.trunk_points =np.concatenate([self.trunk_points,tile.trunk_points]) if len(tile.trunk_points)>0 else self.trunk_points
 
 
 
