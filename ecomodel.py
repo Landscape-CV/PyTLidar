@@ -1005,31 +1005,31 @@ class Tile:
 
 if __name__ == "__main__":
     # Example usage
-    folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-    model = Ecomodel()
-    combined_cloud = Ecomodel.combine_las_files(folder,model)
+    # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
+    # model = Ecomodel()
+    # combined_cloud = Ecomodel.combine_las_files(folder,model)
 
-    combined_cloud.filter_ground(combined_cloud._raw_tiles,.5)
-    combined_cloud.normalize_raw_tiles()
+    # combined_cloud.filter_ground(combined_cloud._raw_tiles,.5)
+    # combined_cloud.normalize_raw_tiles()
     
-    for tile in combined_cloud._raw_tiles:
-        tile.to(tile.device)
-    
-    
-    combined_cloud.subdivide_tiles(cube_size = 3)
-    # combined_cloud.filter_ground(combined_cloud.tiles.flatten(),threshold=5)
-    combined_cloud.filter_ground(combined_cloud.tiles.flatten())
-    combined_cloud.recombine_tiles()
     # for tile in combined_cloud._raw_tiles:
     #     tile.to(tile.device)
-    # combined_cloud.subdivide_tiles(cube_size = 1)
-    # print("Ground filtered")
-    # combined_cloud.denoise()
+    
+    
+    # combined_cloud.subdivide_tiles(cube_size = 3)
+    # # combined_cloud.filter_ground(combined_cloud.tiles.flatten(),threshold=5)
+    # combined_cloud.filter_ground(combined_cloud.tiles.flatten())
     # combined_cloud.recombine_tiles()
+    # # for tile in combined_cloud._raw_tiles:
+    # #     tile.to(tile.device)
+    # # combined_cloud.subdivide_tiles(cube_size = 1)
+    # # print("Ground filtered")
+    # # combined_cloud.denoise()
+    # # combined_cloud.recombine_tiles()
     
     
-    tile.to_xyz("filtered.xyz")
-    combined_cloud.pickle("test_model_ground_removed.pickle")
+    # tile.to_xyz("filtered.xyz")
+    # combined_cloud.pickle("test_model_ground_removed.pickle")
     
     combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
     for tile in combined_cloud._raw_tiles:

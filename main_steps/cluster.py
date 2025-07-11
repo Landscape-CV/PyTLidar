@@ -662,7 +662,7 @@ def get_minimums(segments,center_points):
     minimums = np.zeros((len(np.unique(segments)),3))
     for i,base in enumerate(np.unique(segments)):
         point_data = center_points[segments ==base]
-        minimums[i]=np.where(segments == base)[0][point_data[np.where(segments == base)][:,2].argmin()]
+        minimums[i]=np.where(segments == base)[0][point_data[:,2].argmin()]
     return minimums
         
             
