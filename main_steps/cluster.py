@@ -218,7 +218,7 @@ def connect_covers(tile, cover,  z_thresh=2, max_dist =.25):
 
 
 
-def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3):
+def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, min_base_dist =.2, connect_ambiguous_points = True, fix_overlapping_segments = True,combine_nearby_bases =True,base_dist_multiplier=2,initial_size_limit =1000):
     tile.to(tile.device)
     tile.cover_sets = torch.Tensor(tile.cover_sets).to(tile.device).to(int)
     I = torch.argsort(tile.cover_sets)
@@ -310,8 +310,8 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3):
     network = Graph()
     network.add_vertices(len(center_points))
     print("Build Networks")
-    size_limit = 1000
-    multiplier = 2
+    size_limit = initial_size_limit
+    multiplier = base_dist_multiplier
     while base_height+min_Z-1<torch.max(tile.cloud[:,2]):
         
         # if prev_base_height ==0:
@@ -371,21 +371,30 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3):
         # if  len(base_set[:,2]<min_Z+.3)>1:
         if  len(base_set[:,2])>5:
             filtered_tree_bases.append(base)
-    filtered_tree_bases=combine_close_bases(segments,center_points,filtered_tree_bases,.2)
-    filtered_tree_bases = filtered_tree_bases.cpu().numpy()
+    if combine_nearby_bases:
+        filtered_tree_bases=combine_close_bases(segments,center_points,filtered_tree_bases,min_base_dist)
+        filtered_tree_bases = filtered_tree_bases.cpu().numpy()
+        mod_filtered_tree_bases = []
+        for base in tree_bases:
+            base_set = center_points[segments ==base]
+            # if  len(base_set[:,2]<min_Z+.3)>1:
+            if  len(base_set[:,2])>5:
+                mod_filtered_tree_bases.append(base)
+        filtered_tree_bases=mod_filtered_tree_bases
 
     # filtered_tree_bases=combine_close_bases(segments,center_points,tree_bases)
 
-    
     
     print("Connect Segments")
     segments,not_explored = connect_segments(pcd_tree,pcd,segments,full_not_explored,filtered_tree_bases,max_dist*2,network,False,True)
     print("Connect More Segments")
     segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist,network,False,False)
-    print("Connect Final Segments")
-    segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist*1.5,network,True,True)
-    print("Fix Overlap")
-    segments = fix_overlap(segments,center_points,network)
+    if connect_ambiguous_points:
+        print("Connect Final Segments")
+        segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist*1.5,network,True,True)
+    if fix_overlapping_segments:
+        print("Fix Overlap")
+        segments = fix_overlap(segments,center_points,network)
     print(len(segments))
     unassigned_sets = np.where(~np.isin(segments,filtered_tree_bases))
     segments[unassigned_sets]=-1
@@ -476,7 +485,7 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
     tree_base_points = []
     if min_point:
        for base in tree_bases:
-            tree_base_points.append(np.where(segments == base)[0][point_data[np.where(segments == base)][:,2].argmin()])
+            tree_base_points.append(np.where(segments == base)[0][point_data[np.where(segments == base)[0]][:,2].argmin()])
     else:
         for base in tree_bases:
             # lexord = (point_data[np.where(segments == base)][:,0],point_data[np.where(segments == base)][:,1],point_data[np.where(segments == base)][:,2])

@@ -192,6 +192,7 @@ class Ecomodel:
 
             print("Segment Cloud")
             start = time.time()
+            # segment_point_cloud(tile,base_height=2, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1,max_dist=.17,combine_nearby_bases=True,min_base_dist=.05)
             segment_point_cloud(tile)
             mask = tile.segment_labels >-1#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             tile.cloud = tile.cloud[mask]
@@ -207,7 +208,7 @@ class Ecomodel:
             
 
             print("Writing File")
-            tile.to_xyz(f"clustered_{i}.xyz", True)
+            tile.to_xyz(f"clustered_{i}_MO.xyz", True)
 
             
     def get_qsm_segments(self,intensity_threshold = 40000):
@@ -517,7 +518,7 @@ class Ecomodel:
             dist =cdist(Q0,Q0)
             np.fill_diagonal(dist,1.0)
             avg_closest_point_dist = np.mean(np.min(dist,axis = 1))
-            if avg_closest_point_dist > .02: #can make this a parameter
+            if avg_closest_point_dist > .01: #can make this a parameter
                 tile.cluster_labels[seg_mask]=-2
                 continue
 
@@ -1004,50 +1005,54 @@ class Tile:
 
 if __name__ == "__main__":
     # Example usage
-    # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-    # model = Ecomodel()
-    # combined_cloud = Ecomodel.combine_las_files(folder,model)
+    folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
+    model = Ecomodel()
+    combined_cloud = Ecomodel.combine_las_files(folder,model)
 
-    # combined_cloud.filter_ground(combined_cloud._raw_tiles,.5)
-    # combined_cloud.normalize_raw_tiles()
+    combined_cloud.filter_ground(combined_cloud._raw_tiles,.5)
+    combined_cloud.normalize_raw_tiles()
     
+    for tile in combined_cloud._raw_tiles:
+        tile.to(tile.device)
+    
+    
+    combined_cloud.subdivide_tiles(cube_size = 3)
+    # combined_cloud.filter_ground(combined_cloud.tiles.flatten(),threshold=5)
+    combined_cloud.filter_ground(combined_cloud.tiles.flatten())
+    combined_cloud.recombine_tiles()
     # for tile in combined_cloud._raw_tiles:
     #     tile.to(tile.device)
-    
-    
-    # combined_cloud.subdivide_tiles(cube_size = 3)
-    # combined_cloud.filter_ground(combined_cloud.tiles.flatten())
+    # combined_cloud.subdivide_tiles(cube_size = 1)
+    # print("Ground filtered")
+    # combined_cloud.denoise()
     # combined_cloud.recombine_tiles()
-    # # for tile in combined_cloud._raw_tiles:
-    # #     tile.to(tile.device)
-    # # combined_cloud.subdivide_tiles(cube_size = 1)
-    # # print("Ground filtered")
-    # # combined_cloud.denoise()
-    # # combined_cloud.recombine_tiles()
-    # # tile.to_xyz("filtered.xyz")
-    # for tile in combined_cloud._raw_tiles:
-    #     tile.to(tile.device)
-    # combined_cloud.pickle("test_model_ground_removed.pickle")
-    # combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
-    # combined_cloud.subdivide_tiles(cube_size = 15)
-    # combined_cloud.remove_duplicate_points()
+    
+    
+    tile.to_xyz("filtered.xyz")
+    combined_cloud.pickle("test_model_ground_removed.pickle")
+    
+    combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
+    for tile in combined_cloud._raw_tiles:
+        tile.to(tile.device)
+    combined_cloud.subdivide_tiles(cube_size = 15)
+    combined_cloud.remove_duplicate_points()
 
     
-    # combined_cloud.segment_trees()
-    # combined_cloud.pickle("test_model_trees_segmented.pickle")
-    # combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
+    combined_cloud.segment_trees()
+    combined_cloud.pickle("test_model_trees_segmented.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
 
-    # combined_cloud.get_qsm_segments(40000)
-    # combined_cloud.recombine_tiles()
-    # combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
+    combined_cloud.get_qsm_segments(40000)
+    combined_cloud.recombine_tiles()
+    combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
 
     # Palm
-    # cylinder,base_plot = combined_cloud.get_voxel(-15,-3,-3,5,fidelity = .3)
+    cylinder,base_plot = combined_cloud.get_voxel(-15,-3,-3,5,fidelity = .3)
     # # Small Voxel
     # cylinder,base_plot = combined_cloud.get_voxel(-11,1,-1,3,fidelity = 1)
     # # Large Voxel
-    cylinder,base_plot = combined_cloud.get_voxel(-2,-2,-3,2,fidelity = .6)
+    # cylinder,base_plot = combined_cloud.get_voxel(-2,-2,-3,2,fidelity = .6)
     base_plot.write_html("results/segment_test_plot_no_continuation.html")
     cylinders_line_plotting(cylinder, scale_factor=1,file_name="test_plot",base_fig=base_plot)
     # cylinders_plotting(cylinder,base_fig=base_plot)
