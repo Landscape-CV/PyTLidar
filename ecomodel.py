@@ -38,6 +38,7 @@ import dotenv
 from GBSeparation.remove_leaves import LeafRemover
 from robpy.covariance import DetMCD,FastMCD
 from sklearn.covariance import MinCovDet
+import CSF
 
 from Utils.RobustCylinderFitting import RobustCylinderFitterEcomodel
 
@@ -87,8 +88,32 @@ class Ecomodel:
             tile.point_data[:, 0:3] = tile.point_data[:, 0:3] - self.mean
             
             
-        
-    def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2):
+    def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2): 
+        csf = CSF.CSF()
+        new_min_z = float('inf')
+        for tile in tile_list:
+            if tile == 0 or not tile.contains_ground:
+                continue
+            tile.numpy()
+            # prameter settings
+            csf.params.bSloopSmooth = False
+            csf.params.cloth_resolution = 0.3
+            
+
+            csf.setPointCloud(tile.cloud)
+            ground = CSF.VecInt()  # a list to indicate the index of ground points after calculation
+            non_ground = CSF.VecInt() # a list to indicate the index of non-ground points after calculation
+            csf.do_filtering(ground, non_ground)
+            non_ground_mask = np.array(non_ground)
+            tile.point_data = tile.point_data[non_ground_mask]
+            tile.cloud = tile.cloud[non_ground_mask]
+            new_min_z = min(new_min_z, tile.cloud[:, 2].min())
+        self.min_z = new_min_z
+
+    # Keeping for now, but overwriting with CSF
+    # 
+    def filter_below_ground(self,tile_list, band_size = 0.1, threshold = 100,offset = 0.2):
+
         """
         Filter out ground points from the point cloud P.
         Parameters: 
@@ -109,50 +134,29 @@ class Ecomodel:
             # prev_len = 1
             max_band_points = 0
             max_band = None
-            for i in range(int(z_range/band_size+1)):
+            for i in range(int(z_range/band_size)):
                 
                 band_min = tile.min_z + i * band_size
                 band_max = tile.min_z + (i + 1) * band_size
                 mask = (tile.cloud[:, 2] >= band_min) & (tile.cloud[:, 2] < band_max)
-                band = tile.cloud[mask]
-                if len(band) >(x_range*y_range*threshold):
-                    max_band = band
-                    max_band_points = len(band)
+                num_points = np.sum(mask)
+                if num_points >(x_range*y_range*threshold):
+                    max_band = mask
+                    max_band_points = num_points
                     break
-                if len(band) > max_band_points:
-                    max_band = band
-                    max_band_points = len(band)
-            if len(band) != max_band_points:
-                band = max_band  
-            using_pt = False
+                if num_points > max_band_points:
+                    max_band = mask
+                    max_band_points = num_points
+            band = tile.cloud[max_band] 
+
             if type(band) == torch.Tensor:
-                using_pt = True
                 band = band.cpu().numpy()
-            ground_start = min
-            line = linear_model.RANSACRegressor(random_state = 0)
-            band = band[band[:,2] < float(band_max)-.2*float(band_size)]
-            print(type(band))
-            print(band.shape)
-
-            # Use the RANSAC algorithm to find a model that matches the data of the???
-            try:
-                line.fit(band[:,0:2],band[:,2]) # Get a
-            except Exception as e:
-                print(e)
-                tile.to_xyz('failed_tile.xyz')
-                print("Save successful")
-
-
             
-            if using_pt:
-                ground_line = torch.Tensor(line.predict(tile.get_cloud_as_array()[:, 0:2])).to(self.device)
-                I = tile.cloud[:, 2] > ground_line+offset
-            else:
-                I = tile.cloud[:, 2] > line.predict(tile.cloud[:, 0:2]) + offset
-            # I = tile.cloud[:, 2] > band_max+offset
-            point_data = tile.point_data[I]
+            # I = tile.cloud[:, 2] > (band_min + offset)
+            I = tile.cloud[:, 2] > (band_max+offset)
+
             tile.cloud = tile.cloud[I]
-            tile.point_data = point_data
+            tile.point_data = tile.point_data[I]
             # if len(tile.cloud)
             new_min_z = min(new_min_z, tile.cloud[:, 2].min())
             
@@ -468,7 +472,7 @@ class Ecomodel:
         Returns:        
                 numpy.ndarray: Cylinders, shape (n_cylinders, 3).
         """
-        for i,tile in enumerate(self.tiles.flatten()):
+        for i,tile in enumerate(self._raw_tiles):
             if tile == 0:
                 continue
           
@@ -594,7 +598,7 @@ class Ecomodel:
         Z = np.ceil((self.max_z - self.min_z) / cube_size).astype(int)
         MinX = self.min_x-self.mean[0]
         MinY = self.min_y-self.mean[1]
-        MinZ = self.min_z-self.mean[2]
+        MinZ = self.min_z
         
 
         
@@ -1105,6 +1109,7 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
     # combined_cloud.unpickle("test_model_trees_segmented.pickle")
     # combined_cloud.get_qsm_segments()
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
+    combined_cloud.recombine_tiles()
     cylinder,base_plot = combined_cloud.get_voxel(-2,-2,-3,2,fidelity = .6)
     base_plot.write_html("results/segment_test_plot_no_continuation.html")
     cylinders_line_plotting(cylinder, scale_factor=1,file_name="test_plot",base_fig=base_plot)
@@ -1112,35 +1117,40 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 
 
 if __name__ == "__main__":
-    # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
-    # model = Ecomodel()
-    # combined_cloud = Ecomodel.combine_las_files(folder,model)
-    # process_entire_pointcloud(Ecomodel())
-    # Example usage
-    # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-    # model = Ecomodel()
-    # combined_cloud = Ecomodel.combine_las_files(folder,model)
+#     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
+#     # model = Ecomodel()
+#     # combined_cloud = Ecomodel.combine_las_files(folder,model)
+#     # process_entire_pointcloud(Ecomodel())
+#     # Example usage
+#     folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
+#     model = Ecomodel()
+#     combined_cloud = Ecomodel.combine_las_files(folder,model)
+#     combined_cloud.subdivide_tiles(cube_size = 15)
+#     combined_cloud.remove_duplicate_points()
+#     combined_cloud.recombine_tiles()
+#     combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
+    
+#     combined_cloud.filter_ground(combined_cloud._raw_tiles)
+#     combined_cloud.normalize_raw_tiles()
+    
+    
+#     for tile in combined_cloud._raw_tiles:
+#         tile.to(tile.device)
+    
+    
+#     # combined_cloud.subdivide_tiles(cube_size = 3)
+#     # combined_cloud.filter_ground(combined_cloud.tiles.flatten())
+#     # combined_cloud.recombine_tiles()
+#     # for tile in combined_cloud._raw_tiles:
+#     #     tile.to(tile.device)
+#     # combined_cloud.subdivide_tiles(cube_size = 1)
+#     # print("Ground filtered")
+#     # combined_cloud.denoise()
+#     # combined_cloud.recombine_tiles()
+#     # tile.to_xyz("filtered.xyz")
+#     print("filtered")
 
-    # combined_cloud.filter_ground(combined_cloud._raw_tiles,.5)
-    # combined_cloud.normalize_raw_tiles()
-    
-    # for tile in combined_cloud._raw_tiles:
-    #     tile.to(tile.device)
-    
-    
-    # combined_cloud.subdivide_tiles(cube_size = 3)
-    # combined_cloud.filter_ground(combined_cloud.tiles.flatten())
-    # combined_cloud.recombine_tiles()
-    # for tile in combined_cloud._raw_tiles:
-    #     tile.to(tile.device)
-    # # combined_cloud.subdivide_tiles(cube_size = 1)
-    # # print("Ground filtered")
-    # # combined_cloud.denoise()
-    # # combined_cloud.recombine_tiles()
-    # tile.to_xyz("filtered.xyz")
-    # for tile in combined_cloud._raw_tiles:
-    #     tile.to(tile.device)
-    # combined_cloud.pickle("test_model_ground_removed.pickle")
+#     combined_cloud.pickle("test_model_ground_removed.pickle")
     # combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
     # combined_cloud.subdivide_tiles(cube_size = 15)
     # combined_cloud.remove_duplicate_points()
@@ -1151,10 +1161,9 @@ if __name__ == "__main__":
     # combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
 
     # combined_cloud.get_qsm_segments(40000)
-    # combined_cloud.recombine_tiles()
     # combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
-
+    combined_cloud.recombine_tiles()
     # Palm
     # cylinder,base_plot = combined_cloud.get_voxel(-15,-3,-3,5,fidelity = .3)
     # # Small Voxel

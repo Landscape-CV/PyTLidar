@@ -2924,7 +2924,11 @@ def check_for_bends(segment_cloud,num_test_regions = 5,threshold = .2):
     
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(segment_cloud)
-    obb = pcd.get_oriented_bounding_box()
+    try:
+        obb = pcd.get_oriented_bounding_box()
+    except:
+        return False
+
 
     center = obb.center
 
