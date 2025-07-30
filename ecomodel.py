@@ -311,17 +311,17 @@ class Ecomodel:
                 # )
                 # np.savetxt(f"tree_{i}_{segment}.xyz",center_points,delimiter=',')
                 # center_points = center_points.cpu().numpy().astype(np.float64)
-                # LR = LeafRemover()
-                # wood_mask,leaf_mask = LR.process(tree_cloud, True)
+                LR = LeafRemover()
+                wood_mask,leaf_mask = LR.process(tree_cloud, True)
                 
-                # wood_mask = np.isin(labels,np.where(wood_mask)[0])
+                wood_mask = np.isin(labels,np.where(wood_mask)[0])
                 # leaf_mask = np.isin(labels,np.where(leaf_mask)[0])
                 # intensity_mask = tile.point_data[mask][:,3]>intensity_threshold
 
                 # #Only remove leaves if intensity threshold is not met
                 # wood_mask = np.logical_or(wood_mask,intensity_mask)
                 # leaf_mask = np.logical_and(leaf_mask,~intensity_mask)
-                # tree_cloud = tree_cloud[wood_mask]
+                tree_cloud = tree_cloud[wood_mask]
                 # np.savetxt(f"tree_{i}_{segment}_no_leaves.xyz",tree_cloud,delimiter=',')
                 # if len(tree_cloud) < 100:
                 #     print(f"Segment {segment} too small after leaf removal")
@@ -329,10 +329,10 @@ class Ecomodel:
                 #     continue
                 
                 qsm_input = define_input(tree_cloud,1,1,1)[0]
-                qsm_input['PatchDiam1'] = 0.03
+                qsm_input['PatchDiam1'] = 0.025
                 qsm_input['PatchDiam2Min'] = 0.05
                 qsm_input['PatchDiam2Max'] = 0.08
-                qsm_input['BallRad1'] = 0.04
+                qsm_input['BallRad1'] = 0.03
                 qsm_input['BallRad2'] = 0.09
                 qsm_input['nmin1'] = 5
                 print("Cover sets")
@@ -364,8 +364,8 @@ class Ecomodel:
                 
                 I = np.argsort(cover)
                 cover = cover
-                # tree_mask = range_mask[mask][noise_mask][wood_mask]
-                tree_mask = range_mask[mask][noise_mask]
+                tree_mask = range_mask[mask][noise_mask][wood_mask]
+                # tree_mask = range_mask[mask][noise_mask]
                 tile.point_data[tree_mask] = tile.point_data[tree_mask][I]
                 tree_cloud= tree_cloud[I]
                 neg_mask = cover ==-1
@@ -394,7 +394,16 @@ class Ecomodel:
                     if len(segment_cloud)<30:
                         continue
                     
+                    try:
+                        axis =Utils.get_axis(segment_cloud)
+                    except:
+                        continue
+                    
+
                     lexsort_indices = np.lexsort((segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),axis=0,)
+                    # lexsort_indices = Utils.get_axis_sort(segment_cloud,axis)
+                    # rotated_cloud = Utils.rotate_cloud(segment_cloud,axis)
+                    # rotated_cloud = rotated_cloud[lexsort_indices]
                     segment_cloud = segment_cloud[lexsort_indices]
                     # pcd.points = o3d.utility.Vector3dVector(segment_cloud)
                     # db_labels = np.array(pcd.cluster_dbscan(eps=0.05, min_points=10))
@@ -402,24 +411,29 @@ class Ecomodel:
                     # tile_db_mask = range_mask[mask][db_mask]
                     # tile.cluster_labels[tile_db_mask]=-2
 
-                    
-                    sub_segments = Utils.split_segments(segment_cloud,5,10)
-                    while np.sum(sub_segments)>len(sub_segments)/5:
+                    sub_segments = Utils.split_segments(segment_cloud,6,15)
+                    # sub_segments = Utils.split_segments(rotated_cloud,6,15)
+                    while np.sum(sub_segments)>len(sub_segments)/6:
 
-                        
+                        ss_idx = sub_segments.astype(bool)
                         sub_segments = sub_segments[np.argsort(lexsort_indices)]
                         I =np.where(sub_segments==1)[0]
                         # J = np.where(sub_segments==0)[0]
-
+                        
                         cluster_mask = cloud_range_mask[seg_mask][I]
                         new_cloud_segments[cluster_mask] = np.max(new_cloud_segments)+1
                         segment_cloud = tree_cloud[seg_mask][I]
                         seg_mask= cluster_mask
                         lexsort_indices = np.lexsort((segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),axis=0)
+                        
                         segment_cloud = segment_cloud[lexsort_indices]
                         
-                        # sub_segments = [1]
-                        sub_segments = Utils.split_segments(segment_cloud,5,10)
+      
+                        sub_segments = Utils.split_segments(segment_cloud,6,15)
+                        # rotated_cloud= rotated_cloud[ss_idx]
+                        # lexsort_indices = np.argsort(rotated_cloud[:, 2])
+                        # rotated_cloud = rotated_cloud[lexsort_indices]
+                        # sub_segments = Utils.split_segments(rotated_cloud,6,15)
 
 
                 cloud_segments = new_cloud_segments+max_segment
@@ -430,10 +444,10 @@ class Ecomodel:
                 max_segment = cloud_segments.max()+max_segment
                 # # mask_cluster_labels = np.zeros(np.sum(mask))-1
                 # # mask_cluster_labels[wood_mask] = cloud_segments
-                # cluster_mask = range_mask[mask][noise_mask][wood_mask]
-                # trunk_mask = range_mask[mask][noise_mask][wood_mask][trunk]
-                cluster_mask = range_mask[mask][noise_mask]
-                trunk_mask = range_mask[mask][noise_mask][trunk]
+                cluster_mask = range_mask[mask][noise_mask][wood_mask]
+                trunk_mask = range_mask[mask][noise_mask][wood_mask][trunk]
+                # cluster_mask = range_mask[mask][noise_mask]
+                # trunk_mask = range_mask[mask][noise_mask][trunk]
                 
                 tile.cluster_labels[cluster_mask] = cloud_segments
                 tile.cluster_labels[trunk_mask] = -3
@@ -1191,7 +1205,6 @@ if __name__ == "__main__":
     # combined_cloud.segment_trees()
     # combined_cloud.pickle("test_model_trees_segmented.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
-
     combined_cloud.get_qsm_segments(40000)
     combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
