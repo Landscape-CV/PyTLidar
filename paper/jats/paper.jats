@@ -22,28 +22,31 @@
 Terrestrial LiDAR Data</article-title>
 </title-group>
 <contrib-group>
-<contrib contrib-type="author">
+<contrib contrib-type="author" corresp="yes">
 <contrib-id contrib-id-type="orcid">https://orcid.org/0009-0002-3894-4464</contrib-id>
 <name>
 <surname>Hagood</surname>
 <given-names>John</given-names>
 </name>
 <xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
 </contrib>
-<contrib contrib-type="author">
+<contrib contrib-type="author" corresp="yes">
 <contrib-id contrib-id-type="orcid">https://orcid.org/0009-0006-9787-2471</contrib-id>
 <name>
 <surname>Yang</surname>
 <given-names>Fan</given-names>
 </name>
 <xref ref-type="aff" rid="aff-1"/>
+<xref ref-type="corresp" rid="cor-2"><sup>*</sup></xref>
 </contrib>
-<contrib contrib-type="author">
+<contrib contrib-type="author" corresp="yes">
 <name>
 <surname>Cannon</surname>
-<given-names>Jeffery</given-names>
+<given-names>Jeffery B.</given-names>
 </name>
 <xref ref-type="aff" rid="aff-2"/>
+<xref ref-type="corresp" rid="cor-3"><sup>*</sup></xref>
 </contrib>
 <contrib contrib-type="author" corresp="yes">
 <name>
@@ -51,17 +54,17 @@ Terrestrial LiDAR Data</article-title>
 <given-names>James</given-names>
 </name>
 <xref ref-type="aff" rid="aff-3"/>
-<xref ref-type="corresp" rid="cor-1"><sup>*</sup></xref>
+<xref ref-type="corresp" rid="cor-4"><sup>*</sup></xref>
 </contrib>
 <aff id="aff-1">
 <institution-wrap>
-<institution>School of Computer Science, Georgia Institute of
-Technology, United States</institution>
+<institution>Human Augmented Analytics Groups (HAAG), School of Computer
+Science, Georgia Institute of Technology, United States</institution>
 </institution-wrap>
 </aff>
 <aff id="aff-2">
 <institution-wrap>
-<institution>Jones Center at Ichauway, United States</institution>
+<institution>The Jones Center at Ichauway, United States</institution>
 </institution-wrap>
 </aff>
 <aff id="aff-3">
@@ -73,6 +76,9 @@ Technology, United States</institution>
 </contrib-group>
 <author-notes>
 <corresp id="cor-1">* E-mail: <email></email></corresp>
+<corresp id="cor-2">* E-mail: <email></email></corresp>
+<corresp id="cor-3">* E-mail: <email></email></corresp>
+<corresp id="cor-4">* E-mail: <email></email></corresp>
 </author-notes>
 <pub-date date-type="pub" publication-format="electronic" iso-8601-date="2025-06-30">
 <day>30</day>
@@ -105,40 +111,60 @@ a Creative Commons Attribution 4.0 International License (CC BY
 <body>
 <sec id="summary">
   <title>Summary</title>
-  <p>PyTLiDAR is an open-source Python software package that ports the
-  MATLAB-based
+  <p>PyTLiDAR is an open-source Python package that reconstructs 3D tree
+  Quantitative Structure Models (QSM) from Terresrial LiDAR Scan (TLS)
+  data, providing a user-friendly alternative to the MATLAB-based
   <ext-link ext-link-type="uri" xlink:href="https://github.com/InverseTampere/TreeQSM?tab=readme-ov-file">TreeQSM</ext-link>
   method
   (<xref alt="P. Raumonen et al., 2013" rid="ref-TreeQSM" ref-type="bibr">P.
-  Raumonen et al., 2013</xref>) into Python, also providing an
-  accessible, extensible, and GUI-driven alternative for researchers and
-  practitioners in forestry, ecology, and 3D vegetation modeling. The
-  software reconstructs Quantitative Structure Models (QSMs) of trees
-  from Terrestrial LiDAR Scans (TLS) and provides interactive
-  visualization tools for inspecting model quality and derived tree
-  metrics.</p>
+  Raumonen et al., 2013</xref>). PyTLiDAR provides an accessible,
+  extensible, and GUI-driven workflow for researchers and practitioners
+  in forestry, ecology, and 3D vegetation modeling. The package also
+  integrates interactive visualization tools for inspecting model
+  quality and derived tree metrics.</p>
   <p>Key features of PyTLiDAR include:</p>
   <p>-A full reimplementation of TreeQSM’s core logic in Python</p>
-  <p>-A user-friendly GUI built with PyQt6 for batch or single-file
-  processing</p>
+  <p>-A user-friendly GUI built with PyQt6</p>
   <p>-Automated and manual configuration of model generation parameters,
   including patch diameter ranges</p>
   <p>-Support for interactive 3D visualization of tree models and
   parameter tuning</p>
-  <p>-Batch data processing</p>
+  <p>-Batch or single-file processing</p>
 </sec>
 <sec id="statement-of-need">
   <title>Statement of need</title>
-  <p>Terrestrial Laser Scanning typically utilizes LiDAR systems to
-  collect millions of points on the surface of objects and preserves
-  spatial information. For estimating above ground biomass (AGB), gap
-  fraction, crown shape, and other ecological properties, accurate and
-  efficient tree QSM reconstruction from TLS point cloud data is
-  essential
+  <p>Terrestrial Laser Scanning (TLS) is an active remote sensing
+  technology which uses infrared laser pulses to collect millions of
+  points on the surface of objects, preserving spatial information and
+  providing unprecedented detail on structural information. The
+  technology is rapidly being adopted for diverse uses in forestry and
+  ecology, as it is useful for estimating forest structure
+  (<xref alt="Donager et al., 2021" rid="ref-rs13122297" ref-type="bibr">Donager
+  et al., 2021</xref>), Above Ground Biomass (AGB)
+  (<xref alt="Atkins et al., 2025" rid="ref-httpsU003AU002FU002Fdoi.orgU002F10.1002U002Fecs2.70232" ref-type="bibr">Atkins
+  et al., 2025</xref>), gap fraction and forest fuels
+  (<xref alt="Loudermilk et al., 2023" rid="ref-fire6040151" ref-type="bibr">Loudermilk
+  et al., 2023</xref>), crown shape
+  (<xref alt="Zhu et al., 2020" rid="ref-10.1093U002FforestryU002Fcpaa037" ref-type="bibr">Zhu
+  et al., 2020</xref>), disturbance patterns
+  (<xref alt="Cannon et al., 2024" rid="ref-cannon2024terrestrial" ref-type="bibr">Cannon
+  et al., 2024</xref>), tree competition
+  (<xref alt="Metz et al., 2013" rid="ref-METZ2013275" ref-type="bibr">Metz
+  et al., 2013</xref>), physiology
+  (<xref alt="Hakala et al., 2015" rid="ref-bg-12-1629-2015" ref-type="bibr">Hakala
+  et al., 2015</xref>),and other ecological properties. To fully realize
+  the potential of TLS for these applications, accurate and efficient
+  reconstruction of QSMs from TLS point cloud data is essential
   (<xref alt="Hackenberg et al., 2015" rid="ref-f6114245" ref-type="bibr">Hackenberg
   et al., 2015</xref>).</p>
-  <p>TreeQSM has been widely used in forestry and ecology for modeling
-  three-dimensional tree structures from TLS point clouds
+  <p>The use of QSM software on point cloud data permits estimation of
+  detailed components of branch architecture such as branch diameter,
+  volume, and distribution along the trunk
+  (<xref alt="Lau et al., 2018" rid="ref-Lau2018" ref-type="bibr">Lau et
+  al., 2018</xref>), providing detailed information for fine-scale
+  estimates of AGB, canopy architecture, and more. TreeQSM is a software
+  that has been widely used in forestry and ecology for modeling tree
+  structures from TLS point clouds
   (<xref alt="Terryn et al., 2020" rid="ref-TERRYN2020170" ref-type="bibr">Terryn
   et al., 2020</xref>). However, its reliance on MATLAB makes it less
   accessible for users without a commercial license or familiarity with
@@ -159,19 +185,30 @@ a Creative Commons Attribution 4.0 International License (CC BY
   <title>Method</title>
   <p>TreeQSM models individual trees from terrestrial LiDAR scans by
   covering the input point cloud with small, connected surface patches.
-  These patches form the building-bricks for reconstructing the tree’s
-  global shape. Based on neighbor-relation of the cover sets, the point
-  cloud is segmented into individual branches, with parent-children
-  relationships recorded. Then each segment is approximated as a
-  collection of connected cylinders of varying radius, length, and
-  orientation. This cylinder-based representation offers a simple yet
-  effective regularization of the complex tree structure, supporting
-  downstream analyses such as stem volume estimation or structural trait
-  extraction
+  These patches form the building blocks for reconstructing the tree’s
+  global shape. The algorithm first identifies these surface patches
+  using local geometric properties, then establishes neighbor
+  relationships between adjacent patches. Based on neighbor
+  relationships of the surface patches, the point cloud is segmented
+  into individual branches, with parent-children relationships of
+  branches recorded. Then each branch is approximated as a collection of
+  connected cylinders of varying radius, length, and orientation. This
+  cylinder-based representation offers a simple yet effective
+  regularization of the complex tree structure, supporting downstream
+  analyses such as stem volume estimation or structural trait extraction
   (<xref alt="Pasi Raumonen et al., 2013" rid="ref-rs5020491" ref-type="bibr">Pasi
   Raumonen et al., 2013</xref>)
   (<xref alt="Markku et al., 2015" rid="ref-rs70404581" ref-type="bibr">Markku
   et al., 2015</xref>).</p>
+</sec>
+<sec id="software-architecture">
+  <title>Software Architecture</title>
+  <p>PyTLiDAR is organized into several key modules: core QSM algorithms
+  (treeqsm.py), batch processing utilities (treeqsm_batch.py), GUI
+  components built with PyQt6, and visualization tools using Plotly. The
+  software follows a modular design that allows researchers to either
+  use the complete GUI application or integrate individual components
+  into their own Python workflows.</p>
 </sec>
 <sec id="software-description">
   <title>Software Description</title>
@@ -179,53 +216,113 @@ a Creative Commons Attribution 4.0 International License (CC BY
   uses
   <ext-link ext-link-type="uri" xlink:href="https://pypi.org/project/PyQt6/">PyQt6</ext-link>
   to create an intuitive interface for parameter configuration and data
-  processing. Upon launching the application, users are presented with
-  fields to input or generate values for key modeling parameters,
-  including the minimum, and maximum patch diameters. The application
-  supports both numeric entry and automatic generation of value ranges
-  based on user-defined counts. Also, an intensity threshold can be set
-  to filter the point cloud data, helping to remove noise and irrelevant
-  data before modeling.</p>
+  processing (Figure 1). Upon launching the application, users are
+  presented with fields to input or generate values for key modeling
+  parameters, including the minimum, and maximum patch diameters. The
+  application supports both numeric entry and automatic generation of
+  value ranges based on user-defined parameter space. Also, an intensity
+  threshold can be set to filter the point cloud data, helping to remove
+  LiDAR returns due to noise or vegetation prior to modeling.</p>
   <p>Users may choose between batch processing of an entire directory of
   point cloud files or processing a single file. The GUI also includes
-  options for showing only the optimal model, based on selectable
-  performance metrics such as ‘all_mean_dis’, and provides a dropdown
+  options for displaying only the optimal model, based on selectable
+  performance metrics such as ‘all_mean_dis’ (mean distance between
+  point cloud and reconstructed model surface ), and provides a dropdown
   menu to choose the preferred metric.</p>
   <fig>
     <caption><p>Software interface for user input and data selection.
     <styled-content id="figU003Apc1"></styled-content></p></caption>
     <graphic mimetype="image" mime-subtype="jpeg" xlink:href="fig1.jpg" />
   </fig>
-  <p>After data selection, the software opens a new interface allows for
-  data processing and visualization. Once the QSM reconstruction process
-  is complete, PyTLiDAR provides interactive 3D visualization of the
+  <p>After parameter and file selection, the software opens a new
+  interface displaying data processing progress and allowing
+  visualization of model outputs. Once the QSM reconstruction process is
+  complete, PyTLiDAR provides interactive 3D visualization of the
   generated QSM using
-  <ext-link ext-link-type="uri" xlink:href="https://plotly.com/">plotly</ext-link>.
-  Users can inspect the structural fidelity of the reconstructed model,
-  including trunk and branch geometry, and compare different parameter
-  configurations for best fit. This combination of visual feedback and
-  customizable processing offers an efficient path toward accurate and
-  transparent tree structure analysis.</p>
+  <ext-link ext-link-type="uri" xlink:href="https://plotly.com/">plotly</ext-link>
+  (Figure 2). Users can inspect the structural fidelity of the
+  reconstructed model, including trunk and branch geometry, and compare
+  different parameter configurations for best fit. This combination of
+  visual feedback and customizable processing offers an efficient path
+  toward accurate and transparent tree structure analysis. If running in
+  batch mode, users may also set the number of parallel cores to utilize
+  to run simultaneous processes.</p>
   <fig>
     <caption><p>Software interface for processing and interactive
     visualization.
     <styled-content id="figU003Apc1"></styled-content></p></caption>
     <graphic mimetype="image" mime-subtype="jpeg" xlink:href="fig2.jpg" />
   </fig>
-  <p>Users can also review the relavant morphological data of the QSM,
-  including stem diameters, branch volume, surface area, and length with
-  regard to diameter or order from stem.</p>
+  <p>Users can also review the relevant morphological summeries of the
+  QSM, including distribution of branch diameters, branch volume,
+  surface area, and length with regard to diameter or order from stem,
+  as with the original TreeQSM implementation.</p>
   <fig>
     <caption><p>Software interface for user input and data selection.
     <styled-content id="figU003Apc1"></styled-content></p></caption>
     <graphic mimetype="image" mime-subtype="jpeg" xlink:href="fig3.jpg" />
   </fig>
+  <p>If desired, both treeqsm.py and teeqsm_batch.py may be run directly
+  from the command line using the following arguments:</p>
+  <p>-intensity: filter point cloud based on values greater than the
+  indicated intensity</p>
+  <p>-normalize: recenter point cloud locations. Use this if your point
+  cloud X, Y location values are very large (e.g., using UTM coordinates
+  rather than a local coordinate system).</p>
+  <p>-custominput: user sets specific patch diameters to test</p>
+  <p>-ipd: initial patch diameter</p>
+  <p>-minpd: min patch diameter</p>
+  <p>-maxpd: maximum patch diameter</p>
+  <p>-name: specifies a name for the current modeling run. This will be
+  appended to the name generated by PyTLiDAR</p>
+  <p>-outputdirectory: specifies the directory to put the “results”
+  folder</p>
+  <p>-numcores: specify number of cores to use to process files in
+  parallel. Only valid in batched mode, Must be a single integer</p>
+  <p>-optimum: specify an optimum metric to select best model to save
+  [#need_more_description]</p>
+  <p>-help: displays the run options</p>
+  <p>-verbose: verbose mode, displays outputs from PyTLiDAR as it
+  processes</p>
+  <p>-h: displays the run options</p>
+  <p>-v: verbose mode</p>
+  <p>This allows users to integrate the same functionality provided in
+  the GUI into their own scripts with ease, whether those scripts are in
+  python or not. Users who are using python can use the package directly
+  and get the full functionality by importing treeqsm.</p>
+  <p>[#add_benchmark_comparison]</p>
+</sec>
+<sec id="availability-and-installation">
+  <title>Availability and Installation</title>
+  <p>PyTLiDAR is available at this
+  <ext-link ext-link-type="uri" xlink:href="https://github.com/Landscape-CV/PyTLiDAR">GitHub
+  repository</ext-link>. The package requires Python 3.8+ and key
+  dependencies including PySide6 and Plotly. Installation instructions
+  and example datasets are provided in the repository documentation.</p>
+</sec>
+<sec id="future-additions">
+  <title>Future Additions</title>
+  <p>While the initial release is focused on porting only TreeQSM,
+  future additions to PyTLiDAR are planned.</p>
+  <p>The first planned enhancement is to provide a novel pipeline for
+  analyzing LiDAR scans of entire forest ecosystems to quantify
+  vegetation structure at particular locations. This would allow users
+  to load a series of LiDAR scan tiles and GPS observations of fauna and
+  directly measure the environments, providing greater insights on
+  components of habitat structural complexity.</p>
+  <p>Other planned enhancements include functions provided to users for
+  processing LiDAR point clouds, including but not limited to both
+  established and novel methods to perform Ground Filtering, Tree
+  Segmentation and Leaf/Wood separation. The intended goal for this
+  package is to provide a single source for any user processing
+  terrestrial LiDAR to perform every step of their analysis.</p>
 </sec>
 <sec id="acknowledgements">
   <title>Acknowledgements</title>
-  <p>We acknowledge contributions from XXX, XXX, and Amir Hossein
-  Alikhah Mishamandani during the development of the package. This work
-  is enabled in part by funding from XXXXX.</p>
+  <p>We acknowledge contributions from Amir Hossein Alikhah Mishamandani
+  during the development of the package. This work also received high
+  level guidance from Breanna Shi, Dori P., and thanks to other staffs
+  from the Human-Augmented Analytics Group to make this happen.</p>
 </sec>
 </body>
 <back>
@@ -332,6 +429,169 @@ a Creative Commons Attribution 4.0 International License (CC BY
       <pub-id pub-id-type="doi">https://doi.org/10.1016/j.isprsjprs.2020.08.009</pub-id>
       <fpage>170</fpage>
       <lpage>181</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-rs13122297">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Donager</surname><given-names>Jonathon J.</given-names></name>
+        <name><surname>Sánchez Meador</surname><given-names>Andrew J.</given-names></name>
+        <name><surname>Blackburn</surname><given-names>Ryan C.</given-names></name>
+      </person-group>
+      <article-title>Adjudicating perspectives on forest structure: How do airborne, terrestrial, and mobile lidar-derived estimates compare?</article-title>
+      <source>Remote Sensing</source>
+      <year iso-8601-date="2021">2021</year>
+      <volume>13</volume>
+      <issue>12</issue>
+      <issn>2072-4292</issn>
+      <uri>https://www.mdpi.com/2072-4292/13/12/2297</uri>
+      <pub-id pub-id-type="doi">10.3390/rs13122297</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-httpsU003AU002FU002Fdoi.orgU002F10.1002U002Fecs2.70232">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Atkins</surname><given-names>David H.</given-names></name>
+        <name><surname>Blackburn</surname><given-names>Ryan C.</given-names></name>
+        <name><surname>Laughlin</surname><given-names>Daniel C.</given-names></name>
+        <name><surname>Moore</surname><given-names>Margaret M.</given-names></name>
+        <name><surname>Sánchez Meador</surname><given-names>Andrew J.</given-names></name>
+      </person-group>
+      <article-title>Handheld lidar sensors can accurately measure aboveground biomass</article-title>
+      <source>Ecosphere</source>
+      <year iso-8601-date="2025">2025</year>
+      <volume>16</volume>
+      <issue>6</issue>
+      <uri>https://esajournals.onlinelibrary.wiley.com/doi/abs/10.1002/ecs2.70232</uri>
+      <pub-id pub-id-type="doi">https://doi.org/10.1002/ecs2.70232</pub-id>
+      <fpage>e70232</fpage>
+      <lpage></lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-fire6040151">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Loudermilk</surname><given-names>Eva Louise</given-names></name>
+        <name><surname>Pokswinski</surname><given-names>Scott</given-names></name>
+        <name><surname>Hawley</surname><given-names>Christie M.</given-names></name>
+        <name><surname>Maxwell</surname><given-names>Aaron</given-names></name>
+        <name><surname>Gallagher</surname><given-names>Michael R.</given-names></name>
+        <name><surname>Skowronski</surname><given-names>Nicholas S.</given-names></name>
+        <name><surname>Hudak</surname><given-names>Andrew T.</given-names></name>
+        <name><surname>Hoffman</surname><given-names>Chad</given-names></name>
+        <name><surname>Hiers</surname><given-names>John Kevin</given-names></name>
+      </person-group>
+      <article-title>Terrestrial laser scan metrics predict surface vegetation biomass and consumption in a frequently burned southeastern u.s. ecosystem</article-title>
+      <source>Fire</source>
+      <year iso-8601-date="2023">2023</year>
+      <volume>6</volume>
+      <issue>4</issue>
+      <issn>2571-6255</issn>
+      <uri>https://www.mdpi.com/2571-6255/6/4/151</uri>
+      <pub-id pub-id-type="doi">10.3390/fire6040151</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-10.1093U002FforestryU002Fcpaa037">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Zhu</surname><given-names>Zihui</given-names></name>
+        <name><surname>Kleinn</surname><given-names>Christoph</given-names></name>
+        <name><surname>Nölke</surname><given-names>Nils</given-names></name>
+      </person-group>
+      <article-title>Assessing tree crown volume—a review</article-title>
+      <source>Forestry: An International Journal of Forest Research</source>
+      <year iso-8601-date="2020-10">2020</year><month>10</month>
+      <volume>94</volume>
+      <issue>1</issue>
+      <issn>0015-752X</issn>
+      <uri>https://doi.org/10.1093/forestry/cpaa037</uri>
+      <pub-id pub-id-type="doi">10.1093/forestry/cpaa037</pub-id>
+      <fpage>18</fpage>
+      <lpage>35</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-cannon2024terrestrial">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Cannon</surname><given-names>Jeffery</given-names></name>
+        <name><surname>Zampieri</surname><given-names>Nicole E.</given-names></name>
+        <name><surname>Whelan</surname><given-names>Andy W.</given-names></name>
+        <name><surname>Shearman</surname><given-names>Timothy M.</given-names></name>
+        <name><surname>Varner</surname><given-names>J. Morgan</given-names></name>
+      </person-group>
+      <article-title>Terrestrial lidar scanning reduces subjectivity in measurements of tree fire injury</article-title>
+      <source>SSRN Electronic Journal</source>
+      <year iso-8601-date="2024">2024</year>
+      <pub-id pub-id-type="doi">10.2139/ssrn.5056546</pub-id>
+    </element-citation>
+  </ref>
+  <ref id="ref-METZ2013275">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Metz</surname><given-names>Jérôme</given-names></name>
+        <name><surname>Seidel</surname><given-names>Dominik</given-names></name>
+        <name><surname>Schall</surname><given-names>Peter</given-names></name>
+        <name><surname>Scheffer</surname><given-names>Dina</given-names></name>
+        <name><surname>Schulze</surname><given-names>Ernst-Detlef</given-names></name>
+        <name><surname>Ammer</surname><given-names>Christian</given-names></name>
+      </person-group>
+      <article-title>Crown modeling by terrestrial laser scanning as an approach to assess the effect of aboveground intra- and interspecific competition on tree growth</article-title>
+      <source>Forest Ecology and Management</source>
+      <year iso-8601-date="2013">2013</year>
+      <volume>310</volume>
+      <issn>0378-1127</issn>
+      <uri>https://www.sciencedirect.com/science/article/pii/S0378112713005410</uri>
+      <pub-id pub-id-type="doi">https://doi.org/10.1016/j.foreco.2013.08.014</pub-id>
+      <fpage>275</fpage>
+      <lpage>288</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-bg-12-1629-2015">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Hakala</surname><given-names>T.</given-names></name>
+        <name><surname>Nevalainen</surname><given-names>O.</given-names></name>
+        <name><surname>Kaasalainen</surname><given-names>S.</given-names></name>
+        <name><surname>Mäkipää</surname><given-names>R.</given-names></name>
+      </person-group>
+      <article-title>Technical note: Multispectral lidar time series of pine canopy chlorophyll content</article-title>
+      <source>Biogeosciences</source>
+      <year iso-8601-date="2015">2015</year>
+      <volume>12</volume>
+      <issue>5</issue>
+      <uri>https://bg.copernicus.org/articles/12/1629/2015/</uri>
+      <pub-id pub-id-type="doi">10.5194/bg-12-1629-2015</pub-id>
+      <fpage>1629</fpage>
+      <lpage>1634</lpage>
+    </element-citation>
+  </ref>
+  <ref id="ref-Lau2018">
+    <element-citation publication-type="article-journal">
+      <person-group person-group-type="author">
+        <name><surname>Lau</surname><given-names>A.</given-names></name>
+        <name><surname>Bentley</surname><given-names>L. P.</given-names></name>
+        <name><surname>Martius</surname><given-names>C.</given-names></name>
+        <name><surname>Shenkin</surname><given-names>A.</given-names></name>
+        <name><surname>Salgado-Labouriau</surname><given-names>M.</given-names></name>
+        <name><surname>Jackson</surname><given-names>T.</given-names></name>
+        <name><surname>Malhi</surname><given-names>Y.</given-names></name>
+        <name><surname>Raumonen</surname><given-names>P.</given-names></name>
+        <name><surname>Herault</surname><given-names>B.</given-names></name>
+        <name><surname>Baraloto</surname><given-names>C.</given-names></name>
+        <name><surname>Phillips</surname><given-names>O. L.</given-names></name>
+        <name><surname>Gloor</surname><given-names>E.</given-names></name>
+        <name><surname>Asner</surname><given-names>G. P.</given-names></name>
+        <name><surname>Enquist</surname><given-names>B. J.</given-names></name>
+      </person-group>
+      <article-title>Quantifying branch architecture of tropical trees using terrestrial LiDAR and 3D modelling</article-title>
+      <source>Trees</source>
+      <publisher-name>Springer</publisher-name>
+      <year iso-8601-date="2018">2018</year>
+      <volume>32</volume>
+      <issue>4</issue>
+      <pub-id pub-id-type="doi">10.1007/s00468-018-1704-1</pub-id>
+      <fpage>1219</fpage>
+      <lpage>1231</lpage>
     </element-citation>
   </ref>
 </ref-list>
