@@ -286,6 +286,8 @@ class Ecomodel:
                     print(f"Segment {segment} too small after noise removal")
                     tile.segment_labels[mask] = -1
                     continue
+
+                ##Code to downsample and remove leaves
                 # inputs = {'PatchDiam1': 0.01, 'BallRad1':.01, 'nmin1': 1}
                 # cover = cover_sets(tree_cloud, inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
                 # if len(cover['sets']) == 0:
@@ -340,7 +342,8 @@ class Ecomodel:
                 print("Tree sets")
                 cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input)
                 print("Segments")
-                segment1 = segments( cover1, Base, Forb,qsm=False)
+                segment1 = segments( cover1, Base, Forb,qsm=False)#Running with QSM false, this pre-splits segments
+                #Second round of QSM, opting not to do this for now
                 # print("Correct")
                 # segment1 =correct_segments(tree_cloud,cover1,segment1,qsm_input,0,1,1)#
                 # RS = relative_size(tree_cloud, cover1, segment1)
@@ -401,15 +404,12 @@ class Ecomodel:
                     
 
                     lexsort_indices = np.lexsort((segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),axis=0,)
+                    #Comments are optional method for sorting segments to find subsegments
                     # lexsort_indices = Utils.get_axis_sort(segment_cloud,axis)
                     # rotated_cloud = Utils.rotate_cloud(segment_cloud,axis)
                     # rotated_cloud = rotated_cloud[lexsort_indices]
                     segment_cloud = segment_cloud[lexsort_indices]
-                    # pcd.points = o3d.utility.Vector3dVector(segment_cloud)
-                    # db_labels = np.array(pcd.cluster_dbscan(eps=0.05, min_points=10))
-                    # db_mask = db_labels == -1
-                    # tile_db_mask = range_mask[mask][db_mask]
-                    # tile.cluster_labels[tile_db_mask]=-2
+
 
                     sub_segments = Utils.split_segments(segment_cloud,6,15)
                     # sub_segments = Utils.split_segments(rotated_cloud,6,15)
@@ -1163,12 +1163,12 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 
 
 if __name__ == "__main__":
-#     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
+    folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
 #     # model = Ecomodel()
 #     # combined_cloud = Ecomodel.combine_las_files(folder,model)
 #     # process_entire_pointcloud(Ecomodel())
 #     # Example usage
-    folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
+    # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
     model = Ecomodel()
     combined_cloud = Ecomodel.combine_las_files(folder,model)
     combined_cloud.subdivide_tiles(cube_size = 15)

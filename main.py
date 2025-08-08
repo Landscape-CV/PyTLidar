@@ -1,3 +1,30 @@
+"""
+Python adaptation and extension of TREEQSM:
+
+% This file is part of TREEQSM.
+%
+% TREEQSM is free software: you can redistribute it and/or modify
+% it under the terms of the GNU General Public License as published by
+% the Free Software Foundation, either version 3 of the License, or
+% (at your option) any later version.
+%
+% TREEQSM is distributed in the hope that it will be useful,
+% but WITHOUT ANY WARRANTY; without even the implied warranty of
+% MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+% GNU General Public License for more details.
+%
+% You should have received a copy of the GNU General Public License
+% along with TREEQSM.  If not, see <http://www.gnu.org/licenses/>.
+
+Version: 0.0.1
+Date: 9 Feb 2025
+Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
+
+This derivative work is released under the GNU General Public License (GPL).
+"""
+
+
+
 from treeqsm import treeqsm
 import os
 from PySide6.QtCore import QObject,QThread,Signal,Qt,QUrl,QProcess
@@ -19,7 +46,6 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 # from matplotlib.figure import Figure
 import time
 
-# os.environ['QT_DEBUG_PLUGINS']='1'
 class QSMWindow(QMainWindow):
     def __init__(self):
         super().__init__()
