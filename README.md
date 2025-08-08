@@ -17,8 +17,34 @@ pip install -r requirements.txt
 python -m venv .venv
 . .venv/Scripts/activate
 pip install -r requirements.txt
-
 ```
+### CSF Dependency (Ecomodel Only)
+
+The Ecomodel framework is dependent on the Cloth Simulation Filter ground filtering algorithm available here:
+https://github.com/jianboqi/CSF
+
+This version has not been updated to work with Numpy version >=2.0, so you will need to recompile it locally using the following instructions:
+
+Download the above repository
+Locate the file pyproject.toml and replace the contents with the following:
+```
+`[build-system]
+requires = ["wheel","setuptools", "numpy>=2.0.0rc1"]
+dependencies = ["oldest-supported-numpy"]
+build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+build = "cp3{8,9,10,11,12}-*" `
+```
+Run ```python setup.py bdist_wheel ```
+(make sure you have installed setuptools wheel using pip install setuptools wheel)
+
+you can then run 
+```pip install dist/<name of the generated file>```
+
+You will then be able to run the ecomodel framework.
+
+
 ## Create a .env file
 make a file in your parent director named `.env` and paste the following into it replace the ... with the filepath to your data
 ```

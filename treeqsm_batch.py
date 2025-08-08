@@ -14,6 +14,9 @@ import Utils.Utils as Utils
 warnings.filterwarnings('ignore')
 
 class BatchQSM():
+    """
+    A class to handle multiprocess objects to perform batch processing of TreeQSM
+    """
     def __init__(self, folder,files,args):
         self.folder = folder
         self.files = files
@@ -27,6 +30,9 @@ class BatchQSM():
         self.directory = args["Directory"]
         self.saved_files = []
     def file_cleanup(self):
+        """
+        Cleans up the files saved during the run, removing those that were not saved by the batch process.
+        """
         if len(self.saved_files) == 0:
             print("No files were saved from this run.")
             return
@@ -45,6 +51,9 @@ class BatchQSM():
                 os.remove(file)
         os.chdir(original_location)
     def run(self):
+        """
+        Handler for creating Parallel TreeQSM processes
+        """
         try:
             num_cores = int(self.num_cores)
             if num_cores >mp.cpu_count():
@@ -123,6 +132,16 @@ class BatchQSM():
         print("Processing Complete.\n")
 
 def process_output(output,directory):
+    """Takes output of TreeQSM and processes it to save the optimal models and their metrics.
+    This will save the relevant files as well as save the data to be shown in the GUI.
+
+    Args:
+        output (tuple): direct output of TreeQSM
+        directory (str): directory to save files
+
+    Returns:
+        list: list of files corresponding to optimal models, to be saved and not deleted. 
+    """
     original_location = os.getcwd()
     if directory is not None:
         os.chdir(directory)
