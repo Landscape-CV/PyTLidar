@@ -251,7 +251,7 @@ def cylinder_fitting(P, Points, Ind, nl, si):
     """
         Fits cylinders to regions of a point cloud segment.
 
-        Parameters:
+        Args:
             P (np.ndarray):     The full point cloud (N x 3).
             Points (np.ndarray): Points in the segment.
             Ind (np.ndarray):   Indices of points in each layer of the segment.

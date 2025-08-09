@@ -96,13 +96,14 @@ class RobustCylinderFitter:
             covariance = mcd.calculate_covariance(point_cloud)
         except:
             try:
-                covariance = DetMCD().calculate_covariance(point_cloud)
+                mcd = DetMCD()
+                covariance = mcd.calculate_covariance(point_cloud)
             except Exception as e:
                 print("Cylinder Fitter: Failed to find covariance")
                 return None
                 
 
-        covariance = mcd.calculate_covariance(point_cloud)
+       
         mean = mcd.location_
         U, S, Vt = np.linalg.svd(covariance, full_matrices=False)
         first_pc = Vt[0, :] 
