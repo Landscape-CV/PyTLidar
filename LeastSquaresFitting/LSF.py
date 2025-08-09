@@ -3,7 +3,6 @@ Python adaptation and extension of TREEQSM.
 
 Version: 0.0.4
 Date: 4 March 2025
-Authors: Fan Yang, John Hagood, Amir Hossein Alikhah Mishamandani
 Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
 
 This derivative work is released under the GNU General Public License (GPL).
@@ -19,13 +18,11 @@ def rotate_to_z_axis(Vec):
     """
     Forms the rotation matrix to rotate the vector Vec to a point along the positive z-axis.
 
-    Input:
+    Args:
         Vec : A 3-element vector.
 
-    Output:
-        R   : A 3x3 rotation matrix such that R * Vec = [0, 0, z]' with z > 0.
-        D   : The axis of rotation (cross product between Vec and [0, 0, 1]).
-        a   : The angle (in radians) between Vec and the positive z-axis.
+    Returns:
+        (numpy.ndarray, numpy.ndarray, float): Rotation matrix, axis of rotation, and angle.
     """
     Vec = np.array(Vec, dtype=float).flatten()
     D = np.cross(Vec, [0, 0, 1])
@@ -44,13 +41,11 @@ def form_rotation_matrices(theta):
     """
     Forms rotation matrices R = R2*R1 and computes the derivatives dR1 and dR2.
 
-    Input:
+    Args:
         theta: An array-like with two elements [t1, t2] representing the plane rotation angles.
 
-    Output:
-        R    : A 3x3 rotation matrix computed as R2 * R1.
-        dR1  : Derivative of R1 with respect to t1.
-        dR2  : Derivative of R2 with respect to t2.
+    Returns:
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray): Rotation matrix R, derivative of R1 with respect to t1, and derivative of R2 with respect to t2.
     """
     theta = theta.flatten()
     if theta.size < 2:
@@ -115,11 +110,13 @@ def func_grad_axis(P, par, weight=None):
     where (xt, yt) are the first two coordinates of Pt.
 
     Optionally, if a weight vector is provided, the distances and the Jacobian are weighted.
+    Args:
+        P (numpy.ndarray): Point cloud, shape (n_points, 3).
+        par (list or numpy.ndarray): Cylinder parameters [x0, y0, alpha, beta, r].
+        weight (numpy.ndarray, optional): Weights for each point, shape (n_points,).
 
-    Output:
-        dist : (n,) array of (possibly weighted) distances.
-        J    : (n x 2) Jacobian matrix with derivatives with respect to alpha and beta.
-                (Only the derivatives for the rotation parameters are computed.)
+    Returns:
+        (numpy.ndarray, numpy.ndarray):  Distances and Jacobian matrix.
     """
     par = np.array(par, dtype=float).flatten()
     if par.size != 5:
@@ -177,17 +174,14 @@ def func_grad_circle(P, par, weight=None):
     """
     Function and gradient calculation for least-squares circle fit.
 
-    Input:
+    Args:
         P      : (n x m) array representing the point cloud (only first two columns are used)
         par    : Circle parameters [x0, y0, r]
         weight : Optional (n,) array of weights to be applied to the distances
 
-    Output:
-        dist : (n,) array of signed distances for each point:
-                dist(i) = sqrt((xi-x0)^2 + (yi-y0)^2) - r, weighted if weight is provided.
-        J    : (n x 3) Jacobian matrix of derivatives d(dist(i))/d(par(j)), where:
-                J[:,0] = -Vx/rt, J[:,1] = -Vy/rt, and J[:,2] = -1,
-                and weighted if weight is provided.
+    Returns:
+        (numpy.ndarray, numpy.ndarray): distances and Jacobian matrix
+        
     """
     par = np.array(par, dtype=np.float64).flatten()
     if par.size != 3:
@@ -225,16 +219,13 @@ def func_grad_circle_centre(P, par, weight=None):
     """
     Function and gradient calculation for least-squares circle fit with respect to circle center only.
 
-    Input:
+    Args:
         P      : (n x m) array representing the point cloud (only first two columns are used)
         par    : Circle parameters [x0, y0, r]
         weight : Optional (n,) array of weights for the points. Distances and derivatives are weighted if provided.
 
-    Output:
-        dist : (n,) array of signed distances:
-                dist(i) = sqrt((xi-x0)^2 + (yi-y0)^2) - r, weighted if weight is provided.
-        J    : (n x 2) Jacobian matrix with derivatives d(dist(i))/d[x0, y0]:
-                J(i,1) = - (xi-x0) / rt and J(i,2) = - (yi-y0) / rt, weighted if weight is provided.
+    Returns:
+        (numpy.ndarray, numpy.ndarray): distances and Jacobian matrix
     """
     par = np.array(par, dtype=float).flatten()
     if par.size != 3:
@@ -265,7 +256,7 @@ def func_grad_cylinder(par, P, weight=None):
     """
     Function and gradient calculation for least-squares cylinder fit.
 
-    Input:
+    Args:
         par    : Cylinder parameters [x0, y0, alpha, beta, r]
                     where (x0, y0) is the cylinder axis intercept with the xy-plane (z0 = 0),
                     alpha and beta are rotation angles (in radians) about the x and y axes,
@@ -274,17 +265,8 @@ def func_grad_cylinder(par, P, weight=None):
         weight : Optional (n,) weights for the points; if provided, the distances and
                     the Jacobian are weighted.
 
-    Output:
-        dist : (n,) array of signed distances to the cylinder surface:
-                dist(i) = sqrt(xh(i)^2 + yh(i)^2) - r,
-                where [xh, yh, zh]' = Ry(beta) * Rx(alpha) * ([x, y, z]' - [x0, y0, 0]')
-        J    : (n x 5) Jacobian matrix with derivatives of dist with respect to [x0, y0, alpha, beta, r].
-                The derivatives are computed as:
-                    - For x0:  J[:,0] = N[:,0]*A1[0] + N[:,1]*A1[1], where A1 = (R * [-1, 0, 0]') and
-                    - For y0:  J[:,1] = N[:,0]*A2[0] + N[:,1]*A2[1], where A2 = (R * [0, -1, 0]'),
-                    - For alpha: J[:,2] = sum( N .* ( (P-[x0,y0,0]) @ DR1.T )[:, :2], axis=1 ),
-                    - For beta:  J[:,3] = sum( N .* ( (P-[x0,y0,0]) @ DR2.T )[:, :2], axis=1 ),
-                    - For r:     J[:,4] = -1.
+    Returns:
+        (np.ndarray, np.ndarray): Distances and Jacobian matrix.
     """
     if weight is None:
         weight = np.ones(len(P))
@@ -369,18 +351,14 @@ def nlssolver(par, P, weight=None):
     """
     Nonlinear least squares solver for cylinders using Gauss–Newton iterations.
 
-    Input:
-        par    : Initial estimates of the cylinder parameters [x0, y0, alpha, beta, r].
-        P      : (n x 3) point cloud.
-        weight : Optional (n,) array of weights for the points.
+    Args:
+        par (np.Array): Initial estimates of the cylinder parameters [x0, y0, alpha, beta, r].
+        P (np.Array): (n x 3) point cloud.
+        weight (np.Array): Optional (n,) array of weights for the points.
 
     Output:
-        par  : Optimized cylinder parameters.
-        d    : Final distances of points to the cylinder surface.
-                For each point: d = sqrt(xh^2 + yh^2) - r, where
-                [xh, yh, zh]' = Ry(beta) * Rx(alpha) * ([x, y, z]' - [x0, y0, 0]).
-        conv : Boolean, True if the fitting converged.
-        rel  : Boolean, True if the system condition was acceptable.
+
+        (numpy.ndarray, numpy.ndarray, bool, bool): parameters, distances, convergence status, and reliability status (conditions were acceptable).
     """
     maxiter = 50
     iter_count = 0
@@ -439,15 +417,15 @@ def least_squares_axis(P, Axis, Point0, Rad0, weight=None):
     The fitting is performed on the rotation angles (alpha and beta) only,
     while the cylinder’s axis point (Point0) and radius (Rad0) remain fixed.
 
-    Input:
-        P      : (n x 3) 3D point cloud.
-        Axis   : (3,) initial axis estimate.
-        Point0 : (3,) initial axis point.
-        Rad0   : initial cylinder radius.
-        weight : Optional (n,) weights for each point.
+    Args:
+        P (np.Array): (n x 3) 3D point cloud.
+        Axis (np.Array): (3,) initial axis estimate.
+        Point0 (np.Array): (3,) initial axis point.
+        Rad0 (float): initial cylinder radius.
+        weight (np.array): Optional (n,) weights for each point.
 
-    Output:
-        cyl    : Dictionary with fields:
+    Returns:
+        dictionary: Dictionary with fields:
                     - 'axis'   : Optimized cylinder axis (unit vector, row vector).
                     - 'radius' : Cylinder radius (input Rad0).
                     - 'start'  : Cylinder axis point (input Point0).
@@ -567,13 +545,13 @@ def least_squares_circle(P, Point0, Rad0, weight=None):
     Least-squares circle fitting using Gauss–Newton iterations.
 
     Input:
-        P      : (n x 2) point cloud.
-        Point0 : (2,) initial estimate of the centre.
-        Rad0   : initial estimate of the circle radius.
-        weight : Optional (n,) weights for each point.
+        P (np.Array): (n x 2) point cloud.
+        Point0 (np.Array): (2,) initial estimate of the centre.
+        Rad0 (float): initial estimate of the circle radius.
+        weight (np.Array): Optional (n,) weights for each point.
 
-    Output:
-        cir    : A dictionary with the following fields:
+    Returns:
+        dictionary : A dictionary with the following fields:
                     - 'radius' : Fitted circle radius.
                     - 'point'  : Fitted centre (as a row vector).
                     - 'mad'    : Mean absolute distance of the points to the circle.
@@ -667,13 +645,13 @@ def least_squares_circle_centre(P, Point0, Rad0):
     Least-squares circle fitting such that the radius is fixed (only the centre is optimized)
     using Gauss–Newton iterations.
 
-    Input:
-        P      : (n x 2) array representing the 2D point cloud.
-        Point0 : (2,) initial estimate of the circle centre.
-        Rad0   : Given circle radius.
+    Args:
+        P (np.Array): (n x 2) array representing the 2D point cloud.
+        Point0 (np.Array): (2,) initial estimate of the circle centre.
+        Rad0 (float): Given circle radius.
 
     Output:
-        cir    : Dictionary with the following fields:
+        dictionary   : Dictionary with the following fields:
                     - 'radius' : The fixed circle radius (Rad0).
                     - 'point'  : Fitted centre point (as a row vector).
                     - 'mad'    : Mean absolute deviation of the points from the circle.
@@ -745,16 +723,16 @@ def least_squares_cylinder(P, cyl0, weight=None, Q=None):
     Least-squares cylinder fitting using Gauss–Newton iterations.
 
     Input:
-        P     : (n x 3) array representing the full point cloud.
-        cyl0  : Dictionary with initial cylinder parameters. Expected fields:
+        P (np.Array): (n x 3) array representing the full point cloud.
+        cyl0 (dictionary): Dictionary with initial cylinder parameters. Expected fields:
                 - 'axis'   : initial axis direction (1 x 3)
                 - 'start'  : initial axis point (1 x 3)
                 - 'radius' : initial radius estimate
-        weight: Optional (n,) array of weights for the points.
-        Q     : Optional (m x 3) subset of P where the cylinder is intended.
+        weight (np.Array): Optional (n,) array of weights for the points.
+        Q (np.Array): Optional (m x 3) subset of P where the cylinder is intended.
 
-    Output:
-        cyl   : Dictionary with the following fields:
+    Returns:
+        dictionary  : Dictionary with the following fields:
                 - 'radius'  : Fitted cylinder radius.
                 - 'length'  : Cylinder length.
                 - 'start'   : Axis point at the bottom of the cylinder (1 x 3).
@@ -854,23 +832,9 @@ def least_squares_cylinder(P, cyl0, weight=None, Q=None):
     cyl_out['axis'] = Axis.flatten()
     cyl_out['length'] = cyl_length
 
-    # removing code block not in matlab it changes distances to wrong value
-    # # Compute radial distances from points to the cylinder.
-    # d_axis, _, _, _ = Utils.distances_to_line(P, Axis, Point_adjusted)
-    # # Subtract the radius.
-    # dist_final = d_axis - cyl_out['radius']
-    # cyl_out['dist'] = dist_final
 
-    # Compute mean absolute deviation (mad).
-    ###NOTE matlab code reference more than 6 args for this if statement, not equivalen to NoWeights
-    ### , changing to just one line to use the correct one for now
+
     mad = np.mean(np.abs(dist_new))
-    # if NoWeights or np.allclose(weight, weight[0]):
-    #     mad = np.mean(np.abs(dist_final))
-    
-    # else:
-    #     I = (np.array(weight) == np.max(weight))
-    #     mad = np.mean(np.abs(dist_final[I]))
     cyl_out['mad'] = float(mad)
 
     cyl_out['conv'] = conv

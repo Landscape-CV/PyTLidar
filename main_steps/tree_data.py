@@ -12,15 +12,14 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     """
     Calculate tree attributes from cylinder QSM data.
 
-    Parameters:
+    Args :
         cylinder (dict): Dictionary containing cylinder data (radius, length, start, axis, branch).
         branch (dict): Dictionary containing branch data (order, volume, length, diameter, height, angle, zenith, azimuth).
         trunk (numpy.ndarray): Point cloud of the trunk.
         inputs (dict): Input structure defining if results are displayed, plotted, and if triangulation is computed.
 
     Returns:
-        treedata (dict): Tree data/attributes.
-        triangulation (dict or int): Triangulation results (if computed), otherwise 0.
+        (dict, int/dict): Tree data and triangulation results, triangulation results are 0 if not computed.
     """
     matplotlib.rcParams.update({'font.size': 8})
     # Define some variables from cylinder
@@ -33,7 +32,7 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     # Initialize treedata dictionary
     treedata = {}
 
-    # ---------------------------------------------------------------------
+    # --------------------------------------------------------------
     # Tree attributes from cylinders
     # ---------------------------------------------------------------------
     # Volumes, areas, lengths, branches
@@ -337,6 +336,19 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
         treedata['figures'] = figures
     return treedata, triangulation
 def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
+    """
+    
+    Calculate the diameter at breast height (DBH) from cylinder data.
+    Args:
+        treedata (dict): Dictionary to store tree data.
+        trunk (numpy.ndarray): Point cloud of the trunk.
+        Trunk (numpy.ndarray): Boolean array indicating trunk cylinders.
+        cylinder (dict): Dictionary containing cylinder data (radius, length, start, axis).
+        ind (numpy.ndarray): Indices of the cylinders.
+    Returns:
+        (dict): Updated tree data with DBH attributes.
+
+    """
     # Convert Trunk to a boolean array if not already
     Trunk = np.asarray(Trunk).astype(bool)
     T = ind[Trunk]  # Get indices of trunk cylinders
@@ -393,6 +405,17 @@ def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
 # Requires the alphashape library
 
 def crown_measures(treedata, cylinder, branch):
+    """
+    
+    Calculate crown measures using alphashape concave hull
+
+    Args:
+        treedata (dict): Dictionary to store tree data.
+        cylinder (dict): Dictionary containing cylinder data (radius, length, start, axis, branch).
+        branch (dict): Dictionary containing branch data (order, volume, length, diameter, height, angle, zenith, azimuth).
+    Returns:
+        (dict, numpy.ndarray): Updated tree data with crown measures and vertical profile spreads.
+    """
     # Extract cylinder properties
     Axe = cylinder['axis']
     Len = cylinder['length']
@@ -606,6 +629,16 @@ def crown_measures(treedata, cylinder, branch):
 
 
 def triangulate_stem(treedata, cylinder, branch, trunk):
+    """
+    
+    Calculate stem using triangulation method
+    Args:
+        treedata (dict): Dictionary to store tree data.
+        cylinder (dict): Dictionary containing cylinder data (start, radius, length, axis, branch).
+        branch (dict): Dictionary containing branch data (diameter, height, order).
+        trunk (numpy.ndarray): Point cloud of the trunk.
+    Returns:
+        (dict, dict): Updated tree data with triangulation attributes and triangulation data."""
     Sta = cylinder['start']
     Rad = cylinder['radius']
     Len = cylinder['length']
@@ -750,13 +783,13 @@ def cylinder_distribution(treedata, cyl, dist):
     Compute volume, area, and length distributions of wood parts based on cylinder diameter,
     zenith, or azimuth direction.
 
-    Parameters:
+    Args:
         treedata (dict): Dictionary to store the results.
         cyl (dict): Dictionary containing cylinder data (radius, axis, length).
         dist (str): Distribution type ('Dia', 'Zen', or 'Azi').
 
     Returns:
-        treedata (dict): Updated dictionary with distribution results.
+        (dict): Updated dictionary with distribution results.
     """
     # Extract cylinder properties
     radius = cyl['radius']
@@ -801,13 +834,13 @@ def cylinder_height_distribution(treedata, cylinder, ind):
     """
     Compute volume, area, and length distributions of cylinders as a function of height.
 
-    Parameters:
+    Args:
         treedata (dict): Dictionary to store the results.
         cylinder (dict): Dictionary containing cylinder data (radius, length, axis, start).
         ind (numpy.ndarray): Indices of cylinders to consider.
 
     Returns:
-        treedata (dict): Updated dictionary with height distribution results.
+        (dict): Updated dictionary with height distribution results.
     """
     # Extract cylinder properties
     Rad = cylinder['radius']
@@ -894,8 +927,8 @@ def branch_distribution(treedata, branch, dist):
         branch (dict): Dictionary containing branch data (order, volume, area, length, diameter, height, angle, zenith, azimuth).
         dist (str): Distribution type ('Dia', 'Hei', 'Ang', 'Zen', or 'Azi').
 
-    Returns:
-        treedata (dict): Updated dictionary with branch distribution results.
+    Args:
+        (dict): Updated dictionary with branch distribution results.
     """
     # Extract branch properties (excluding the first element, as in MATLAB's 2:end)
     BOrd = branch['order'][1:]
@@ -973,12 +1006,12 @@ def branch_order_distribution(treedata, branch):
     """
     Compute volume, area, length, and number of branches as a function of branch order.
 
-    Parameters:
+    Arg:
         treedata (dict): Dictionary to store the results.
         branch (dict): Dictionary containing branch data (order, volume, area, length).
 
     Returns:
-        treedata (dict): Updated dictionary with branch order distribution results.
+        (dict): Updated dictionary with branch order distribution results.
     """
     # Determine the maximum branch order
     BO = int(np.max(branch['order']))
