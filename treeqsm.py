@@ -18,7 +18,6 @@ Python adaptation and extension of TREEQSM:
 
 Version: 0.0.1
 Date: 9 Feb 2025
-Authors: Fan Yang, John Hagood, Amir Hossein Alikhah Mishamandani
 Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Group
 
 This derivative work is released under the GNU General Public License (GPL).
@@ -54,33 +53,23 @@ import os
 from GBSeparation.remove_leaves import LeafRemover
 
 
-def test():
-    # file_path = r'C:\Users\johnh\Documents\LiDAR\A-04-7007_post.las'
-    # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/A-04-7007_post.las'
-    # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/tree_1.las'
-    # file_path = r'/Users/johnhagood/Documents/LiDAR/segmented_trees/test_palm.xyz'
-    file_path = r'/Users/johnhagood/Downloads/tree_0160.laz'
-    # file_path = r'E:\5-Study\OMSCS\CS8903_Research\TreeQSM\PyTLidar\Dataset\tree_1.las'
-    points = load_point_cloud(file_path,0)
-    if points is not None:
-        sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.")
-    # Step 3: Define inputs for TreeQSM
-    points = points - np.mean(points,axis = 0)
 
-    inputs = define_input(points, 3, 3, 3)[0]
-
-    # #specific inputs for testing
-    # inputs['PatchDiam1'] = [0.05]
-    # inputs['PatchDiam2Min'] = [0.03]
-    # inputs['PatchDiam2Max'] = [0.12]
-    # inputs['BallRad1'] = [0.06]
-    # inputs['BallRad2'] = [0.13]
-    # inputs['plot'] = 0
-    treeqsm(points,inputs)
 
 
 
 def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
+    """Driver of TreeQSM algorithm originally developed by InverseTampere Group at Tampere University
+
+    Args:
+        P (np.Array): Point Cloud Data
+        inputs (dict): Parameters to utilze for TreeQSM
+        batch (int, optional): Utilized in Multiprocessing to identify run. Defaults to 0.
+        processing_queue (dict, optional): Multiprocessing Queue object to send results. Defaults to None.
+        results_location (str, optional): Location to save results. If None, defaults to current working directory
+
+    Returns:
+        (list,list): Returns list of QSM model dictionaries containing run data and result data, also returns list of file locations of HTML files containing cylinder visualizations.
+    """
     original_location = os.getcwd()
     if results_location is not None:
         os.chdir(results_location)
@@ -397,12 +386,46 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
         return "ERROR", "ERROR"
 
 def calculate_optimal(models,metric):
-        metric_data = Utils.collect_data(models)
-        metrics = []
-        for i in range(len(models)):
-            metrics.append(Utils.compute_metric_value(Utils.select_metric(metric), i,metric_data[0],metric_data[3]))
-        best = np.argmax(np.array(metrics))
-        return best,metrics[best],metric_data
+    """
+    Calculates the optimal model based on the specified metric.
+
+    Args:
+        models (list): List of dictionaries returned from treeqsm function.
+        metric (str): metric to use.
+
+    Returns:
+        (int,float,Dictionary): Tuple of optimal model index, value of the calculated metric, and relevant model data
+    """
+
+    metric_data = Utils.collect_data(models)
+    metrics = []
+    for i in range(len(models)):
+        metrics.append(Utils.compute_metric_value(Utils.select_metric(metric), i,metric_data[0],metric_data[3]))
+    best = np.argmax(np.array(metrics))
+    return best,metrics[best],metric_data
+
+
+def test():
+    """
+        Run Default Point Cloudand QSM Parameters
+    """
+    file_path =r'\Dataset\tree_1.las'
+    points = load_point_cloud(file_path,0)
+    if points is not None:
+        sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.")
+    # Step 3: Define inputs for TreeQSM
+    points = points - np.mean(points,axis = 0)
+
+    inputs = define_input(points, 3, 3, 3)[0]
+
+    # #specific inputs for testing
+    # inputs['PatchDiam1'] = [0.05]
+    # inputs['PatchDiam2Min'] = [0.03]
+    # inputs['PatchDiam2Max'] = [0.12]
+    # inputs['BallRad1'] = [0.06]
+    # inputs['BallRad2'] = [0.13]
+    # inputs['plot'] = 0
+    treeqsm(points,inputs)
 
 if __name__ == "__main__":
     # cProfile.run("test()",filename="results.txt",sort=1)

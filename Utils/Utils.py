@@ -25,6 +25,8 @@ from numba.experimental import jitclass
 import laspy
 from plotting.qsm_plotting import qsm_plotting
 import open3d as o3d
+from robpy.covariance import DetMCD,FastMCD
+from scipy.spatial.transform import Rotation 
 
 # class Utils:
 
@@ -2924,7 +2926,11 @@ def check_for_bends(segment_cloud,num_test_regions = 5,threshold = .2):
     
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(segment_cloud)
-    obb = pcd.get_oriented_bounding_box()
+    try:
+        obb = pcd.get_oriented_bounding_box()
+    except:
+        return False
+
 
     center = obb.center
 
@@ -2980,7 +2986,7 @@ def split_segments(segment_cloud, num_test_regions = 5, angle_threshold = 60):
     """
 
     
-    segs = np.zeros(len(segment_cloud))
+    segs = np.zeros(len(segment_cloud),dtype=int)
 
     
     if not check_for_bends(segment_cloud,num_test_regions):
@@ -3168,6 +3174,56 @@ def color_o3d_clouds(clouds):
         color = np.random.random(3)
         color_array = np.repeat(np.array([color]),len(np.asarray(cloud.points)),axis = 0)
         cloud.colors =  o3d.utility.Vector3dVector(color_array)
+
+def get_axis(point_cloud):
+
+    point_cloud = np.random.permutation(point_cloud)[:15]
+    # mcd = FastMCD()
+    # try:
+    #     covariance = mcd.calculate_covariance(point_cloud)
+    # except:
+    # try:
+    #     mcd = DetMCD()
+    #     covariance = mcd.calculate_covariance(point_cloud)
+    # except Exception as e:
+    #     print("Failed to find covariance")
+    #     raise e
+            
+
+    
+    # mean = mcd.location_
+    U, S, Vt = np.linalg.svd(point_cloud, full_matrices=False)
+    first_pc = Vt[0, :] 
+    return first_pc
+def rotate_cloud(point_cloud,axis):
+    """
+    Rotate a point cloud around the z-axis to align it with the x-axis.
+    
+    Args:
+        point_cloud: Point cloud data as a numpy array of shape (N, 3).
+        axis: Axis to align with, should be a 3D vector.
+        
+    Returns:
+        Rotated point cloud as a numpy array of shape (N, 3).
+    """
+    rotvec = Rotation.from_rotvec(axis)
+    rotated_cloud = rotvec.as_matrix() @ point_cloud.T
+    rotated_cloud = rotated_cloud.T
+    # rotated_cloud = rotvec.apply(Q0)
+    return rotated_cloud
+    
+def get_axis_sort(point_cloud,axis):
+    """
+    Returns the indexes sorted from "bottom" to "top" of cloud rotated to align with axis.
+    Args:
+        point_cloud: Point cloud data as a numpy array of shape (N, 3).
+        axis: Axis to align with, should be a 3D vector."""
+    rotated_cloud =rotate_cloud(point_cloud,axis)
+    sorted_indices = np.argsort(rotated_cloud[:, 2])
+    return sorted_indices
+
+
+    
 
 
 
