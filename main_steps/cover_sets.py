@@ -40,7 +40,7 @@ def cover_sets(P, inputs, RelSize=None, qsm = True, device = 'cpu', full_point_d
         RelSize: Relative cover set size for each point
 
     Returns:
-        cover: Structure array containing the following fields:
+        dictionary: Dictionary containing the following fields:
             ball        Cover sets, (n_sets x 1)-cell
             center      Center points of the cover sets, (n_sets x 1)-vector
             neighbor    Neighboring cover sets of each cover set, (n_sets x 1)-cell
@@ -73,7 +73,7 @@ def uniform_cover(P, inputs, np_points, qsm =True, device = 'cpu', full_point_da
         np_points (int): The total number of points in the point cloud
 
     Returns:
-        cover: Structure array containing the following fields:
+        Dictionary: Dictionary containing the following fields:
             ball        Cover sets, (n_sets x 1)-cell
             center      Center points of the cover sets, (n_sets x 1)-vector
             neighbor    Neighboring cover sets of each cover set, (n_sets x 1)-cell

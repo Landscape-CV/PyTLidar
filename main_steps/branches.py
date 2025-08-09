@@ -36,11 +36,11 @@ def branches(cylinder):
     sense that branch number two would be the oldest branch and the number
     three the second oldest.
     
-    Inputs:
-    cylinder  Cylinders, structure array
+    Args:
+    cylinder(Dictionary):  Dictionary containing cylinder data generated during the TreeQSM process.
     
-    Outputs:
-    branch    Branch structure array, contains fields:
+    Returns:
+    dictionary :   Branch structure array, contains fields:
                 Branch order, parent, volume, length, angle, height, azimuth
                 and diameter
     """
