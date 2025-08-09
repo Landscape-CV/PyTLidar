@@ -40,7 +40,7 @@ def cover_sets(P, inputs, RelSize=None, qsm = True, device = 'cpu', full_point_d
         RelSize: Relative cover set size for each point
 
     Returns:
-        cover: Structure array containing the following fields:
+        dictionary: Dictionary containing the following fields:
             ball        Cover sets, (n_sets x 1)-cell
             center      Center points of the cover sets, (n_sets x 1)-vector
             neighbor    Neighboring cover sets of each cover set, (n_sets x 1)-cell
@@ -85,9 +85,6 @@ def uniform_cover(P, inputs, np_points, qsm =True, device = 'cpu', full_point_da
     # Partition, CC, Info, Cubes = cubical_partition(P, BallRad,return_cubes=True)  # Partition the point cloud into cubes for quick neighbor search
     Partition, CC, Info = cubical_partition(P, BallRad,return_cubes=False)
     Partition = np.array(Partition, dtype = 'object')
-    #print(Partition)
-    #print(CC)
-    #print(Cubes)
     
     NotExa = np.ones(np_points, dtype=bool)  # the points not yet examined
     Dist = np.full(np_points, 1e8)  # distance of point to the closest center
@@ -99,18 +96,6 @@ def uniform_cover(P, inputs, np_points, qsm =True, device = 'cpu', full_point_da
     # random permutation of points, produces different covers for the same inputs:
     # np.random.seed(0)
     rg = np.random.Generator(np.random.Philox(0))
-    """"
-    I AM HOLDING THIS FIXED FOR NOW FOR TESTING
-    
-    RandPerm = rg.permutation(np_points)
-    
-    """
-    # f = open(r"randperm_seeded.csv")
-    # reader = csv.reader(f)
-    # RandPerm = []
-    # for num in reader:
-    #     RandPerm.append(int(num[0])-1)
-    # np.array(RandPerm)
     RandPerm = rg.permutation(np_points)
     # Generate the balls
     Radius_sq = BallRad ** 2
@@ -119,19 +104,8 @@ def uniform_cover(P, inputs, np_points, qsm =True, device = 'cpu', full_point_da
     for _i,i in enumerate(RandPerm):
         if NotExa[i]:  # point not yet examined
             Q = i
-            #print(f"Q {Q}")
             cube = CC[Q]  # get cube coordinates
-            # #print(cube)
-            # points = []
-            # # Select the points in the cubical neighborhood of the seed
-            # for dz in [-1, 0, 1]:
-            #     for dy in [-1, 0, 1]:
-            #         for dx in [-1, 0, 1]:
-            #             cube_coord = (cube[0] + dx, cube[1] + dy, cube[2] + dz)
-            #             #print(Cubes[cube_coord])
-            #             if Cubes[cube_coord] > 0:  # check if cube has points
-            #                 points.extend(Partition[Cubes[cube_coord] - 1])
-            # points = np.array(points, dtype=np.uint32)
+
             points = Partition[CC[Q,0]-2:CC[Q,0]+1,
                                CC[Q,1]-2:CC[Q,1]+1,
                                CC[Q,2]-2:CC[Q,2]+1]
@@ -215,12 +189,6 @@ def variable_cover(P, inputs, RelSize, np_points):
     
 
     RandPerm = np.argsort(RelSize) 
-    # f = open(r"randperm_seeded_sort.csv")
-    # reader = csv.reader(f)
-    # RandPerm = []
-    # for num in reader:
-    #     RandPerm.append(int(num[0])-1)
-    # np.array(RandPerm)
     e = BallRad - PatchDiamMax
     ind = 0
     for i in RandPerm:
@@ -232,15 +200,6 @@ def variable_cover(P, inputs, RelSize, np_points):
             MaxDist = PatchDiamMax * rs  # diameter of the cover set
             Radius = MaxDist + np.sqrt(rs) * e  # radius of the ball including the cover set
             N = int(np.ceil(Radius / r))  # = number of cube cells needed to be included in the ball
-            # cube = CC[Q]
-            # points = []
-            # for dz in range(-N, N + 1):
-            #     for dy in range(-N, N + 1):
-            #         for dx in range(-N, N + 1):
-            #             cube_coord = (cube[0] + dx, cube[1] + dy, cube[2] + dz)
-            #             if Cubes[cube_coord] > 0:  # check if cube has points
-            #                 points.extend(Partition[Cubes[cube_coord] - 1])
-            # points = np.array(points, dtype=np.uint64)
             points = Partition[CC[Q,0]-N-1:CC[Q,0]+N,
                                CC[Q,1]-N-1:CC[Q,1]+N,
                                CC[Q,2]-N-1:CC[Q,2]+N]
@@ -279,6 +238,10 @@ def variable_cover(P, inputs, RelSize, np_points):
 
 @jit(nopython=True,cache=True)
 def create_neighbors(Ball,BoP,nb):
+    """Helper Function
+        Creates neighbor relation for cover sets
+        Separated out for numba compilation
+    """
     # Nei = [np.array([],dtype=np.int64) for _ in range(nb)]
     Nei=[]
     
@@ -301,6 +264,10 @@ def create_neighbors(Ball,BoP,nb):
     return Nei
 @jit(nopython=True,cache=True)
 def create_PointsInSets(nb,np_points,BoP):
+    """
+    Generates array of points in each cover set
+    Separated out for numba compilation 
+    """
     Num = np.zeros(nb, dtype=np.int64)  # number of points in each ball
     Ind = np.zeros(np_points, dtype=np.int64)  # index of each point in its ball
     for i in range(np_points):
@@ -323,41 +290,22 @@ def create_PointsInSets(nb,np_points,BoP):
     return PointsInSets
 
 def create_cover(Ball, Cen, BoP, nb, np_points):
-    # """
+    """
 
-    # Args:
-    #     Ball (list): Large balls for generation of the cover sets and their neighbors
-    #     Cen (list): the center points of the balls/cover sets
-    #     BoP (numpy.ndarray): the balls/cover sets the points belong
-    #     nb (int): number of sets generated
-    #     np_points (int): The total number of points in the point cloud
+    Args:
+        Ball (list): Large balls for generation of the cover sets and their neighbors
+        Cen (list): the center points of the balls/cover sets
+        BoP (numpy.ndarray): the balls/cover sets the points belong
+        nb (int): number of sets generated
+        np_points (int): The total number of points in the point cloud
 
-    # Returns:
-    #     cover: Structure array containing the following fields:
-    #         ball        Cover sets, (n_sets x 1)-cell
-    #         center      Center points of the cover sets, (n_sets x 1)-vector
-    #         neighbor    Neighboring cover sets of each cover set, (n_sets x 1)-cell
+    Returns:
+        dictionary: Dictionary containing the following fields:
+            ball        Cover sets, (n_sets x 1)-cell
+            center      Center points of the cover sets, (n_sets x 1)-vector
+            neighbor    Neighboring cover sets of each cover set, (n_sets x 1)-cell
 
-    # """
-    # Create PointsInSets
-    # Num = np.zeros(nb, dtype=np.int64)  # number of points in each ball
-    # Ind = np.zeros(np_points, dtype=np.int64)  # index of each point in its ball
-    # for i in range(np_points):
-    #     bop = BoP[i]
-    #     if bop > 0:
-    #         Num[bop - 1] += 1
-    #         Ind[i] = Num[bop - 1]
-    # # Initialization of the "PointsInSets"
-    # PointsInSets = []
-    # for i in range(nb):
-    #     PointsInSets.append(np.zeros(Num[i], dtype=np.int64))
-    # # Define the "PointsInSets"
-    # for i in range(np_points):
-    #     bop = BoP[i]
-    #     if bop > 0:
-    #         idx = bop - 1
-    #         pos = Ind[i] - 1
-    #         PointsInSets[idx][pos] = i
+    """
     if len(Ball) ==0:
         cover = {'ball': Ball,
         'center': np.array(Cen, dtype=np.int64),
@@ -365,27 +313,6 @@ def create_cover(Ball, Cen, BoP, nb, np_points):
         
         return cover
     PointsInSets=create_PointsInSets(nb,np_points,BoP)
-
-
-    # Create Neighbors
-    # Define neighbors. Sets A and B are neighbors if the large ball of A
-    # contains points of B. Notice that this is not a symmetric relation.
-    # Nei = [[] for _ in range(nb)]
-    # Fal = np.zeros(nb+1,dtype=bool)
-    # for i in range(nb):
-    #     B = Ball[i]  # the points in the big ball of cover set "i"
-    #     bops = BoP[B]
-    #     mask = (bops != (i + 1))
-    #     N = bops[mask]  # the points of B not in the cover set "i"
-    #     N = np.unique(N)#unique_elements_array(N,Fal)#
-    #     N = N[N != 0]
-    #     Nei[i] = N - 1
-    # #print(Nei)
-    # # Make the relation symmetric by adding, if needed, A as B's neighbor in the case B is A's neighbor
-    # for i in range(nb):
-    #     for j in Nei[i]:
-    #         if i not in Nei[j]:
-    #             Nei[j]=np.append(Nei[j],i)
     Nei=create_neighbors(Ball,BoP,nb)
     Nei = np.array([np.array(neighbors).astype(np.int64) for neighbors in Nei],dtype=object)
     cover = {
@@ -394,37 +321,7 @@ def create_cover(Ball, Cen, BoP, nb, np_points):
         'neighbor': Nei,
         'sets':BoP.copy()-1
     }
-    # #Optimized version of above:
-    # Nei = list(np.empty(nb, dtype =object))
-    # Fal = np.zeros(nb+1,dtype=bool)
-    # # PointsInSets = np.zeros(nb,dtype = object)
-    # for i in range(nb):
-    #     Nei[i] = np.array([],dtype=np.int64)
-    #     # PointsInSets[i] = P[BoP == i]
-    #     B = Ball[i]  # the points in the big ball of cover set "i"
-        
-    #     bops = BoP[B]
-        
-    #     mask = (bops != (i + 1))
-    #     N = bops[mask]  # the points of B not in the cover set "i"
 
-    #     # N = np.unique(N)
-    #     N = N[N != 0]-1
-    #     # N = np.setdiff1d(Nei[i],N)
-    #     Nei[i] = np.append(Nei[i],N)
-    #     I = Nei[i]>i
-    #     for j in Nei[i][I]:
-    #         if Nei[j] is not None and i not in Nei[j]:
-    #             Nei[j] = np.append(Nei[j],i)
-    #     Nei[i] = np.unique(Nei[i])
-        
-
-
-        #print(Nei)
-    # Make the relation symmetric by adding, if needed, A as B's neighbor in the case B is A's neighbor
-    ###################################
-    # Question: Should this be a symmetric or asymmetric relation? JH: I think symmetric makes sense, we want neighbors to be neighbors from either end
-    ###################################
 
 
 

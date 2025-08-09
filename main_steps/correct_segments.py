@@ -26,6 +26,20 @@ This derivative work is released under the GNU General Public License (GPL).
 import numpy as np
 from Utils.Utils import distances_to_line,mat_vec_subtraction ,set_difference
 def correct_segments(P,cover,segment,inputs,RemSmall=None,ModBases=None,AddChild=None):
+    """_summary_
+
+    Args:
+        P (_type_): _description_
+        cover (_type_): _description_
+        segment (_type_): _description_
+        inputs (_type_): _description_
+        RemSmall (_type_, optional): _description_. Defaults to None.
+        ModBases (_type_, optional): _description_. Defaults to None.
+        AddChild (_type_, optional): _description_. Defaults to None.
+
+    Returns:
+        _type_: _description_
+    """
     if RemSmall is None:
         RemSmall = True
     if ModBases is None:
@@ -138,7 +152,7 @@ def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
     2) is horizontally close to the bottom of the stem (goes straight up),
     3) has a length close to the distance between its bottom and top (is not too curved).
 
-    Parameters:
+    Args:
     P (np.ndarray): Point cloud.
     Ce (np.ndarray): Centers of the cover sets.
     Bal (list): Ball (cover set) indices.
@@ -147,7 +161,7 @@ def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
     dmin (float): Minimum distance parameter.
 
     Returns:
-    StemTop (int): Index of the stem's top segment.
+    (int): Index of the stem's top segment.
     """
 
     nseg = len(Segs)
@@ -302,7 +316,7 @@ def search_branch_top(P, Ce, Bal, Segs, SPar, SChi, dmin, BI):
     1) has a length close to the distance between its bottom and top,
     2) has a distance close to the farthest segment end.
 
-    Parameters:
+    Args:
     P (np.ndarray): Point cloud.
     Ce (np.ndarray): Centers of the cover sets.
     Bal (list): Ball (cover set) indices.
@@ -313,7 +327,7 @@ def search_branch_top(P, Ce, Bal, Segs, SPar, SChi, dmin, BI):
     BI (int): Branch (segment) index.
 
     Returns:
-    BranchTop (int): The index of the segment forming the tip of the branch.
+    (int): The index of the segment forming the tip of the branch.
     """
 
     # Define all the sub-segments of the given segment
@@ -476,7 +490,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
     """
     Make stem and branches as long as possible by modifying the topology.
 
-    Parameters:
+    Args:
     P (np.ndarray): Point cloud.
     Ce (np.ndarray): Centers of the cover sets.
     Bal (list): Ball (cover set) indices.
@@ -486,9 +500,9 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
     dmin (float): Minimum distance parameter.
 
     Returns:
-    Segs (list): Modified segments.
-    SPar (np.ndarray): Modified parent segment information.
-    SChi (list): Modified child segment information.
+    (list): Modified segments.
+    (np.ndarray): Modified parent segment information.
+    (list): Modified child segment information.
     """
 
     ns = len(Segs)

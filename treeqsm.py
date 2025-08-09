@@ -116,12 +116,6 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
             sys.stdout.write(f'  Tria = {inputs["Tria"]}, OnlyTree = {inputs["OnlyTree"]}\n')
             sys.stdout.write('Progress:\n')
 
-        # # Remove leaves? 
-        # leaf_remover = LeafRemover()
-        # P, _ = leaf_remover.process(P)
-
-        # Make the point cloud into proper form
-        # Only 3-dimensional data
         if P.shape[1] > 3:
             P = P[:, :3]
 
