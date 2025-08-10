@@ -86,14 +86,16 @@ If desired, both treeqsm.py and teeqsm_batch.py may be run directly from the com
     -v: verbose mode
 
 ### TreeQSM Module Usage
+# Under Development
 
-# Tree Segmentation
+Below are functionalities that are under active development to be included in future pip versions.
+## Tree Segmentation
 
-# Graph-Based Leaf Separation
+## Graph-Based Leaf Separation
 
-# Region Growing Leaf Separation
+## Region Growing Leaf Separation
 
-# Ecomodel
+## Ecomodel
 Ecomodel is an experimental module intended to provide detailed metrics for complex environments
 
 ### Create a .env file
