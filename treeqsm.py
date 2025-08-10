@@ -34,7 +34,7 @@ from TreeQSMSteps.branches import branches
 from TreeQSMSteps.tree_data import tree_data
 from TreeQSMSteps.point_model_distance import point_model_distance
 from Utils.Utils import display_time,load_point_cloud
-from tools.define_input import define_input
+from Utils.define_input import define_input
 import Utils.Utils as Utils
 import time
 import cProfile

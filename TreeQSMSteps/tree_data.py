@@ -3,7 +3,7 @@ from scipy.spatial import ConvexHull
 from alphashape import alphashape 
 import Utils.Utils as Utils
 from Utils.Utils import orthonormal_vectors
-import LeastSquaresFitting.LSF as LSF
+import TreeQSMSteps.LSF as LSF
 import plotting.PlottingUtils as PlottingUtils
 import matplotlib.pyplot as plt
 import matplotlib

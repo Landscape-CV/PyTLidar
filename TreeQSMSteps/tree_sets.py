@@ -26,7 +26,7 @@ This derivative work is released under the GNU General Public License (GPL).
 import numpy as np
 from scipy.spatial.distance import cdist
 from Utils.Utils import distances_to_line,connected_components_array,cubical_partition,unique_elements_array
-import  LeastSquaresFitting.LSF as LSF
+import  TreeQSMSteps.LSF as LSF
 def tree_sets(P:np.ndarray,cover:dict,inputs:dict,segment=None):
     """
     Defines the location of the base of the trunk on the first pass, and the main branches on the second

@@ -4,7 +4,7 @@ import os
 import sys
 import numpy as np
 import pandas as pd
-from tools.define_input import define_input
+from Utils.define_input import define_input
 from Utils.Utils import load_point_cloud
 import warnings
 import traceback

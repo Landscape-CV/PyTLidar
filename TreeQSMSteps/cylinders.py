@@ -26,7 +26,7 @@ This derivative work is released under the GNU General Public License (GPL).
 from numba import jit
 import numpy as np
 from collections import deque
-import LeastSquaresFitting.LSF as LSF
+import TreeQSMSteps.LSF as LSF
 from Utils.Utils import distances_to_line,distances_between_lines,growth_volume_correction,surface_coverage_filtering,surface_coverage2,verticalcat
 import Utils.Utils as Utils
 

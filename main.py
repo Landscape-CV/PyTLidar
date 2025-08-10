@@ -33,7 +33,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtGui import QPixmap
 from PySide6.QtPdf import QPdfDocument
 from PySide6.QtPdfWidgets import QPdfView 
-from tools.define_input import define_input
+from Utils.define_input import define_input
 from Utils.Utils import load_point_cloud
 import Utils.Utils as Utils
 from plotting.point_cloud_plotting import point_cloud_plotting

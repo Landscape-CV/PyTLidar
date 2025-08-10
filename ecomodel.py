@@ -19,12 +19,12 @@ from TreeQSMSteps.relative_size import relative_size
 from Utils.TreeSegmentation import segment_point_cloud
 from TreeQSMSteps.cylinders import cylinders
 from TreeQSMSteps.point_model_distance import point_model_distance
-from tools.define_input import define_input
+from Utils.define_input import define_input
 from plotting.cylinders_line_plotting import cylinders_line_plotting
 from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.cylinders_plotting import cylinders_plotting
 from plotting.qsm_plotting import qsm_plotting
-import LeastSquaresFitting.LSF as LSF
+import TreeQSMSteps.LSF as LSF
 from scipy.spatial.transform import Rotation 
 from scipy.spatial.distance import cdist
 import time
