@@ -1,8 +1,8 @@
 
 import numpy as np
 import scipy.stats as stats
-from main_steps.cover_sets import cover_sets
-from main_steps.tree_sets import tree_sets
+from TreeQSMSteps.cover_sets import cover_sets
+from TreeQSMSteps.tree_sets import tree_sets
 # from main_steps.segments import segments
 import torch
 import open3d as o3d

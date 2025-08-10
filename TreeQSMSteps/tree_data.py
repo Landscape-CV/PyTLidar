@@ -4,7 +4,6 @@ from alphashape import alphashape
 import Utils.Utils as Utils
 from Utils.Utils import orthonormal_vectors
 import LeastSquaresFitting.LSF as LSF
-from triangulation import curve_based_triangulation
 import plotting.PlottingUtils as PlottingUtils
 import matplotlib.pyplot as plt
 import matplotlib
@@ -639,6 +638,7 @@ def triangulate_stem(treedata, cylinder, branch, trunk):
         trunk (numpy.ndarray): Point cloud of the trunk.
     Returns:
         (dict, dict): Updated tree data with triangulation attributes and triangulation data."""
+    raise NotImplementedError("Triangulation is currently disabled.")
     Sta = cylinder['start']
     Rad = cylinder['radius']
     Len = cylinder['length']

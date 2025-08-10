@@ -1,5 +1,8 @@
 import numpy as np
-from main_steps.point_model_distance import point_model_distance
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+from TreeQSMSteps.point_model_distance import point_model_distance
 
 
 def test_single_vertical_cylinder():

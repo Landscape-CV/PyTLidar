@@ -25,14 +25,14 @@ This derivative work is released under the GNU General Public License (GPL).
 from numba import jit
 import numpy as np
 from datetime import datetime
-from main_steps.cover_sets import cover_sets
-from main_steps.tree_sets import tree_sets
-from main_steps.segments import segments
-from main_steps.relative_size import relative_size
-from main_steps.cylinders import cylinders
-from main_steps.branches import branches
-from main_steps.tree_data import tree_data
-from main_steps.point_model_distance import point_model_distance
+from TreeQSMSteps.cover_sets import cover_sets
+from TreeQSMSteps.tree_sets import tree_sets
+from TreeQSMSteps.segments import segments
+from TreeQSMSteps.relative_size import relative_size
+from TreeQSMSteps.cylinders import cylinders
+from TreeQSMSteps.branches import branches
+from TreeQSMSteps.tree_data import tree_data
+from TreeQSMSteps.point_model_distance import point_model_distance
 from Utils.Utils import display_time,load_point_cloud
 from tools.define_input import define_input
 import Utils.Utils as Utils
@@ -41,8 +41,8 @@ import cProfile
 import pstats
 import warnings
 warnings.filterwarnings('ignore')
-from main_steps.correct_segments import correct_segments
-from main_steps.cube_volume import cube_volume
+from TreeQSMSteps.correct_segments import correct_segments
+from TreeQSMSteps.cube_volume import cube_volume
 from plotting.cylinders_line_plotting import cylinders_line_plotting
 from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.qsm_plotting import qsm_plotting

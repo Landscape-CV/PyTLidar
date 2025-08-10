@@ -1,5 +1,8 @@
 import numpy as np
-from main_steps.cover_sets import cover_sets
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+from TreeQSMSteps.cover_sets import cover_sets
 
 def test_uniform_cover_simple_grid():
     """Test uniform cover on a regular 3x3x3 grid of points"""

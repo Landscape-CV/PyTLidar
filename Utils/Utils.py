@@ -28,9 +28,7 @@ import open3d as o3d
 from robpy.covariance import DetMCD,FastMCD
 from scipy.spatial.transform import Rotation 
 
-# class Utils:
 
-# class Utils:
 
 
     
@@ -40,7 +38,7 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
     """
     Load a point cloud from LAS or LAZ files.
 
-    Parameters:
+    Args:
     file_path : str
         Path to the LAS or LAZ file.
 
@@ -79,7 +77,7 @@ def average(X):
     """
     Computes the average of the columns of the matrix X.
 
-    Parameters:
+    Args:
         X (array-like): Input matrix.
 
     Returns:
@@ -102,7 +100,7 @@ def change_precision(v):
     Decrease the number of nonzero decimals in the vector v according to the
     exponent of the number for displaying and writing.
 
-    Parameters:
+    Args:
         v (array-like): Input vector.
 
     Returns:
@@ -145,7 +143,7 @@ def cross_product(A, B):
     """
     Calculates the cross product C of the 3-vectors A and B.
 
-    Parameters:
+    Args:
         A (array-like): A 3-element vector.
         B (array-like): A 3-element vector.
 
@@ -165,7 +163,7 @@ def compute_patch_diam(pd, n):
     """
     Compute a range of PatchDiam values based on a given center value and count.
 
-    Parameters:
+    Args:
     pd : float
         Center value of PatchDiam.
     n : int
@@ -183,7 +181,7 @@ def dot_product(A, B):
     """
     Computes the dot product of the corresponding rows of the matrices A and B.
 
-    Parameters:
+    Args:
         A (array-like): Input matrix.
         B (array-like): Input matrix with the same shape as A.
 
@@ -201,7 +199,7 @@ def distances_to_line(Q, LineDirec, LinePoint):
     """
     Calculates the distances of points to a line in 3D space.
 
-    Parameters:
+    Args:
         Q (ndarray): An (n x 3) array of points in 3D space.
         LineDirec (ndarray): A 1x3 unit vector representing the line's direction.
         LinePoint (ndarray): A 1x3 vector representing a point on the line.
@@ -235,7 +233,7 @@ def distances_between_lines(PointRay, DirRay, PointLines, DirLines):
     """
     Calculates the distances between a ray and multiple lines.
 
-    Parameters:
+    Args:
     -----------
     PointRay : array-like, shape (3,)
         A point on the ray.
@@ -308,7 +306,7 @@ def sec2min(T):
     """
     Converts a time in seconds T into minutes and remaining seconds.
 
-    Parameters:
+    Args:
         T (float): Time in seconds.
 
     Returns:
@@ -349,49 +347,10 @@ def display_time(T1, T2, string, display):
         sys.stdout.write(result+'\n')
 
 
-def median2(X):
-    """
-    Computes the median of the given vector.
-
-    If the vector has more than one element, it sorts the vector and computes the median.
-    For an even number of elements, the median is the average of the two middle elements.
-    For an odd number of elements, the median is the middle element.
-    If the vector has only one element, it returns that element.
-
-    Parameters:
-        X (array-like): Input vector.
-
-    Returns:
-        float: The median of the vector.
-    """
-    X = np.array(X).flatten()  # Ensure X is a 1D array.
-    n = X.shape[0]
-    if n > 1:
-        X_sorted = np.sort(X)
-        m = n // 2  # Floor division.
-        if 2 * m == n:  # Even number of elements.
-            return (X_sorted[m - 1] + X_sorted[m]) / 2.0
-        else:  # Odd number of elements.
-            return X_sorted[m]
-    else:
-        return X[0]
 
 
-def normalize(A):
-    """
-    Normalize the rows of the matrix A.
 
-    Parameters:
-        A (array-like): Input matrix.
 
-    Returns:
-        A_normalized (numpy.ndarray): The matrix with each row normalized.
-        L (numpy.ndarray): 1D array containing the norm (Euclidean length) of each row.
-    """
-    A = np.array(A, dtype=float)
-    L = np.sqrt(np.sum(A**2, axis=1))
-    A_normalized = A / L[:, None]  # Broadcast division over rows.
-    return A_normalized, L
 
 
 def mat_vec_subtraction(A, v):
@@ -399,7 +358,7 @@ def mat_vec_subtraction(A, v):
     Subtracts from each row of the matrix A the vector v.
     If A is an (n x m)-matrix, then v needs to be an m-element vector.
 
-    Parameters:
+    Args:
         A (array-like): Input matrix of shape (n, m).
         v (array-like): 1D array of length m.
 
@@ -411,41 +370,14 @@ def mat_vec_subtraction(A, v):
     return A - v
 
 
-def verticalcat(cell_array):
-    """
-    Vertical concatenation of a list of arrays into a single vector.
 
-    Parameters:
-    cell_array (list of np.ndarray): A list where each element is a numpy array.
-
-    Returns:
-    tuple: A tuple (vector, ind_elements) where:
-        - vector is a 1D numpy array containing the concatenated values.
-        - ind_elements is a 2D numpy array where each row specifies the start
-          and end indices of the corresponding cell's elements in the vector.
-    """
-    # Determine the size of each array in the cell array
-    cell_size = np.array([len(cell) for cell in cell_array])
-
-    # Compute cumulative sum to determine index ranges
-    ind_elements = np.zeros((len(cell_array), 2), dtype=int)
-    ind_elements[:, 1] = np.cumsum(cell_size) - 1  # End indices
-    ind_elements[1:, 0] = 1 + ind_elements[:-1, 1]  # Start indices (shifted ends)
-
-    # Create the output vector and fill it
-    total_size = sum(cell_size)
-    vector = np.zeros(total_size, dtype=int)
-    for i, cell in enumerate(cell_array):
-        vector[ind_elements[i, 0]:ind_elements[i, 1] + 1] = cell
-
-    return vector, ind_elements
 
 @jit()
 def rotation_matrix(A, angle):
     """
     Returns the rotation matrix for the given axis A and angle (in radians).
 
-    Parameters:
+    Args:
         A (array-like): The axis of rotation (a 3-element vector).
         angle (float): The angle of rotation in radians.
 
@@ -497,7 +429,7 @@ def optimal_parallel_vector(V):
     For a given set of unit vectors (the rows of the matrix V), returns a unit vector v that is the most parallel to them all
     in the sense that the sum of squared dot products of v with the vectors of V is maximized.
 
-    Parameters:
+    Args:
         V (array-like): A 2D array where each row is a unit vector.
 
     Returns:
@@ -512,228 +444,19 @@ def optimal_parallel_vector(V):
     return vh[0]
 
 
-def expand(Nei, C, n, Forb=None):
-    """
-    Expands the given subset "C" of cover sets n times with their neighbors,
-    and optionally prevents the expansion into "Forb" sets. C is a vector (list or array)
-    and Forb can be a number vector (list/array) or a logical (boolean) vector (numpy array).
-
-    Parameters:
-        Nei (list of list of int): A list where each element is a list (or array) of neighboring indices.
-        C (list or array-like): Initial subset of indices.
-        n (int): Number of expansion iterations.
-        Forb (None or array-like): Optional. Either a boolean numpy array or a list/array of forbidden indices.
-
-    Returns:
-        numpy.ndarray: A 1D array containing the expanded set of indices (sorted in ascending order).
-    """
-    # Work with C as a list of integers.
-    C = list(C)
-    if Forb is None:
-        for _ in range(n):
-            # Concatenate neighbors from all indices in C.
-            new_neighbors = []
-            for idx in C:
-                new_neighbors.extend(Nei[idx])
-            # Union: combine current indices with new neighbors.
-            C = sorted(set(C).union(new_neighbors))
-        return np.array(C)
-    else:
-        # Branch depending on the type of Forb.
-        if isinstance(Forb, np.ndarray) and Forb.dtype == bool:
-            # Forb is a boolean vector.
-            for _ in range(n):
-                new_neighbors = []
-                for idx in C:
-                    new_neighbors.extend(Nei[idx])
-                C = sorted(set(C).union(new_neighbors))
-                # Remove indices where Forb is True.
-                C = [c for c in C if not Forb[c]]
-        else:
-            # Forb is assumed to be a number vector.
-            Forb_set = set(Forb)
-            for _ in range(n):
-                new_neighbors = []
-                for idx in C:
-                    new_neighbors.extend(Nei[idx])
-                C = sorted(set(C).union(new_neighbors))
-                # Remove forbidden indices.
-                C = sorted(set(C) - Forb_set)
-        return np.array(C)
-
-
-def unique2(Set):
-    """
-    Returns the unique elements of the given vector Set.
-    The input is first sorted, and then consecutive duplicates are removed.
-
-    Parameters:
-        Set (array-like): Input vector.
-
-    Returns:
-        numpy.ndarray: A 1D array containing the unique elements.
-    """
-    Set = np.array(Set)
-    n = Set.size
-    if n > 0:
-        sorted_set = np.sort(Set)
-        # For a single element, just return the sorted array.
-        if n == 1:
-            return sorted_set
-        # Compute differences between consecutive elements.
-        d = sorted_set[1:] - sorted_set[:-1]
-        # A contains the elements from the second element onward.
-        A = sorted_set[1:]
-        # Logical mask for differences greater than zero.
-        I = d > 0
-        # Concatenate the first element with those elements where a change occurs.
-        SetUni = np.concatenate(([sorted_set[0]], A[I]))
-        return SetUni
-    else:
-        return Set
-
 
 
 def unique_elements_array(arr,False_mask=None):
-
+    """
+    Alias for np.unique(arr) to maintain consistency with other functions.
+    Args:
+        arr (array-like): Input array.
+        False_mask (optional): Not used, included for compatibility.
+    Returns:
+        numpy.ndarray: A 1D array containing the unique elements."""
 
     return np.unique(arr)
 
-
-    if False_mask is None:
-        False_mask = np.zeros((len(arr),)).astype(bool)
-    False_mask = False_mask.copy()
-    n = len(arr)
-    
-    if n > 2:
-        I = [True] * n
-        for j in range(n):
-            if not False_mask[arr[j].astype(int)]:
-                False_mask[arr[j].astype(int)] = True
-            else:
-                I[j] = False
-        arr = [arr[i] for i in range(n) if I[i]]
-        
-    elif n == 2:
-        if arr[0] == arr[1]:
-            arr = [arr[0]]
-    
-    return np.array(arr)
-
-
-def dimensions(points, *args):
-    """
-    Calculates the box dimensions and dimension estimates of the point set "points".
-    Also returns the corresponding direction vectors.
-
-    Parameters:
-        points (np.ndarray): A numpy array of shape (n_points, d) where d = 2 or 3.
-        *args:
-            If one extra argument is provided:
-                P (np.ndarray): An indexable array used to re-map "points".
-                points = P[points, :]
-            If two extra arguments are provided:
-                P (np.ndarray): An indexable array.
-                Bal (list or dict): A collection where indexing by "points" returns index arrays.
-                I = np.concatenate([Bal[idx] for idx in points])
-                points = P[I, :]
-
-    Returns:
-        D (np.ndarray): A vector containing extents and variance ratios.
-        dir (np.ndarray): A matrix whose rows are the principal direction vectors.
-                          For a d-dimensional space, the output shape will be (d, d).
-    """
-
-    # Handle optional arguments to remap 'points'
-    if len(args) == 1:
-        P = args[0]
-        points = P[points, :]
-    elif len(args) == 2:
-        P = args[0]
-        Bal = args[1]
-        # Assuming Bal is a list-like structure where each element Bal[idx] is an index array.
-        I = np.concatenate([np.asarray(Bal[idx]) for idx in points])
-        points = P[I, :]
-
-    # Calculate the covariance matrix.
-    # np.cov expects data variables as rows by default, so we need to set rowvar=False.
-    X = np.cov(points, rowvar=False)
-
-    # Compute the Singular Value Decomposition.
-    U, S_vals, _ = np.linalg.svd(X)
-
-    # Create diagonal matrix S so that S(i,i) = S_vals[i]
-    S = np.diag(S_vals)
-
-    d = points.shape[1]
-
-    if d == 3:
-        # Project the points on the principal axes.
-        dp1 = points @ U[:, 0]
-        dp2 = points @ U[:, 1]
-        dp3 = points @ U[:, 2]
-
-        # Calculate extents along each principal direction.
-        extent1 = np.max(dp1) - np.min(dp1)
-        extent2 = np.max(dp2) - np.min(dp2)
-        extent3 = np.max(dp3) - np.min(dp3)
-
-        # Calculate variance ratios.
-        ratio1 = (S[0, 0] - S[1, 1]) / S[0, 0] if S[0, 0] != 0 else 0
-        ratio2 = (S[1, 1] - S[2, 2]) / S[0, 0] if S[0, 0] != 0 else 0
-        ratio3 = S[2, 2] / S[0, 0] if S[0, 0] != 0 else 0
-
-        # Dimensions vector: extents and ratios.
-        D = np.array([extent1, extent2, extent3, ratio1, ratio2, ratio3])
-
-        # Direction vectors as rows.
-        dir_vectors = np.vstack((U[:, 0].T, U[:, 1].T, U[:, 2].T))
-    elif d == 2:
-        dp1 = points @ U[:, 0]
-        dp2 = points @ U[:, 1]
-
-        extent1 = np.max(dp1) - np.min(dp1)
-        extent2 = np.max(dp2) - np.min(dp2)
-
-        ratio1 = (S[0, 0] - S[1, 1]) / S[0, 0] if S[0, 0] != 0 else 0
-        ratio2 = S[1, 1] / S[0, 0] if S[0, 0] != 0 else 0
-
-        D = np.array([extent1, extent2, ratio1, ratio2])
-        dir_vectors = np.vstack((U[:, 0].T, U[:, 1].T))
-    else:
-        raise ValueError("The dimension of points must be either 2 or 3.")
-
-    return D, dir_vectors
-
-
-def intersect_elements(Set1, Set2, tracker1, tracker2):
-    """
-    Determines the intersection of Set1 and Set2 using the provided boolean trackers.
-    The function first computes the union of Set1 and Set2 (using unique2),
-    then marks the elements present in Set1 in tracker1 and those in Set2 in tracker2.
-    Finally, it selects those elements from the union that are marked True in both trackers.
-
-    Parameters:
-        Set1 (array-like): A list or array of integer indices.
-        Set2 (array-like): A list or array of integer indices.
-        tracker1 (numpy.ndarray of bool): A boolean tracker array (sized to cover possible indices).
-        tracker2 (numpy.ndarray of bool): A second boolean tracker array.
-
-    Returns:
-        numpy.ndarray: An array containing the elements that are present in both Set1 and Set2.
-    """
-    # Compute the union of Set1 and Set2 using unique2.
-    union_set = unique2(np.concatenate((Set1, Set2)))
-    # Ensure union_set is of integer type for indexing.
-    union_set = union_set.astype(int)
-    # Mark the occurrences of elements in Set1 and Set2.
-    for elem in Set1:
-        tracker1[elem] = True
-    for elem in Set2:
-        tracker2[elem] = True
-    # Select those elements from the union for which both trackers are True.
-    mask = np.logical_and(tracker1[union_set], tracker2[union_set])
-    return union_set[mask]
 
 
 def connected_components_array(Nei, Sub, MinSize, Fal=None):
@@ -848,289 +571,21 @@ def connected_components_array(Nei, Sub, MinSize, Fal=None):
         return [], 0
 
 
-def cubical_averaging(P, CubeSize):
-    """
-    Downsamples the given point cloud P by averaging points from each cube of side length CubeSize.
-
-    Parameters:
-        P (numpy.ndarray): An (n, 3) array representing the point cloud.
-        CubeSize (float): The edge length of each cube.
-
-    Returns:
-        DSP (numpy.ndarray): Downsampled point cloud; one averaged point per occupied cube.
-    """
-    start_time = time.time()
-
-    # Compute the minimum and maximum coordinates of P.
-    Min = np.min(P, axis=0).astype(float)
-    Max = np.max(P, axis=0).astype(float)
-
-    # Number of cubes along each dimension: N = ceil((Max - Min) / CubeSize) + 1
-    N = np.ceil((Max - Min) / CubeSize).astype(int) + 1
-
-    # Determine the cube coordinates for each point in P.
-    CubeCoord = np.floor((P - Min) / CubeSize).astype(int) + 1
-
-    # Compute lexicographical order for each point.
-    LexOrd = (CubeCoord[:, 0] +
-                (CubeCoord[:, 1] - 1) * N[0] +
-                (CubeCoord[:, 2] - 1) * N[0] * N[1])
-
-    # Sort points by lexicographical order.
-    SortOrd = np.argsort(LexOrd)
-    LexOrd_sorted = LexOrd[SortOrd]
-
-    # Determine the number of unique cubes occupied.
-    nc = len(np.unique(LexOrd))
-    np_total = P.shape[0]
-
-    DSP_list = []
-    p_index = 0
-
-    while p_index < np_total:
-        t = 1
-        while (p_index + t < np_total) and (LexOrd_sorted[p_index] == LexOrd_sorted[p_index + t]):
-            t += 1
-        indices = SortOrd[p_index : p_index + t]
-        avg_point = average(P[indices, :])
-        # Ensure that the averaged point is a flat (1D) array.
-        avg_point = np.asarray(avg_point).flatten()
-        DSP_list.append(avg_point)
-        p_index += t
-
-    DSP = np.array(DSP_list)
-    elapsed = time.time() - start_time
-
-    print(f"Time {elapsed:.3f} sec.   Total: {elapsed:.3f} sec")
-    print(f"    Points before:  {np_total}")
-    print(f"  Filtered points:  {np_total - nc}")
-    print(f"      Points left:  {nc}")
-
-    return DSP
-
-
-def create_input():
-    """
-    Creates the input parameter dictionary needed to run the 'treeqsm' and 'filtering' functions.
-    This replicates the MATLAB 'create input' script.
-    """
-    inputs = {}
-    # QSM reconstruction parameters
-    # The three input parameters to be optimized.
-    inputs['PatchDiam1'] = np.array([0.08, 0.12])
-    inputs['PatchDiam2Min'] = np.array([0.02, 0.03])
-    inputs['PatchDiam2Max'] = np.array([0.07, 0.1])
-
-    # Additional patch generation parameters.
-    # Ball radius in the first uniform-size cover generation.
-    inputs['BallRad1'] = inputs['PatchDiam1'] + 0.015
-    # Maximum ball radius in the second cover generation.
-    inputs['BallRad2'] = inputs['PatchDiam2Max'] + 0.01
-
-    # Fixed parameters.
-    inputs['nmin1'] = 3       # Minimum number of points in BallRad1-balls.
-    inputs['nmin2'] = 1       # Minimum number of points in BallRad2-balls.
-    inputs['OnlyTree'] = 1    # Does the point cloud contain points only from the tree.
-    inputs['Tria'] = 0        # Produce a triangulation of the stem's bottom part.
-    inputs['Dist'] = 1        # Compute the point-model distances.
-
-    # Radius correction options.
-    inputs['MinCylRad'] = 0.0025
-    inputs['ParentCor'] = 1
-    inputs['TaperCor'] = 1
-    inputs['GrowthVolCor'] = 0
-    inputs['GrowthVolFac'] = 1.5
-
-    # Filtering parameters.
-    inputs['filter'] = {}
-    inputs['filter']['k'] = 10             # k-nearest neighbors.
-    inputs['filter']['radius'] = 0.00        # Ball neighborhood radius.
-    inputs['filter']['nsigma'] = 1.5         # Multiplier of standard deviation.
-    inputs['filter']['PatchDiam1'] = 0.05    # Filtering patch diameter.
-    inputs['filter']['BallRad1'] = 0.075     # Filtering ball radius.
-    inputs['filter']['ncomp'] = 2            # Minimum number of patches in a component.
-    inputs['filter']['EdgeLength'] = 0.004   # Cube edge length for downsampling.
-    inputs['filter']['plot'] = 1             # Automatically plot filtering results.
-
-    # Other inputs.
-    inputs['name'] = 'tree'   # Name string for saving output files.
-    inputs['tree'] = 1        # Tree index.
-    inputs['model'] = 1       # Model index.
-    inputs['savemat'] = 1     # Save output as a MATLAB file.
-    inputs['savetxt'] = 1     # Save models in text files.
-    inputs['plot'] = 2        # What to plot during reconstruction.
-    inputs['disp'] = 2        # Verbosity of displayed information.
-
-    return inputs
-
-
-def define_input(Clouds, nPD1, nPD2Min, nPD2Max):
-    """
-    Defines the required inputs (PatchDiam and BallRad parameters) for TreeQSM based on
-    estimated tree stem radius and tree height.
-
-    Inputs:
-        Clouds  : Either a point cloud (n x 3 numpy array) for a single tree OR a string
-                    specifying the base name of a .mat file containing multiple point clouds.
-        nPD1    : Number of parameter values for PatchDiam1.
-        nPD2Min : Number of parameter values for PatchDiam2Min.
-        nPD2Max : Number of parameter values for PatchDiam2Max.
-
-    Output:
-        inputs  : A list of input dictionaries (one per tree) with the estimated parameter values.
-    """
-    # Create default input structure using create_input (assumed to be implemented).
-    default_input = create_input()
-    inputs_list = []
-
-    # Check if Clouds is a string (i.e. multiple trees from a MAT file)
-    if isinstance(Clouds, str):
-        mat_data = loadmat(Clouds + ".mat")
-        # Exclude MATLAB hidden fields and the 'Properties' field.
-        names = [key for key in mat_data.keys() if not key.startswith('__') and key != 'Properties']
-        names.sort()  # Sort names alphabetically.
-        nt = len(names)  # Number of trees/point clouds.
-    else:
-        # Single tree case: Clouds is a point cloud.
-        P = np.array(Clouds, dtype=float)
-        nt = 1
-
-    # Pre-allocate the inputs list.
-    if nt > 1:
-        for _ in range(nt):
-            inputs_list.append(copy.deepcopy(default_input))
-    else:
-        inputs_list.append(copy.deepcopy(default_input))
-
-    # Process each tree.
-    if nt > 1:
-        # Multiple trees: load each point cloud from the MAT file.
-        for i in range(nt):
-            tree_input = inputs_list[i]
-            tree_input['name'] = names[i]
-            tree_input['tree'] = i + 1
-            tree_input['plot'] = 0
-            tree_input['savetxt'] = 0
-            tree_input['savemat'] = 0
-            tree_input['disp'] = 0
-
-            # Extract point cloud P for this tree.
-            P = np.array(mat_data[names[i]], dtype=float)
-
-            # Estimate stem parameters.
-            Hb = np.min(P[:, 2])
-            Ht = np.max(P[:, 2])
-            TreeHeight = Ht - Hb
-            Hei = P[:, 2] - Hb
-
-            hSecTop = min(4, 0.1 * TreeHeight)
-            hSecBot = 0.02 * TreeHeight
-            hSec = hSecTop - hSecBot
-            Sec = (Hei > hSecBot) & (Hei < hSecTop)
-            StemBot = P[Sec, :3]
-
-            # Estimate stem axis.
-            AxisPoint = np.mean(StemBot, axis=0)
-            V = StemBot - AxisPoint
-            V_normalized, _ = normalize(V)
-            AxisDir, _, _, _ = optimal_parallel_vector(V_normalized)
-            d, _, _, _ = distances_to_line(StemBot, AxisDir, AxisPoint)
-            Rstem = float(np.median(d))
-            Res = np.sqrt((2 * np.pi * Rstem * hSec) / StemBot.shape[0])
-
-            # Define PatchDiam1.
-            pd1 = Rstem / 3.0
-            if nPD1 == 1:
-                tree_input['PatchDiam1'] = pd1
-            else:
-                n = nPD1
-                tree_input['PatchDiam1'] = np.linspace((0.90 - (n - 2) * 0.1) * pd1,
-                                                        (1.10 + (n - 2) * 0.1) * pd1, n)
-
-            # Define PatchDiam2Min.
-            pd2 = Rstem / 6.0 * min(1, 20 / TreeHeight)
-            if nPD2Min == 1:
-                tree_input['PatchDiam2Min'] = pd2
-            else:
-                n = nPD2Min
-                tree_input['PatchDiam2Min'] = np.linspace((0.90 - (n - 2) * 0.1) * pd2,
-                                                            (1.10 + (n - 2) * 0.1) * pd2, n)
-
-            # Define PatchDiam2Max.
-            pd3 = Rstem / 2.5
-            if nPD2Max == 1:
-                tree_input['PatchDiam2Max'] = pd3
-            else:
-                n = nPD2Max
-                tree_input['PatchDiam2Max'] = np.linspace((0.90 - (n - 2) * 0.1) * pd3,
-                                                            (1.10 + (n - 2) * 0.1) * pd3, n)
-
-            # Define the BallRad parameters.
-            # For PatchDiam1, if it is an array, use its first element.
-            pd1_val = tree_input['PatchDiam1'][0] if not np.isscalar(tree_input['PatchDiam1']) else tree_input['PatchDiam1']
-            pd3_val = tree_input['PatchDiam2Max'][0] if not np.isscalar(tree_input['PatchDiam2Max']) else tree_input['PatchDiam2Max']
-            tree_input['BallRad1'] = max(pd1_val + 1.5 * Res, min(1.25 * pd1_val, pd1_val + 0.025))
-            tree_input['BallRad2'] = max(pd3_val + 1.25 * Res, min(1.2 * pd3_val, pd3_val + 0.025))
-    else:
-        # Single tree case.
-        tree_input = inputs_list[0]
-        P = np.array(Clouds, dtype=float)
-        Hb = np.min(P[:, 2])
-        Ht = np.max(P[:, 2])
-        TreeHeight = Ht - Hb
-        Hei = P[:, 2] - Hb
-
-        hSecTop = min(4, 0.1 * TreeHeight)
-        hSecBot = 0.02 * TreeHeight
-        hSec = hSecTop - hSecBot
-        Sec = (Hei > hSecBot) & (Hei < hSecTop)
-        StemBot = P[Sec, :3]
-
-        AxisPoint = np.mean(StemBot, axis=0)
-        V = StemBot - AxisPoint
-        V_normalized, _ = normalize(V)
-        AxisDir, _, _, _ = optimal_parallel_vector(V_normalized)
-        d, _, _, _ = distances_to_line(StemBot, AxisDir, AxisPoint)
-        Rstem = float(np.median(d))
-        Res = np.sqrt((2 * np.pi * Rstem * hSec) / StemBot.shape[0])
-
-        pd1 = Rstem / 3.0
-        if nPD1 == 1:
-            tree_input['PatchDiam1'] = pd1
-        else:
-            n = nPD1
-            tree_input['PatchDiam1'] = np.linspace((0.90 - (n - 2) * 0.1) * pd1,
-                                                    (1.10 + (n - 2) * 0.1) * pd1, n)
-
-        pd2 = Rstem / 6.0 * min(1, 20 / TreeHeight)
-        if nPD2Min == 1:
-            tree_input['PatchDiam2Min'] = pd2
-        else:
-            n = nPD2Min
-            tree_input['PatchDiam2Min'] = np.linspace((0.90 - (n - 2) * 0.1) * pd2,
-                                                        (1.10 + (n - 2) * 0.1) * pd2, n)
-
-        pd3 = Rstem / 2.5
-        if nPD2Max == 1:
-            tree_input['PatchDiam2Max'] = pd3
-        else:
-            n = nPD2Max
-            tree_input['PatchDiam2Max'] = np.linspace((0.90 - (n - 2) * 0.1) * pd3,
-                                                        (1.10 + (n - 2) * 0.1) * pd3, n)
-
-        pd1_val = tree_input['PatchDiam1'][0] if not np.isscalar(tree_input['PatchDiam1']) else tree_input['PatchDiam1']
-        pd3_val = tree_input['PatchDiam2Max'][0] if not np.isscalar(tree_input['PatchDiam2Max']) else tree_input['PatchDiam2Max']
-        tree_input['BallRad1'] = max(pd1_val + 1.5 * Res, min(1.25 * pd1_val, pd1_val + 0.025))
-        tree_input['BallRad2'] = max(pd3_val + 1.25 * Res, min(1.2 * pd3_val, pd3_val + 0.025))
-
-    return inputs_list
-
 
 def set_difference(Set1,Set2,Fal):
+    """
+        Performs the set difference so that the common elements of Set1 and Set2
+        are removed from Set1, which is the output. Uses logical vector whose
+        length must be up to the maximum element of the sets.
 
-# % Performs the set difference so that the common elements of Set1 and Set2
-# % are removed from Set1, which is the output. Uses logical vector whose
-# % length must be up to the maximum element of the sets.
+        Args:
+            Set1 (array-like): A list or array of integer indices.
+            Set2 (array-like): A list or array of integer indices.
+            Fal (numpy.ndarray of bool): A boolean tracker array (sized to cover possible indices).
+        Returns:
+            numpy.ndarray: An array containing the elements of Set1 that are not in Set2.
+    """
+
    
     Fal[Set2] = True
     I = Fal[Set1]
@@ -1147,8 +602,8 @@ def save_model_text(QSM, savename):
         - results/branch_{savename}.txt
         - results/treedata_{savename}.txt
 
-    Parameters:
-        QSM (dict): Dictionary with keys "cylinder", "branch", and "treedata".
+    Args:
+        QSM (dict): Dictionary with keys "cylinder", "branch", and "treedata". Created during the TreeQSM process.
         savename (str): String used to define the file names.
     """
     # Ensure results directory exists.
@@ -1247,13 +702,13 @@ def cubical_partition(P, EL, NE=3, return_cubes = True):
     """
     Partition the point cloud into cubic cells.
 
-    Parameters:
+    Args:
     P (numpy.ndarray): Point cloud, shape (n_points, 3).
     EL (float): Length of the cube edges.
     NE (int): Number of empty edge layers (default=3).
 
     Returns:
-    tuple: Partition (list of lists of point indices), CubeCoord (n_points x 3 matrix of cube coordinates),
+    (list, np.Array,list): Partition (list of lists of point indices), CubeCoord (n_points x 3 matrix of cube coordinates),
            Info (list containing [Min, N, EL, NE]), and optionally Cubes (3D numpy array).
     """
     # Convert P to a numpy array if not already
@@ -1335,81 +790,14 @@ def cubical_partition(P, EL, NE=3, return_cubes = True):
         return Partition,CubeCoord,Info
 
 
-def cubical_downsampling(P, CubeSize):
-    """
-    Downsamples the given point cloud by selecting one point from each cube of side length CubeSize.
-
-    Parameters:
-        P (numpy.ndarray): (n_points x 3) array representing the point cloud.
-        CubeSize (float): Length of the cube edges.
-
-    Returns:
-        Pass (numpy.ndarray): Boolean array of length n_points, where True indicates that the corresponding
-                                point is selected as the representative for its cube.
-    """
-    P = np.array(P, dtype=float)
-    np_points = P.shape[0]
-
-    # Determine the bounding box of P.
-    Min = np.min(P, axis=0).astype(float)
-    Max = np.max(P, axis=0).astype(float)
-
-    # Number of cubes along each dimension: N = ceil((Max - Min) / CubeSize) + 1 (elementwise)
-    N = np.ceil((Max - Min) / CubeSize).astype(int) + 1
-
-    # Process the data in blocks of m points (to reduce memory consumption)
-    m = int(1e7)
-    if np_points < m:
-        m = np_points
-    nblocks = int(np.ceil(np_points / m))
-
-    R_list = []  # List to store [S, index] pairs for each block.
-    p = 0
-    for i in range(nblocks):
-        if i < nblocks - 1:
-            block = P[p : p + m, :]
-            block_end = p + m
-        else:
-            block = P[p:, :]
-            block_end = np_points
-
-        # Compute cube coordinates for the current block:
-        # Each coordinate: floor((P - Min) / CubeSize) + 1 (to mimic MATLAB 1-indexing)
-        C = np.floor((block - Min) / CubeSize).astype(int) + 1
-
-        # Compute lexicographical order S for each point in the block:
-        # S = C[:,0] + (C[:,1]-1)*N[0] + (C[:,2]-1)*N[0]*N[1]
-        S = C[:, 0] + (C[:, 1] - 1) * N[0] + (C[:, 2] - 1) * N[0] * N[1]
-
-        # Get the unique cube values (and the indices of their first occurrence) within the block.
-        unique_S, unique_idx = np.unique(S, return_index=True)
-        # Create an array of the original indices corresponding to the current block.
-        J = np.arange(p, block_end)
-        # For the unique cubes in this block, save [S, index] pairs.
-        R_block = np.column_stack((S[unique_idx], J[unique_idx]))
-        R_list.append(R_block)
-        p = block_end
-
-    # Concatenate all blocks.
-    R_all = np.vstack(R_list)
-    # Across all blocks, select unique cubes (first occurrence).
-    unique_all, idx_all = np.unique(R_all[:, 0], return_index=True)
-    selected_indices = R_all[idx_all, 1].astype(int)
-
-    # Build the output boolean mask.
-    Pass = np.zeros(np_points, dtype=bool)
-    Pass[selected_indices] = True
-
-    return Pass
-
-
 def growth_volume_correction(cylinder, inputs):
     """
     Uses a growth volume allometry approach to modify the radii of cylinders.
     The allometry model is: Predicted Radius = a * (GrowthVolume)^b + c.
+    
 
-    Parameters:
-        cylinder (dict): Dictionary containing at least:
+    Args:
+        cylinder (dict): Cylinder data used in the TreeQSM process:
             - "radius": measured radii (array-like)
             - "length": lengths (array-like)
             - "parent": parent indices (array-like, 1-indexed; 0 indicates no parent)
@@ -1524,29 +912,13 @@ def growth_volume_correction(cylinder, inputs):
     return cylinder
 
 
-def select_cylinders(cylinder, Ind):
-    """
-    For each field in the dictionary 'cylinder', selects the rows specified by Ind.
-    Assumes that each value in 'cylinder' is a 2D NumPy array.
 
-    Parameters:
-        cylinder (dict): Dictionary whose keys correspond to fields and whose values
-                            are NumPy arrays.
-        Ind (array-like): Indices of the rows to select.
-
-    Returns:
-        dict: The updated cylinder dictionary with each field indexed by Ind.
-    """
-    for key in cylinder.keys():
-        # Select the rows indicated by Ind from each field.
-        cylinder[key] = np.array(cylinder[key])[Ind, :]
-    return cylinder
 
 
 @jit(nopython=True)
 def surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
     """
-    First half of surface coverage moved out for compilation
+    First half of surface coverage moved out for numba compilation
     """
     # Compute distances, projections and heights from points to the cylinder axis.
     d, V, h, _ = distances_to_line(P, Axis, Point)
@@ -1631,7 +1003,7 @@ def surface_coverage(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
     """
     Computes point surface coverage measure of a cylinder.
 
-    Parameters:
+    Args:
         P     : (n_points x 3) NumPy array representing the point cloud.
         Axis  : (1 x 3) axis direction vector.
         Point : (1 x 3) starting point of the cylinder.
@@ -1699,7 +1071,7 @@ def surface_coverage2(axis, length, vec, height, nl, ns):
     """
     Compute surface coverage (fraction of covered cells on a cylindrical surface).
 
-    Parameters:
+    Args:
         axis (array-like): Axis vector of the cylinder.
         length (float): Length of the cylinder.
         vec (np.ndarray): Vectors connecting points to the axis (n x 3).
@@ -1890,279 +1262,7 @@ def surface_coverage_filtering(P, axis,start,length, lh, ns):
     return Pass_ordered, R_final,SurfCov,mad
 
 
-def update_tree_data(QSM, cylinder, branch, inputs):
-    """
-    Updates the treedata structure after QSM simplification.
 
-    Inputs:
-        QSM      : Dictionary with at least key "treedata" (and optionally "triangulation")
-        cylinder : Dictionary with cylinder fields including "radius", "length", "start", "axis", "branch"
-        branch   : Dictionary with branch fields (order, volume, area, length, height, angle, azimuth, zenith, diameter)
-        inputs   : Dictionary with processing options (e.g., "Tria", "disp", "plot")
-
-    Output:
-        treedata : Updated dictionary with tree attributes.
-    """
-    # Copy existing treedata from QSM.
-    treedata = copy.deepcopy(QSM["treedata"])
-
-    # Extract cylinder data.
-    Rad = np.array(cylinder["radius"], dtype=float)
-    Len = np.array(cylinder["length"], dtype=float)
-    Sta = np.array(cylinder["start"], dtype=float)  # (n x 3)
-    Axe = np.array(cylinder["axis"], dtype=float)   # (n x 3)
-    nc = len(Rad)
-    ind = np.arange(1, nc+1)  # 1-indexed indices
-
-    # Identify trunk cylinders (cylinder.branch == 1).
-    Trunk = (np.array(cylinder["branch"]) == 1)
-
-    # Compute basic tree attributes.
-    treedata["TotalVolume"] = 1000 * np.pi * np.sum(Rad**2 * Len)
-    treedata["TrunkVolume"] = 1000 * np.pi * np.sum(Rad[Trunk]**2 * Len[Trunk])
-    treedata["BranchVolume"] = 1000 * np.pi * np.sum(Rad[~Trunk]**2 * Len[~Trunk])
-    bottom = np.min(Sta[:,2])
-    top_val = np.max(Sta[:,2])
-    top_idx = np.argmax(Sta[:,2])
-    if Axe[top_idx,2] > 0:
-        top_val = top_val + Len[top_idx] * Axe[top_idx,2]
-    treedata["TreeHeight"] = top_val - bottom
-    treedata["TrunkLength"] = np.sum(Len[Trunk])
-    treedata["BranchLength"] = np.sum(Len[~Trunk])
-    treedata["TotalLength"] = treedata["TrunkLength"] + treedata["BranchLength"]
-    NB = len(branch["order"]) - 1
-    treedata["NumberBranches"] = NB
-    BO = np.max(branch["order"])
-    treedata["MaxBranchOrder"] = BO
-    treedata["TrunkArea"] = 2 * np.pi * np.sum(Rad[Trunk] * Len[Trunk])
-    treedata["BranchArea"] = 2 * np.pi * np.sum(Rad[~Trunk] * Len[~Trunk])
-    treedata["TotalArea"] = 2 * np.pi * np.sum(Rad * Len)
-
-    # Compute crown measures, vertical profile, and spreads.
-    treedata, spreads = crown_measures(treedata, cylinder, branch)
-
-    # Set crown attributes.
-    branch_orders = np.array(branch["order"])
-    # Simple rule: if any branch has order > 1, crown base height is 1.0 m; else, crown base equals tree height.
-    if np.any(branch_orders > 1):
-        CrownBaseHeight = 1.0
-    else:
-        CrownBaseHeight = treedata["TreeHeight"]
-    treedata["CrownBaseHeight"] = CrownBaseHeight
-    treedata["CrownLength"] = treedata["TreeHeight"] - CrownBaseHeight
-    treedata["CrownRatio"] = (treedata["CrownLength"] / treedata["TreeHeight"]
-                                if treedata["TreeHeight"] != 0 else 0.0)
-
-    # Update triangulation if requested.
-    if inputs["Tria"]:
-        treedata = update_triangulation(QSM, treedata, cylinder)
-    else:
-        # Ensure mix keys exist.
-        treedata["MixTrunkVolume"] = 0.0
-        treedata["MixTotalVolume"] = 0.0
-        treedata["MixTrunkArea"] = 0.0
-        treedata["MixTotalArea"] = 0.0
-
-    # Tree location.
-    treedata["location"] = Sta[0, :]
-
-    # Stem taper.
-    R_trunk = Rad[Trunk]
-    n_trunk = len(R_trunk)
-    Taper = np.zeros((n_trunk+1, 2))
-    if n_trunk > 0:
-        Taper[0, 1] = 2 * R_trunk[0]
-    if n_trunk > 1:
-        trunk_lengths = Len[Trunk]
-        Taper[1:, 0] = np.cumsum(trunk_lengths)
-        Taper[1:, 1] = np.concatenate((2 * R_trunk[1:], [2 * R_trunk[-1]]))
-    treedata["StemTaper"] = Taper.T
-
-    # Vertical profile and spreads.
-    treedata["VerticalProfile"] = np.mean(spreads, axis=1)
-    treedata["spreads"] = spreads
-
-    # Cylinder distributions.
-    treedata = cylinder_distribution(treedata, Rad, Len, Axe, "Dia")
-    treedata = cylinder_height_distribution(treedata, Rad, Len, Sta, Axe, ind)
-    treedata = cylinder_distribution(treedata, Rad, Len, Axe, "Zen")
-    treedata = cylinder_distribution(treedata, Rad, Len, Axe, "Azi")
-
-    # Branch distributions.
-    treedata = branch_order_distribution(treedata, branch)
-    treedata = branch_distribution(treedata, branch, "Dia")
-    treedata = branch_distribution(treedata, branch, "Hei")
-    treedata = branch_distribution(treedata, branch, "Ang")
-    treedata = branch_distribution(treedata, branch, "Azi")
-    treedata = branch_distribution(treedata, branch, "Zen")
-
-    # Convert all fields to single precision.
-    for key in list(treedata.keys()):
-        treedata[key] = np.array(treedata[key], dtype=np.float32)
-
-    # Optionally display treedata.
-    if inputs["disp"] == 2:
-        print("------------")
-        print("  Tree attributes:")
-        for key in treedata.keys():
-            v = change_precision(np.atleast_1d(treedata[key]))
-            print(f"  {key} = {v}")
-        print("  -----")
-
-    # Optionally plot distributions (placeholder).
-    if inputs["plot"] > 1:
-        print("Plotting distributions (placeholder).")
-
-    return treedata
-
-
-def crown_measures(treedata, cylinder, branch):
-    """
-    Simplified crown measures implementation.
-    Generates a crown point cloud from cylinder start and tip positions,
-    then computes average and maximum crown diameters.
-    Also returns dummy spreads.
-    """
-    Axe = cylinder["axis"]
-    Len = cylinder["length"]
-    Sta = cylinder["start"]
-    Tip = Sta + (np.array(Len).reshape(-1,1) * np.array(Axe))
-    nc = len(Len)
-    P = np.vstack((Sta, Tip))
-    P = np.unique(P, axis=0)
-    treedata["CrownDiamAve"] = np.mean(np.linalg.norm(P[:, :2], axis=1)) * 2
-    treedata["CrownDiamMax"] = np.max(np.linalg.norm(P[:, :2], axis=1)) * 2
-    treedata["CrownAreaConv"] = 1.0
-    treedata["CrownAreaAlpha"] = 1.0
-    m = 5  # number of layers for crown measures
-    spreads = np.zeros((m, 18))
-    return treedata, spreads
-
-
-def update_triangulation(QSM, treedata, cylinder):
-    """
-    Simplified update of triangulation-related fields.
-    If QSM.triangulation exists, update mix volumes and areas.
-    """
-    if "triangulation" in QSM and QSM["triangulation"]:
-        triang = QSM["triangulation"]
-        treedata["MixTrunkVolume"] = treedata["TrunkVolume"] * 0.9 + triang.get("volume", 0.0)
-        treedata["MixTotalVolume"] = treedata["MixTrunkVolume"] + treedata["BranchVolume"]
-        treedata["MixTrunkArea"] = treedata["TrunkArea"] * 0.9 + triang.get("SideArea", 0.0)
-        treedata["MixTotalArea"] = treedata["MixTrunkArea"] + treedata["BranchArea"]
-    return treedata
-
-
-def cylinder_distribution(treedata, Rad, Len, Axe, dist):
-    if dist == "Dia":
-        Par = Rad
-        n = int(np.ceil(np.max(100 * np.array(Par))))
-        a = 0.005
-    elif dist == "Zen":
-        Par = np.degrees(np.arccos(np.array(Axe)[:,2]))
-        n = 18
-        a = 10
-    elif dist == "Azi":
-        Par = np.degrees(np.arctan2(np.array(Axe)[:,1], np.array(Axe)[:,0])) + 180
-        n = 36
-        a = 10
-    else:
-        raise ValueError("Unknown distribution type")
-    CylDist = np.zeros((3, n))
-    for i in range(n):
-        I = (np.array(Par) >= i * a) & (np.array(Par) < (i+1) * a)
-        CylDist[0, i] = 1000 * np.pi * np.sum(np.array(Rad)[I]**2 * np.array(Len)[I])
-        CylDist[1, i] = 2 * np.pi * np.sum(np.array(Rad)[I] * np.array(Len)[I])
-        CylDist[2, i] = np.sum(np.array(Len)[I])
-    treedata["VolCyl" + dist] = CylDist[0, :].tolist()
-    treedata["AreCyl" + dist] = CylDist[1, :].tolist()
-    treedata["LenCyl" + dist] = CylDist[2, :].tolist()
-    return treedata
-
-
-def cylinder_height_distribution(treedata, Rad, Len, Sta, Axe, ind):
-    MaxHei = int(np.ceil(treedata["TreeHeight"]))
-    treedata["VolCylHei"] = np.zeros(MaxHei)
-    treedata["AreCylHei"] = np.zeros(MaxHei)
-    treedata["LenCylHei"] = np.zeros(MaxHei)
-    End = Sta + (np.array(Len).reshape(-1, 1) * np.array(Axe))
-    bot = np.min(Sta[:,2])
-    B = Sta[:,2] - bot
-    T = End[:,2] - bot
-    for j in range(1, MaxHei+1):
-        idx = np.where((B >= (j-1)) & (B < j))[0]
-        v1 = 1000 * np.pi * np.sum(np.array(Rad)[idx]**2 * np.array(Len)[idx])
-        a1 = 2 * np.pi * np.sum(np.array(Rad)[idx] * np.array(Len)[idx])
-        l1 = np.sum(np.array(Len)[idx])
-        treedata["VolCylHei"][j-1] = v1
-        treedata["AreCylHei"][j-1] = a1
-        treedata["LenCylHei"][j-1] = l1
-    return treedata
-
-
-def branch_distribution(treedata, branch, dist):
-    BOrd = branch["order"][1:]
-    if dist == "Dia":
-        Par = branch["diameter"][1:]
-        n = int(np.ceil(np.max(100 * np.array(Par))))
-        a = 0.005
-    elif dist == "Hei":
-        Par = branch["height"][1:]
-        n = int(np.ceil(treedata["TreeHeight"]))
-        a = 1
-    elif dist == "Ang":
-        Par = branch["angle"][1:]
-        n = 18
-        a = 10
-    elif dist == "Zen":
-        Par = branch["zenith"][1:]
-        n = 18
-        a = 10
-    elif dist == "Azi":
-        Par = np.array(branch["azimuth"][1:]) + 180
-        n = 36
-        a = 10
-    else:
-        raise ValueError("Unknown branch distribution type")
-    BranchDist = np.zeros((8, n))
-    Par = np.array(Par)
-    BOrd = np.array(BOrd)
-    for i in range(n):
-        I = (Par >= i * a) & (Par < (i+1) * a)
-        BranchDist[0, i] = np.sum(np.array(branch["volume"][1:])[I])
-        BranchDist[1, i] = np.sum(np.array(branch["volume"][1:])[I & (BOrd == 1)])
-        BranchDist[2, i] = np.sum(np.array(branch["area"][1:])[I])
-        BranchDist[3, i] = np.sum(np.array(branch["area"][1:])[I & (BOrd == 1)])
-        BranchDist[4, i] = np.sum(np.array(branch["length"][1:])[I])
-        BranchDist[5, i] = np.sum(np.array(branch["length"][1:])[I & (BOrd == 1)])
-        BranchDist[6, i] = np.count_nonzero(I)
-        BranchDist[7, i] = np.count_nonzero(I & (BOrd == 1))
-    treedata["VolBranch" + dist] = BranchDist[0, :].tolist()
-    treedata["VolBranch1" + dist] = BranchDist[1, :].tolist()
-    treedata["AreBranch" + dist] = BranchDist[2, :].tolist()
-    treedata["AreBranch1" + dist] = BranchDist[3, :].tolist()
-    treedata["LenBranch" + dist] = BranchDist[4, :].tolist()
-    treedata["LenBranch1" + dist] = BranchDist[5, :].tolist()
-    treedata["NumBranch" + dist] = BranchDist[6, :].tolist()
-    treedata["NumBranch1" + dist] = BranchDist[7, :].tolist()
-    return treedata
-
-
-def branch_order_distribution(treedata, branch):
-    BO = np.max(branch["order"])
-    BranchOrdDist = np.zeros((BO, 4))
-    for i in range(1, BO+1):
-        I = (np.array(branch["order"]) == i)
-        vol = np.sum(np.array(branch["volume"])[I])
-        area = np.sum(np.array(branch["area"])[I])
-        leng = np.sum(np.array(branch["length"])[I])
-        count = np.count_nonzero(I)
-        BranchOrdDist[i-1, :] = [vol, area, leng, count]
-    treedata["VolBranchOrd"] = BranchOrdDist[:, 0].tolist()
-    treedata["AreBranchOrd"] = BranchOrdDist[:, 1].tolist()
-    treedata["LenBranchOrd"] = BranchOrdDist[:, 2].tolist()
-    treedata["NumBranchOrd"] = BranchOrdDist[:, 3].tolist()
-    return treedata
 
 def package_outputs(models,cyl_htmls):
     
