@@ -12,7 +12,10 @@ This derivative work is released under the GNU General Public License (GPL).
 
 from numba import jit
 import numpy as np
-from Utils.Utils import cubical_partition
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils
 # import csv
 import time
 import torch 
@@ -82,8 +85,8 @@ def uniform_cover(P, inputs, np_points, qsm =True, device = 'cpu', full_point_da
     PatchDiamMax = float(inputs['PatchDiam1'])
     nmin = int(inputs['nmin1'])
 
-    # Partition, CC, Info, Cubes = cubical_partition(P, BallRad,return_cubes=True)  # Partition the point cloud into cubes for quick neighbor search
-    Partition, CC, Info = cubical_partition(P, BallRad,return_cubes=False)
+    # Partition, CC, Info, Cubes = Utils.cubical_partition(P, BallRad,return_cubes=True)  # Partition the point cloud into cubes for quick neighbor search
+    Partition, CC, Info = Utils.cubical_partition(P, BallRad,return_cubes=False)
     Partition = np.array(Partition, dtype = 'object')
     
     NotExa = np.ones(np_points, dtype=bool)  # the points not yet examined
@@ -174,8 +177,8 @@ def variable_cover(P, inputs, RelSize, np_points):
         r = PatchDiamMax / 4
         NE = 1 + int(np.ceil(BallRad / r))
 
-    # Partition, CC, Info, Cubes = cubical_partition(P, r, NE, return_cubes = True)
-    Partition, CC, Info = cubical_partition(P, BallRad,return_cubes=False)
+    # Partition, CC, Info, Cubes = Utils.cubical_partition(P, r, NE, return_cubes = True)
+    Partition, CC, Info = Utils.cubical_partition(P, BallRad,return_cubes=False)
     Partition = np.array(Partition, dtype = 'object')
     NotExa = np.ones(np_points, dtype=bool)
     NotExa[RelSize == 0] = False

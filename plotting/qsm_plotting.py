@@ -32,8 +32,14 @@ This derivative work is released under the GNU General Public License (GPL).
 import plotly.graph_objects as go
 import plotly.colors as pc
 import numpy as np
-from plotting.cylinders_plotting import cylinders_plotting
-import Utils.Utils as Utils
+try:
+    from plotting.cylinders_plotting import cylinders_plotting
+except ImportError:
+    from .cylinders_plotting import cylinders_plotting
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils
 
 def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=3,return_html = True,subset=False,fidelity = .1):
     """

@@ -25,32 +25,49 @@ This derivative work is released under the GNU General Public License (GPL).
 from numba import jit
 import numpy as np
 from datetime import datetime
-from TreeQSMSteps.cover_sets import cover_sets
-from TreeQSMSteps.tree_sets import tree_sets
-from TreeQSMSteps.segments import segments
-from TreeQSMSteps.relative_size import relative_size
-from TreeQSMSteps.cylinders import cylinders
-from TreeQSMSteps.branches import branches
-from TreeQSMSteps.tree_data import tree_data
-from TreeQSMSteps.point_model_distance import point_model_distance
-from Utils.Utils import display_time,load_point_cloud
-from Utils.define_input import define_input
-import Utils.Utils as Utils
+try:
+    from .TreeQSMSteps.cover_sets import cover_sets
+    from .TreeQSMSteps.tree_sets import tree_sets
+    from .TreeQSMSteps.segments import segments
+    from .TreeQSMSteps.relative_size import relative_size
+    from .TreeQSMSteps.cylinders import cylinders
+    from .TreeQSMSteps.branches import branches
+    from .TreeQSMSteps.tree_data import tree_data
+    from .TreeQSMSteps.point_model_distance import point_model_distance
+    from .TreeQSMSteps.correct_segments import correct_segments
+    from .TreeQSMSteps.cube_volume import cube_volume
+    from .plotting.cylinders_line_plotting import cylinders_line_plotting
+    from .plotting.point_cloud_plotting import point_cloud_plotting
+    from .plotting.qsm_plotting import qsm_plotting
+    from .Utils import Utils
+    from .Utils.define_input import define_input
+    
+except ImportError:
+    from TreeQSMSteps.cover_sets import cover_sets
+    from TreeQSMSteps.tree_sets import tree_sets
+    from TreeQSMSteps.segments import segments
+    from TreeQSMSteps.relative_size import relative_size
+    from TreeQSMSteps.cylinders import cylinders
+    from TreeQSMSteps.branches import branches
+    from TreeQSMSteps.tree_data import tree_data
+    from TreeQSMSteps.point_model_distance import point_model_distance
+    from TreeQSMSteps.correct_segments import correct_segments
+    from TreeQSMSteps.cube_volume import cube_volume
+    from plotting.cylinders_line_plotting import cylinders_line_plotting
+    from plotting.point_cloud_plotting import point_cloud_plotting
+    from plotting.qsm_plotting import qsm_plotting
+    import Utils.Utils as Utils
+    from Utils.define_input import define_input
 import time
 import cProfile
 import pstats
 import warnings
 warnings.filterwarnings('ignore')
-from TreeQSMSteps.correct_segments import correct_segments
-from TreeQSMSteps.cube_volume import cube_volume
-from plotting.cylinders_line_plotting import cylinders_line_plotting
-from plotting.point_cloud_plotting import point_cloud_plotting
-from plotting.qsm_plotting import qsm_plotting
+
 import sys
 import json
 import traceback
 import os
-from GBSeparation.remove_leaves import LeafRemover
 
 
 
@@ -147,26 +164,26 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
             Time[0] = (datetime.now() - start_time).total_seconds()
             
             if inputs['disp'] == 2:
-                display_time(Time[0], Time[0], name[0], 1)
+                Utils.display_time(Time[0], Time[0], name[0], 1)
 
             # Determine tree sets and update neighbors
             cover1, Base, Forb = tree_sets(P, cover1, Inputs)
             Time[1] = (datetime.now() - start_time).total_seconds() - Time[0]
             
             if inputs['disp'] == 2:
-                display_time(Time[1], np.sum(Time[:2]), name[1], 1)
+                Utils.display_time(Time[1], np.sum(Time[:2]), name[1], 1)
             
             start_time = datetime.now()
             segment1 = segments(cover1,Base,Forb)
             Time[2] = (datetime.now() - start_time).total_seconds()
             if inputs['disp'] == 2:
-                display_time(Time[2], np.sum(Time[:3]), name[2], 1)
+                Utils.display_time(Time[2], np.sum(Time[:3]), name[2], 1)
             
             start_time = datetime.now()
             segment1 = correct_segments(P,cover1,segment1,Inputs,0,1,1)
             Time[3] = (datetime.now() - start_time).total_seconds()
             if inputs['disp'] == 2:
-                display_time(Time[3], np.sum(Time[:4]), name[3], 1)
+                Utils.display_time(Time[3], np.sum(Time[:4]), name[3], 1)
             for i in range(na):
                 # Modify inputs
                 Inputs['PatchDiam2Max'] = PatchDiam2Max[i]
@@ -195,7 +212,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                     cover2 = cover_sets(P, Inputs, RS)
                     Time[4] = (datetime.now() - start_time).total_seconds() #
                     if inputs['disp'] == 2:
-                        display_time(Time[4], sum(Time[:5]), name[0], 1)
+                        Utils.display_time(Time[4], sum(Time[:5]), name[0], 1)
 
                     # Determine tree sets and update neighbors
                     start_time = datetime.now()
@@ -203,7 +220,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                     Time[5] = (datetime.now() - start_time).total_seconds()
                     
                     if inputs['disp'] == 2:
-                        display_time(Time[5], sum(Time[:6]), name[1], 1)
+                        Utils.display_time(Time[5], sum(Time[:6]), name[1], 1)
                     
                     start_time = datetime.now()
                     # Determine segments
@@ -211,7 +228,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                     Time[6] = (datetime.now() - start_time).total_seconds()# - sum(Time[4:6])
                     
                     if inputs['disp'] == 2:
-                        display_time(Time[6], sum(Time[:7]), name[2], 1)
+                        Utils.display_time(Time[6], sum(Time[:7]), name[2], 1)
                     
                     start_time = datetime.now()
                     # Correct segments
@@ -219,13 +236,13 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                     Time[7] = (datetime.now() - start_time).total_seconds() #- sum(Time[6:8])
                     
                     if inputs['disp'] == 2:
-                        display_time(Time[7], sum(Time[:8]), name[3], 1)
+                        Utils.display_time(Time[7], sum(Time[:8]), name[3], 1)
 
                     start_time = datetime.now()
                     cylinder = cylinders(P,cover2,segment2,Inputs)
                     Time[8] = (datetime.now() - start_time).total_seconds() #- sum(Time[6:8])
                     if inputs['disp'] == 2:
-                        display_time(Time[8], sum(Time[:9]), name[4], 1)
+                        Utils.display_time(Time[8], sum(Time[:9]), name[4], 1)
                     if np.size(cylinder['radius']) > 0:
                     
                     
@@ -252,7 +269,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
 
                         # Display time for tree_data computation
                         if inputs['disp'] == 2:
-                            display_time(Time[9], sum(Time[:10]), name[5], 1)
+                            Utils.display_time(Time[9], sum(Time[:10]), name[5], 1)
 
                         # Compute point-model distances
                         if inputs['Dist']:
@@ -280,7 +297,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
 
                             Time[10] = (datetime.now() -start_time).total_seconds()
                             if inputs['disp'] == 2:
-                                display_time(Time[10], sum(Time[:11]), name[6], 1)
+                                Utils.display_time(Time[10], sum(Time[:11]), name[6], 1)
 
                         # Reconstruct the output "QSM"
                         Date[1] = datetime.now().timetuple()[:6]  # Update date
@@ -399,27 +416,7 @@ def calculate_optimal(models,metric):
     return best,metrics[best],metric_data
 
 
-def test():
-    """
-        Run Default Point Cloudand QSM Parameters
-    """
-    file_path =r'\Dataset\tree_1.las'
-    points = load_point_cloud(file_path,0)
-    if points is not None:
-        sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.")
-    # Step 3: Define inputs for TreeQSM
-    points = points - np.mean(points,axis = 0)
 
-    inputs = define_input(points, 3, 3, 3)[0]
-
-    # #specific inputs for testing
-    # inputs['PatchDiam1'] = [0.05]
-    # inputs['PatchDiam2Min'] = [0.03]
-    # inputs['PatchDiam2Max'] = [0.12]
-    # inputs['BallRad1'] = [0.06]
-    # inputs['BallRad2'] = [0.13]
-    # inputs['plot'] = 0
-    treeqsm(points,inputs)
 
 if __name__ == "__main__":
     # cProfile.run("test()",filename="results.txt",sort=1)
@@ -431,8 +428,9 @@ if __name__ == "__main__":
     try:
         filename = sys.argv[1]
     except:
-        print("No arguments found, running development test mode")
-        test()
+        print("No arguments found, for instructions on how to run this script, please run with the --help flag.")
+        sys.exit(1)
+        
     parsed_args = Utils.parse_args(sys.argv[2:])
     
     
@@ -440,7 +438,7 @@ if __name__ == "__main__":
         print(parsed_args)
         threshold = parsed_args["Intensity"]
 
-        points = load_point_cloud(filename,threshold)
+        points = Utils.load_point_cloud(filename,threshold)
         if points is not None:
             sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.\n")
         # Step 3: Define inputs for TreeQSM
@@ -474,9 +472,17 @@ if __name__ == "__main__":
             saved_files.append((string,filename))
         if parsed_args["Directory"] is not None:
             os.chdir(parsed_args["Directory"])
-            os.chdir("results")
+            try:
+                os.chdir("results")
+            except FileNotFoundError:
+                os.mkdir("results")
+                os.chdir("results")
         else:
-            os.chdir('results')
+            try:
+                os.chdir("results")
+            except FileNotFoundError:
+                os.mkdir("results")
+                os.chdir("results")
         for file in os.listdir():
             remove = True
             for string,filename in saved_files:

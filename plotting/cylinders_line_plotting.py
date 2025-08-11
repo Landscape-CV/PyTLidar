@@ -1,7 +1,12 @@
 import numpy as np
 import plotly.graph_objects as go
-from plotting.cylinders_plotting import create_cylinder
-from plotting.cylinders_plotting import rotation_matrix_from_z
+
+try:
+    from plotting.cylinders_plotting import create_cylinder
+    from plotting.cylinders_plotting import rotation_matrix_from_z
+except ImportError:
+    from .cylinders_plotting import create_cylinder
+    from .cylinders_plotting import rotation_matrix_from_z
 
 
 def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_name = None, overwrite = False, base_fig = None,display = True):

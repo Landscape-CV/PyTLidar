@@ -24,7 +24,10 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 import numpy as np
-from Utils.Utils import distances_to_line,mat_vec_subtraction ,set_difference
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils
 def correct_segments(P,cover,segment,inputs,RemSmall=None,ModBases=None,AddChild=None):
     """Reassigns segments to make them more consistent with expected tree structure
 
@@ -603,7 +606,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
 
                             ChildSegs = SChi[I].copy()
                             SChi[I] = np.zeros(0, dtype=int)
-                            c = np.set_difference(SChi[SegInd], I,Fal)
+                            c = np.Utils.set_difference(SChi[SegInd], I,Fal)
                             SChi[SegInd] = np.hstack([c, ChildSegs])
                             SPar[ChildSegs, 0] = SegInd
                             SPar[ChildSegs, 1] = N + SPar[ChildSegs, 1] 
@@ -651,7 +654,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
                             UnMod[I] = False
 
                             ChildSegs = SChi[I].copy()
-                            c = set_difference(SChi[SegInd], I,Fal)
+                            c = Utils.set_difference(SChi[SegInd], I,Fal)
                             SChi[SegInd] = np.hstack([c, ChildSegs])
                             SPar[ChildSegs, 0] = SegInd
                             SPar[ChildSegs, 1] = SP + SPar[ChildSegs, 1]+1
@@ -674,7 +677,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
                     ChildSegs = SChi[I]
                     if len(ChildSegs.shape)>1 and ChildSegs.shape[0] < ChildSegs.shape[1]:
                         ChildSegs = ChildSegs.T
-                    c = set_difference(SChi[SegInd], I,Fal)
+                    c = Utils.set_difference(SChi[SegInd], I,Fal)
                     SChi[SegInd] = np.hstack([c, ChildSegs])
                     SPar[ChildSegs, 0] = SegInd
                     SPar[ChildSegs, 1] = N + SPar[ChildSegs, 1] 
@@ -704,7 +707,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
                     SPar[ChildSegs, 1] = SPar[ChildSegs, 1] - SP -1
 
                     ChildSegs = SChi[I]
-                    c = set_difference(SChi[SegInd], I,Fal)
+                    c = Utils.set_difference(SChi[SegInd], I,Fal)
                     SChi[SegInd] = np.hstack([c, ChildSegs])
                     SPar[ChildSegs, 0] = SegInd
                     SPar[ChildSegs, 1] = SP + SPar[ChildSegs, 1] +1
@@ -815,7 +818,7 @@ def remove_small(Ce, Segs, SPar, SChi):
     V = End - Start  # Vector between starting and ending centers
     V = V / np.linalg.norm(V)  # normalize
     Sets = np.concatenate(Segment[:EndL])
-    d, _V,_H,_B = distances_to_line(Ce[Sets.astype(int)], V, Start)
+    d, _V,_H,_B = Utils.distances_to_line(Ce[Sets.astype(int)], V, Start)
     MaxRad = np.max(d)
 
     Nseg = len(Segs)
@@ -861,7 +864,7 @@ def remove_small(Ce, Segs, SPar, SChi):
                     ChildSets = Sets[:a]
 
                     # maximum distance in child
-                    d1, _V,_H,_B = distances_to_line(Ce[ChildSets.astype(int)], V, Start)
+                    d1, _V,_H,_B = Utils.distances_to_line(Ce[ChildSets.astype(int)], V, Start)
                     distChild = np.max(d1)
 
                     if distChild < MaxRad + 0.06:
@@ -878,7 +881,7 @@ def remove_small(Ce, Segs, SPar, SChi):
                         ParentSets = Sets[:a]
 
                         # maximum distance in parent
-                        distPar = np.max(distances_to_line(Ce[ParentSets.astype(int)], V, Start)[0])
+                        distPar = np.max(Utils.distances_to_line(Ce[ParentSets.astype(int)], V, Start)[0])
                         if (distChild - distPar < 0.02) or (distChild / distPar < 1.2 and distChild - distPar < 0.06):
                             ChildChildSegs = SChi[ChildSegs[j]]
                             nc = len(ChildChildSegs)
@@ -887,7 +890,7 @@ def remove_small(Ce, Segs, SPar, SChi):
                                 Keep[ChildSegs[j]] = False
                                 Segs[ChildSegs[j]] = np.zeros((0, 1))
                                 SPar[ChildSegs[j], :] = np.zeros((1, 2))
-                                SChi[i] = set_difference(ChildSegs, ChildSegs[j], Fal)
+                                SChi[i] = Utils.set_difference(ChildSegs, ChildSegs[j], Fal)
                             else:
                                 L = np.concatenate(SChi[ChildChildSegs.astype(int)])  # child child segments
                                 if not L.any():
@@ -898,7 +901,7 @@ def remove_small(Ce, Segs, SPar, SChi):
                                             J[k] = True
                                         else:
                                             segment1 = np.append(np.concatenate(segment), ParentSets).astype(int)
-                                            distSeg = np.max(distances_to_line(Ce[segment1], V, Start)[0])
+                                            distSeg = np.max(Utils.distances_to_line(Ce[segment1], V, Start)[0])
                                             if (distSeg - distPar < 0.02) or (distSeg / distPar < 1.2 and distSeg - distPar < 0.06):
                                                 J[k] = True
                                     if np.all(J):
@@ -908,7 +911,7 @@ def remove_small(Ce, Segs, SPar, SChi):
                                         Segs[ChildChildSegs1] = [np.zeros((0, 1))] * nc
                                         Keep[ChildChildSegs1] = False
                                         SPar[ChildChildSegs1, :] = np.zeros((nc, 2))-1
-                                        d = set_difference(ChildSegs, ChildSegs[j], Fal)
+                                        d = Utils.set_difference(ChildSegs, ChildSegs[j], Fal)
                                         SChi[i] = d
                                         SChi[ChildChildSegs1] = [np.zeros((0, 1))] * nc
             if i == 0:
@@ -968,11 +971,11 @@ def modify_parent(P, Bal, Ce, SegP, SegC, nl, PatchDiam, base):
         DirPar = segment_direction(Ce, SegP, nl)
         if len(Base) > 1:
             BaseCent = np.mean(Ce[Base.astype(int), :], axis=0)
-            db, _v,_h,_b = distances_to_line(Ce[Base.astype(int), :], DirChi, BaseCent)  # Distances of the sets in the base to the axis of the branch
+            db, _v,_h,_b = Utils.distances_to_line(Ce[Base.astype(int), :], DirChi, BaseCent)  # Distances of the sets in the base to the axis of the branch
             DiamBase = 2 * np.max(db)  # Diameter of the base
         elif len(Bal[Base[0]]) > 1:
             BaseCent = np.mean(P[Bal[Base[0]], :], axis=0)
-            db, _v,_h,_b = distances_to_line(P[Bal[Base[0]], :], DirChi, BaseCent)
+            db, _v,_h,_b = Utils.distances_to_line(P[Bal[Base[0]], :], DirChi, BaseCent)
             DiamBase = 2 * np.max(db)
         else:
             BaseCent = Ce[Base[0], :]
@@ -992,13 +995,13 @@ def modify_parent(P, Bal, Ce, SegP, SegC, nl, PatchDiam, base):
             Sets = SegP[nl - layer].copy()  
             Seg = np.mean(Ce[Sets.astype(int), :], axis=0)  # Mean of the cover sets' centers
 
-            VBase = mat_vec_subtraction(Ce[Sets.astype(int), :], BaseCent)  # Vectors from base's center to sets in the segment
+            VBase = Utils.mat_vec_subtraction(Ce[Sets.astype(int), :], BaseCent)  # Vectors from base's center to sets in the segment
             h = np.dot(VBase, DirChi)
             B = np.outer(h, DirChi)
             V = VBase - B
             distSets = np.sqrt(np.sum(V**2, axis=1))  # Distances of the sets in the segment to the axis of the branch
 
-            VSeg = mat_vec_subtraction(Ce[Sets.astype(int), :], Seg)  # Vectors from segment's center to sets in the segment
+            VSeg = Utils.mat_vec_subtraction(Ce[Sets.astype(int), :], Seg)  # Vectors from segment's center to sets in the segment
             lenBase = np.sqrt(np.sum(VBase**2, axis=1))  # Lengths of VBase
             lenSeg = np.sqrt(np.sum(VSeg**2, axis=1))  # Lengths of VSeg
 

@@ -25,8 +25,10 @@ This derivative work is released under the GNU General Public License (GPL).
 
 import numpy as np
 from scipy.spatial.distance import cdist
-from Utils.Utils import distances_to_line,connected_components_array,cubical_partition,unique_elements_array
-import  TreeQSMSteps.LSF as LSF
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils
 def tree_sets(P:np.ndarray,cover:dict,inputs:dict,segment=None):
     """
     Defines the location of the base of the trunk on the first pass, and the main branches on the second
@@ -127,7 +129,7 @@ def define_trunk(cover, aux, Base, Forb, inputs):
     Forb = np.array(Forb)
     # Expand Trunk from the base above with neighbors as long as possible
     Exp = Base  # the current "top" of Trunk
-    Exp = unique_elements_array(np.concatenate([Nei[i] for i in Exp]),np.array(aux['Fal'])).astype(int)
+    Exp = Utils.unique_elements_array(np.concatenate([Nei[i] for i in Exp]),np.array(aux['Fal'])).astype(int)
     I = Trunk[Exp]
     J = Forb[Exp]
     Exp = Exp[~(I | J)]  # Only non-forbidden sets that are not already in Trunk
@@ -316,7 +318,7 @@ def define_main_branches(cover, segment, aux, inputs):
     Trunk = Fal.copy()
     Trunk[MainBranches > -1] = True
 
-    Par, CC, _ = cubical_partition(Ce, 3*inputs['PatchDiam2Max'], 10, return_cubes=False)
+    Par, CC, _ = Utils.cubical_partition(Ce, 3*inputs['PatchDiam2Max'], 10, return_cubes=False)
 
     BI = np.max(MainBranches) if MainBranches.size > 0 else 0
     N = Par.shape
@@ -325,7 +327,7 @@ def define_main_branches(cover, segment, aux, inputs):
         Sets = np.zeros(aux['nb'], dtype=np.int32)
         if MainBranchIndexes[i]:
             Branch = (MainBranches == i)
-            Comps, cs = connected_components_array(Nei, Branch, 1, Fal)
+            Comps, cs = Utils.connected_components_array(Nei, Branch, 1, Fal)
             n_comps = len(Comps)
             
             while n_comps > 1:
@@ -408,7 +410,7 @@ def define_main_branches(cover, segment, aux, inputs):
                     Nei[J]= np.append(Nei[J],I)
                 
                 # Recompute components after connections
-                Comps, cs = connected_components_array(Nei, Branch, 1, Fal)
+                Comps, cs = Utils.connected_components_array(Nei, Branch, 1, Fal)
                 n_comps = len(Comps)
     
     
@@ -457,7 +459,7 @@ def define_main_branches(cover, segment, aux, inputs):
     
 #     % Check if the trunk is still in mutliple components and select the bottom
 #     % component to define "Trunk":
-    comps, cs = connected_components_array(Nei, Trunk,1, Fal)
+    comps, cs = Utils.connected_components_array(Nei, Trunk,1, Fal)
     comps = np.array(comps,dtype='object')
     if len(cs) > 1:
         I = np.argsort(-cs)
@@ -508,7 +510,7 @@ def make_tree_connected(cover, aux, Forb, Base, Trunk, inputs):
 
     # Determine the components of "Other"
     if np.any(Other):
-        Comps, _comp_size = connected_components_array(Nei, Other, 1, Fal)
+        Comps, _comp_size = Utils.connected_components_array(Nei, Other, 1, Fal)
         nc = len(Comps)
         NonClassified = np.ones(nc, dtype=bool)
     else:
@@ -523,7 +525,7 @@ def make_tree_connected(cover, aux, Forb, Base, Trunk, inputs):
         again = True  # check connections again with same "distance" if true
 
         # Partition the centers of the cover sets into cubes with size k*dmin
-        Par,CC,_Info  = cubical_partition(Ce, k * inputs["PatchDiam1"],return_cubes=False)
+        Par,CC,_Info  = Utils.cubical_partition(Ce, k * inputs["PatchDiam1"],return_cubes=False)
         Par = np.array(Par,dtype = 'object')
         Neighbors = [None] * nc
         Sizes = np.zeros((nc, 2))

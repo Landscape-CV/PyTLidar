@@ -1,10 +1,19 @@
 import numpy as np
 from scipy.spatial import ConvexHull
 from alphashape import alphashape 
-import Utils.Utils as Utils
-from Utils.Utils import orthonormal_vectors
-import TreeQSMSteps.LSF as LSF
-import plotting.PlottingUtils as PlottingUtils
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils
+try:
+    from . import LSF
+except ImportError:
+    import LSF
+
+try:
+    from ..plotting import PlottingUtils
+except ImportError:
+    import plotting.PlottingUtils as PlottingUtils
 import matplotlib.pyplot as plt
 import matplotlib
 def tree_data(cylinder, branch, trunk, inputs, iter = 0):
@@ -426,7 +435,7 @@ def crown_measures(treedata, cylinder, branch):
     P = np.zeros((5 * nc*10, 3))  # Four mid points on the cylinder surface
     t = 0
     for i in range(nc):
-        U, V = orthonormal_vectors(Axe[i, :])
+        U, V = Utils.orthonormal_vectors(Axe[i, :])
         U = cylinder['radius'][i] * U
         if cylinder['branch'][i] == 0:
             # For stem cylinders, generate more points

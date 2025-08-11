@@ -24,8 +24,20 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 
-
-from treeqsm import treeqsm
+try:
+    from .treeqsm import treeqsm
+    from .Utils.define_input import define_input
+    from .Utils.Utils import load_point_cloud
+    from .Utils import Utils
+    from .plotting.point_cloud_plotting import point_cloud_plotting
+    from .plotting.qsm_plotting import qsm_plotting
+except ImportError:
+    from treeqsm import treeqsm
+    from Utils.define_input import define_input
+    from Utils.Utils import load_point_cloud
+    import Utils.Utils as Utils
+    from plotting.point_cloud_plotting import point_cloud_plotting
+    from plotting.qsm_plotting import qsm_plotting
 import os
 from PySide6.QtCore import QObject,QThread,Signal,Qt,QUrl,QProcess
 from PySide6.QtWidgets import QWidget,QGridLayout,QVBoxLayout,QLabel,QMainWindow,QPushButton,QApplication,QTextEdit,QToolButton,QComboBox,QHBoxLayout,QSlider,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem, QCheckBox,QRadioButton
@@ -33,11 +45,7 @@ from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtGui import QPixmap
 from PySide6.QtPdf import QPdfDocument
 from PySide6.QtPdfWidgets import QPdfView 
-from Utils.define_input import define_input
-from Utils.Utils import load_point_cloud
-import Utils.Utils as Utils
-from plotting.point_cloud_plotting import point_cloud_plotting
-from plotting.qsm_plotting import qsm_plotting
+
 import numpy as np
 import multiprocessing as mp
 import sys
@@ -1265,7 +1273,13 @@ class OutputText(object):
          self.text_edit.insertPlainText(text)
 
 
-  
+def run():
+    app = QApplication([])
+    window = QSMWindow()
+    window.show()
+    # Start the application
+
+    app.exec()  
 
 if __name__ == "__main__":
     app = QApplication([])

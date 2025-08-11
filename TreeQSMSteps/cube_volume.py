@@ -1,5 +1,8 @@
 import numpy as np
-from Utils.Utils import load_point_cloud
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils 
 
 
 

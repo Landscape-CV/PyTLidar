@@ -26,9 +26,14 @@ This derivative work is released under the GNU General Public License (GPL).
 from numba import jit
 import numpy as np
 from collections import deque
-import TreeQSMSteps.LSF as LSF
-from Utils.Utils import distances_to_line,distances_between_lines,growth_volume_correction,surface_coverage_filtering,surface_coverage2,verticalcat
-import Utils.Utils as Utils
+try:
+    from . import LSF
+except ImportError:
+    import LSF
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils
 
 
 def cylinders(P,cover,segment,inputs):
@@ -126,7 +131,7 @@ def cylinders(P,cover,segment,inputs):
             layer_len = len(layer)
             IndSets.append((current, current + layer_len - 1))
             current += layer_len'''
-        Sets, IndSets = verticalcat(Seg)  # the cover sets indices and (start, end) indices in the segment
+        Sets, IndSets = Utils.verticalcat(Seg)  # the cover sets indices and (start, end) indices in the segment
 
         ns = len(Sets)  # number of cover sets in the current segment
         #print(Sets)
@@ -242,7 +247,7 @@ def cylinders(P,cover,segment,inputs):
 
     # Growth volume correction
     if inputs.get('GrowthVolCor', False) and c > 0:
-        cylinder = growth_volume_correction(cylinder, inputs)
+        cylinder = Utils.growth_volume_correction(cylinder, inputs)
 
     return cylinder
 
@@ -317,7 +322,7 @@ def cylinder_fitting(P, Points, Ind, nl, si):
                 if Q0.shape[0] > 20:
                     axis = c0['axis']
                     start = c0['start']
-                    Keep, R_final,SurfCov,mad = surface_coverage_filtering(Q0, axis,start, c0['length'],0.02, 20)
+                    Keep, R_final,SurfCov,mad = Utils.surface_coverage_filtering(Q0, axis,start, c0['length'],0.02, 20)
                     c0['radius'] = R_final
                     c0['SurfCov'] = SurfCov
                     c0['mad'] = mad
@@ -498,7 +503,7 @@ def cylinder_fitting(P, Points, Ind, nl, si):
             #print("Q0 ", Q0, "c0", c0)  # Q0 is the same
             axis = c0['axis']
             start = c0['start']
-            Keep, R_final,SurfCov,mad = surface_coverage_filtering(Q0, axis,start,c0['length'], 0.02, 20)
+            Keep, R_final,SurfCov,mad = Utils.surface_coverage_filtering(Q0, axis,start,c0['length'], 0.02, 20)
             c0['radius'] = R_final
             c0['SurfCov'] = SurfCov
             c0['mad'] = mad
@@ -795,7 +800,7 @@ def parent_cylinder(SPar, SChi, CiS, cylinder, cyl, si):
 
                 # Get line distances
                 
-                Dist, _, DistOnLines = distances_between_lines(
+                Dist, _, DistOnLines = Utils.distances_between_lines(
                     sta[0], axe[0],
                     cylinder['start'][pc],
                     cylinder['axis'][pc]
@@ -1097,11 +1102,11 @@ def adjustments(cyl, parcyl, inputs, Regs):
                     ns = max(10, min(36, int(np.ceil(2 * np.pi * cyl_radius / a))))
                     #print(a, nl, ns)
                     if np.size(cyl['SurfCov']) > 1:
-                        cyl['SurfCov'][i] = surface_coverage2(
+                        cyl['SurfCov'][i] = Utils.surface_coverage2(
                             cyl_axis, cyl_length, V_dist, h, nl, ns
                         )
                     else:
-                        cyl['SurfCov'] = surface_coverage2(
+                        cyl['SurfCov'] = Utils.surface_coverage2(
                             cyl_axis, cyl_length, V_dist, h, nl, ns
                         )
             cyl['start'][i] = cyl_start
@@ -1135,7 +1140,7 @@ def adjustments(cyl, parcyl, inputs, Regs):
     #print(parcyl['radius'])
     if parcyl['radius'].size > 0:
         # Calculate distance to parent axis
-        d, V_dir, h, B = distances_to_line(
+        d, V_dir, h, B = Utils.distances_to_line(
             cyl['start'][0],
             parcyl['axis'],
             parcyl['start']

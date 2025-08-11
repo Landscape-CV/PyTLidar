@@ -8,7 +8,10 @@ Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Gro
 This derivative work is released under the GNU General Public License (GPL).
 """
 import numpy as np
-import Utils.Utils as Utils
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils
 import numba
 
 # class LSF:

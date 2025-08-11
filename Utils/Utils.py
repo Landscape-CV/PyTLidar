@@ -23,7 +23,10 @@ import sys
 from numba import jit
 from numba.experimental import jitclass
 import laspy
-from plotting.qsm_plotting import qsm_plotting
+try:
+    from plotting.qsm_plotting import qsm_plotting
+except ImportError:
+    from ..plotting.qsm_plotting import qsm_plotting
 import open3d as o3d
 from robpy.covariance import DetMCD,FastMCD
 from scipy.spatial.transform import Rotation 
@@ -2209,6 +2212,8 @@ def parse_args(argv):
     -verbose: verbose mode, displays outputs from TreeQSM as it runs
     -h: displays the run options
     -v: verbose mode"""
+    if len(argv)>0 and argv[0] == "-m":
+        argv=argv[1:]  # Remove -m flag for compatibility with existing code
     while i <len(argv):
         match argv[i]:
             case "--threshold":
@@ -2285,13 +2290,13 @@ def parse_args(argv):
             print(args)
             sys.stdout.write(f"If --custominput is selected, values for --ipd (PatchDiam1) --minpd (PatchDiam2Min) --maxpd (PatchDiam2Max). See --help if needed")
             return "ERROR"
-    else:
-        if type(args["PatchDiam1"]) != list:
-            args["PatchDiam1"]=args["PatchDiam1"][0]
-        if type(args["PatchDiam2Min"]) != list:
-            args["PatchDiam2Min"]=args["PatchDiam2Min"][0]
-        if type(args["PatchDiam2Max"]) != list:
-            args["PatchDiam2Max"]=args["PatchDiam2Max"][0]
+    # else:
+    #     if type(args["PatchDiam1"]) != list:
+    #         args["PatchDiam1"]=[args["PatchDiam1"]]
+    #     if type(args["PatchDiam2Min"]) != list:
+    #         args["PatchDiam2Min"]=[args["PatchDiam2Min"]]
+    #     if type(args["PatchDiam2Max"]) != list:
+    #         args["PatchDiam2Max"]=[args["PatchDiam2Max"]]
 
     return args
 
