@@ -1,5 +1,8 @@
 import numpy as np
-from main_steps.branches import branches
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
+from TreeQSMSteps.branches import branches
 
 # Assuming the branches() function from the previous Python translation is defined/imported
 

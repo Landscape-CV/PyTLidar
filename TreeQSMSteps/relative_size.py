@@ -52,7 +52,7 @@ def relative_size(P, cover, segment):
             ChildSegment    : Children segments of each segment, list of lists
 
     Returns:
-        RS: Relative size (1-256), uint8-vector, (n_points x 1)
+        np.Array: Relative size (1-256), uint8-vector, (n_points x 1)
     """
     Bal = cover['ball']
     Cen = cover['center']

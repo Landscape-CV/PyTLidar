@@ -25,7 +25,10 @@ This derivative work is released under the GNU General Public License (GPL).
 
 import numpy as np
 
-import Utils.Utils as Utils
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils
 
 def point_model_distance(P, cylinder):
     '''

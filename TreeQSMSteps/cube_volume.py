@@ -1,26 +1,23 @@
 import numpy as np
-from Utils.Utils import load_point_cloud
+try:
+    from ..Utils import Utils
+except ImportError:
+    import Utils.Utils as Utils 
 
-def test():
-    file_path = r'.\Dataset\tree_1.las'
-    points = load_point_cloud(file_path)
-    if points is not None:
-        print(f"Loaded point cloud with {points.shape[0]} points.")
 
-    points = points - np.mean(points,axis = 0)
 
 def cube_volume(P, cylinder, EL, NE = 3):
     """
     Calculate cylinder volume in each cube of user defined size.
 
-    Parameters:
-    P (numpy.ndarray): Point cloud, shape (n_points, 3).
-    cylinder : TreeQSM fitted cylinders.
-    EL (float): Length of the cube edges.
-    NE (int): Number of empty edge layers (default=3).
+    Args:
+        P (numpy.ndarray): Point cloud, shape (n_points, 3).
+        cylinder : TreeQSM fitted cylinders.
+        EL (float): Length of the cube edges.
+        NE (int): Number of empty edge layers (default=3).
 
     Returns:
-    cube_volume (3D numpy array): Storing cylinder volume in each cube.
+        (3D numpy array): Cylinder volume in each cube.
     """
 
     P = np.array(P, dtype=float)

@@ -24,7 +24,7 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 import numpy as np
-from triangulation import check_self_intersection
+from TreeQSMSteps.triangulation import check_self_intersection
 def boundary_curve(P,Curve0,rball,dmax):
 
 

@@ -1,15 +1,24 @@
-from treeqsm import treeqsm
-from treeqsm import calculate_optimal
+try:
+    from .treeqsm import treeqsm
+    from .treeqsm import calculate_optimal
+    from .Utils.define_input import define_input
+    from .Utils.Utils import load_point_cloud
+    from .Utils import Utils
+except ImportError:
+    from treeqsm import treeqsm
+    from treeqsm import calculate_optimal
+    from Utils.define_input import define_input
+    from Utils.Utils import load_point_cloud
+    import Utils.Utils as Utils
 import os
 import sys
 import numpy as np
 import pandas as pd
-from tools.define_input import define_input
-from Utils.Utils import load_point_cloud
+
 import warnings
 import traceback
 import multiprocessing as mp
-import Utils.Utils as Utils
+
 
 warnings.filterwarnings('ignore')
 
@@ -166,8 +175,12 @@ def process_output(output,directory):
 
 if __name__== "__main__":
 
-    folder = sys.argv[1]
     
+    try:
+        folder = sys.argv[1]
+    except:
+        print("No arguments found, for instructions on how to run this script, please run with the --help flag.")
+        sys.exit(1)
     parsed_args = Utils.parse_args(sys.argv[2:])
     
     

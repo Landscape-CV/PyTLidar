@@ -2,9 +2,9 @@
 title: 'PyTLiDAR: A Python Package for Tree QSM Modeling from Terrestrial LiDAR Data'
 tags:
   - Python
-  - biology
-  - lidar
-  - qsm
+  - Ecology
+  - Terrestrial Lidar Scan
+  - Quantitative Structure Model
 authors:
   - name: John Hagood
     orcid: 0009-0002-3894-4464
@@ -52,7 +52,7 @@ Key features of PyTLiDAR include:
 
 -Batch or single-file processing
 
-# Statement of need
+# Statement of Need
 
 Terrestrial Laser Scanning (TLS) is an active remote sensing technology which uses infrared laser pulses to collect millions of points on the surface of objects, 
 preserving spatial information and providing unprecedented detail on structural information. The technology is rapidly being adopted for diverse uses in forestry and ecology, 
@@ -105,7 +105,7 @@ If running in batch mode, users may also set the number of parallel cores to uti
 Users can also review the relevant morphological summeries of the QSM, including distribution of branch diameters, branch volume, surface area, 
 and length with regard to diameter or order from stem, as with the original TreeQSM implementation.
 
-![Software interface for user input and data selection. \label{fig:pc1}](figs/fig3.jpg){ width=80% }
+![Tree QSM data display \label{fig:pc1}](figs/fig3.jpg){ width=80% }
 
 If desired, both treeqsm.py and teeqsm_batch.py may be run directly from the command line using the following arguments:
 

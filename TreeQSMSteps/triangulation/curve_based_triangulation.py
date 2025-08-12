@@ -22,8 +22,8 @@ This derivative work is released under the GNU General Public License (GPL)."""
 
 import numpy as np
 from scipy.spatial import Delaunay
-from triangulation import initial_boundary_curve
-from triangulation import boundary_curve
+from TreeQSMSteps.triangulation import initial_boundary_curve
+from TreeQSMSteps.triangulation import boundary_curve
 from triangulation import check_self_intersection
 from Utils.Utils import cubical_partition
 def curve_based_triangulation(P, TriaHeight, TriaWidth):
