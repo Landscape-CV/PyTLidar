@@ -109,12 +109,9 @@ and visualization tools using Plotly. The software follows a modular design that
 
 
 
-PyTLiDAR takes in user defined or generated parameter configuration, processes the LiDAR data and constructs a QSM, then generates visualizations and analysis for the results (Figure 1). 
-Upon launching the application, users can input or automatically generate values for key modeling parameters, including the minimum, and maximum patch diameters within a user-defined parameter space. 
-Also, an intensity threshold can be set to filter the point cloud data, helping to remove LiDAR returns due to noise or vegetation prior to modeling (Figure 2). 
+PyTLiDAR implements the TreeQSM model in Python, and uses PyQt6 (the Python implementation of Qt, a major GUI framework) to create an intuitive interface for parameter configuration and data processing (Figure 1). Upon launching the application, users can input or automatically generate values for key modeling parameters, including the minimum, and maximum patch diameters within a user-defined parameter space. Also, an intensity threshold can be set to filter the point cloud data, helping to remove lidar returns due to noise or vegetation prior to modeling. Users may choose between batch processing of an entire directory of point cloud files or processing a single file. The GUI also includes options for displaying only the optimal model, based on performance metrics such as mean point distance to constructed surface. 
 
-Users may choose between batch processing of an entire directory of point cloud files or processing a single file. The GUI also includes options for displaying only the optimal model, 
-based on selectable performance metrics such as 'all_mean_dis' (mean distance between point cloud and reconstructed model surface) selectable from a dropdown menu.
+ 
 
 ![Software interface for user input and data selection. \label{fig:pc1}](figs/fig1.jpg){ width=80% }
 
