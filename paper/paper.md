@@ -50,15 +50,23 @@ The package also integrates interactive visualization tools for inspecting model
 
 Key features of PyTLiDAR include:
 
--A full reimplementation of TreeQSM's core logic in Python
+-Loading and extracting point cloud data from las and laz files 
 
--A user-friendly GUI built with PyQt6
+-Automatic calculation of a range of initial parameters for the QSM model based on point cloud structure 
 
--Automated and manual configuration of model generation parameters, including patch diameter ranges
+-Generation of Voronoi partition (cover sets) of point cloud 
 
--Support for interactive 3D visualization of tree models and parameter tuning
+-Detection of segments through topological analysis of cover sets 
 
--Batch or single-file processing
+-Fitting of Cylinders 
+
+-Calculation of Various Tree metrics including Branch length and volume, crown volume, and more 
+
+-A user-friendly GUI  for batch or single-file processing 
+
+-Support for interactive 3D visualization of tree models and parameter tuning 
+
+-Batch data processing 
 
 # Statement of Need
 
@@ -74,7 +82,7 @@ Comparing to other similar softwares, TreeQSM stands out for speed, reliability,
 while [Computree](https://www.simpleforest.org/) offers broad functionality but suffers from a large installation size and less intuitive interface. 
 [AdQSM](https://github.com/GuangpengFan/AdQSM) is extremely fast and simple but lacks advanced features and source code access. 
 [aRchi](https://github.com/umr-amap/aRchi) provides various functions but is slow, not sufficiently documented, and harder to set up. 
-[3dForest](https://github.com/VUKOZ-OEL/3d-forest-classic) has a promising GUI but is currently unstable, crashing when loading data.
+[3dForest](https://github.com/VUKOZ-OEL/3d-forest-classic) has a promising GUI but is currently unstable, crashing when loading data. There is also a lack of viable options within Python specifically.
 Thus, we would like to focus on porting and improving TreeQSM. Its reliance on MATLAB makes it less accessible for users without a commercial license or familiarity with the MATLAB environment. 
 Furthermore, the lack of a graphical interface makes the tool less user-friendly and its parameter tuning less efficient.
 
@@ -85,22 +93,23 @@ This work lowers the barrier for adoption of QSM modeling by removing the MATLAB
 
 # Method
 
-TreeQSM models individual trees from terrestrial LiDAR scans by covering the input point cloud with small, connected surface patches. 
-These patches form the building blocks for reconstructing the tree’s global shape. The algorithm first identifies these surface patches using local geometric properties, 
-then establishes neighbor relationships between adjacent patches. Based on neighbor relationships of the surface patches, the point cloud is segmented into individual branches, 
-with parent-children relationships of branches recorded. Then each branch is approximated as a collection of connected cylinders of varying radius, length, and orientation. 
+TreeQSM models individual trees from terrestrial LiDAR scans by covering the input point cloud with small, connected surface patche referred to as cover sets. 
+These cover sets form the building blocks for reconstructing the tree’s global shape. The algorithm first identifies these cover sets using local geometric properties, 
+then establishes neighbor relationships between adjacent cover sets. Based on topological investigation of neighboring surface cover sets, the point cloud is segmented into individual branches, 
+with parent-children relationships of branches recorded. Then each branch is approximated as a collection of connected cylinders of varying radius, length, and orientation. The cylinders are fit using Newton's Method to minimize distance between points and approximated cylinder surface. 
 This cylinder-based representation offers a simple yet effective regularization of the complex tree structure, supporting downstream analyses such as stem volume estimation or structural trait extraction [@rs5020491] [@rs70404581].
 
 # Software Architecture
 
 PyTLiDAR is organized into several key modules: core QSM algorithms (treeqsm.py), batch processing utilities (treeqsm_batch.py), GUI components built with [PyQt6](https://pypi.org/project/PyQt6/) (Python bindings for the Qt 6 framework), 
 and visualization tools using Plotly. The software follows a modular design that allows researchers to either use the complete GUI application or integrate individual components into their own Python workflows. 
+![Software flowchart. \label{fig:pc1}](<figs/flowchart_画板 1.jpg>){ width=100% }
 
 # Software Description
 
-![Software flowchart. \label{fig:pc1}](figs/flowchart_画板 1.jpg){ width=100% }
 
-PyTLiDAR takes in user defined or generated parameter configuration, processes the LiDAR data and constructs QSM, then generates visualizations and analysis for the results (Figure 1). 
+
+PyTLiDAR takes in user defined or generated parameter configuration, processes the LiDAR data and constructs a QSM, then generates visualizations and analysis for the results (Figure 1). 
 Upon launching the application, users can input or automatically generate values for key modeling parameters, including the minimum, and maximum patch diameters within a user-defined parameter space. 
 Also, an intensity threshold can be set to filter the point cloud data, helping to remove LiDAR returns due to noise or vegetation prior to modeling (Figure 2). 
 
@@ -122,9 +131,7 @@ and length with regard to diameter or order from stem, as with the original Tree
 
 ![Tree QSM data display \label{fig:pc1}](figs/fig3.jpg){ width=80% }
 
-Both treeqsm.py and teeqsm_batch.py may be run directly from the command line, detailed instructions are included in the documentation. 
-This allows users to integrate the same functionality provided in the GUI into their own scripts with ease, whether those scripts are in python or not. 
-Python users can install and use the package to get the full functionality by importing treeqsm. 
+Both treeqsm.py and treeqsm_batch.py may be run directly from the command line. This allows users to integrate the same functionality provided in the GUI into their own scripts with ease, whether those scripts are in python or not. Python users can use the package directly and get the full functionality by importing treeqsm.  
 
 [#add_benchmark_comparison]
 
