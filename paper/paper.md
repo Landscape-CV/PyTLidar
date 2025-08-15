@@ -89,7 +89,8 @@ Furthermore, the lack of a graphical interface makes the tool less user-friendly
 PyTLiDAR addresses these issues by providing a native Python implementation of TreeQSM’s core algorithms, 
 wrapped in a streamlined graphical interface that allows researchers to visualize and evaluate their models. 
 It promotes reproducible and exploratory research by offering transparent parameter control, open-source licensing, and seamless integration into Python-based analysis workflows. 
-This work lowers the barrier for adoption of QSM modeling by removing the MATLAB dependency, enhancing accessibility for the broader open-source geospatial and ecological modeling community.
+This work lowers the barrier for adoption of QSM modeling by removing the MATLAB dependency, enhancing accessibility for the broader open-source geospatial and ecological modeling community. 
+
 
 # Method
 
@@ -103,13 +104,13 @@ This cylinder-based representation offers a simple yet effective regularization 
 
 PyTLiDAR is organized into several key modules: core QSM algorithms (treeqsm.py), batch processing utilities (treeqsm_batch.py), GUI components built with [PyQt6](https://pypi.org/project/PyQt6/) (Python bindings for the Qt 6 framework), 
 and visualization tools using Plotly. The software follows a modular design that allows researchers to either use the complete GUI application or integrate individual components into their own Python workflows. 
-![Software flowchart. \label{fig:pc1}](<figs/flowchart_画板 1.jpg>){ width=100% }
+![Software flowchart. \label{fig:pc1}](<figs/flowchart.png>){ width=100% }
 
 # Software Description
 
 
 
-PyTLiDAR implements the TreeQSM model in Python, and uses PyQt6 (the Python implementation of Qt, a major GUI framework) to create an intuitive interface for parameter configuration and data processing (Figure 1). Upon launching the application, users can input or automatically generate values for key modeling parameters, including the minimum, and maximum patch diameters within a user-defined parameter space. Also, an intensity threshold can be set to filter the point cloud data, helping to remove lidar returns due to noise or vegetation prior to modeling. Users may choose between batch processing of an entire directory of point cloud files or processing a single file. The GUI also includes options for displaying only the optimal model, based on performance metrics such as mean point distance to constructed surface. 
+PyTLiDAR implements the TreeQSM model in Python, and uses PyQt6 (the Python implementation of Qt, a major GUI framework) to create an intuitive interface for parameter configuration and data processing. Upon launching the application, users can input or automatically generate values for key modeling parameters, including the minimum, and maximum patch diameters within a user-defined parameter (Figure 2). Also, an intensity threshold can be set to filter the point cloud data, helping to remove lidar returns due to noise or vegetation prior to modeling. Users may choose between batch processing of an entire directory of point cloud files or processing a single file. The GUI also includes options for displaying only the optimal model, based on performance metrics such as mean point distance to constructed surface. 
 
  
 
@@ -121,16 +122,14 @@ Users can inspect the structural fidelity of the reconstructed model, including 
 This combination of visual feedback and customizable processing offers an efficient path toward accurate and transparent tree structure analysis. 
 If running in batch mode, users may also set the number of parallel cores to utilize to run simultaneous processes.
 
-![Software interface for processing and interactive visualization. \label{fig:pc1}](figs/fig2.jpg){ width=80% }
+![Software interface for processing and interactive visualization. \label{fig:pc1}](figs/cylinders.png){ width=80% }
 
 Users can also review the morphological summeries of the QSM, including distribution of branch diameters, branch volume, surface area, 
 and length with regard to diameter or order from stem, as with the original TreeQSM implementation (Figure 4).
 
-![Tree QSM data display \label{fig:pc1}](figs/fig3.jpg){ width=80% }
+![Tree QSM data display \label{fig:pc1}](figs/tree_data.png){ width=80% }
 
-Both treeqsm.py and treeqsm_batch.py may be run directly from the command line. This allows users to integrate the same functionality provided in the GUI into their own scripts with ease, whether those scripts are in python or not. Python users can use the package directly and get the full functionality by importing treeqsm.  
-
-[#add_benchmark_comparison]
+Both treeqsm.py and treeqsm_batch.py may be run directly from the command line. This allows users to integrate the same functionality provided in the GUI into their own scripts with ease, whether those scripts are in python or not. Python users can use the package directly and get the full functionality by importing treeqsm. 
 
 # Availability and Installation
 
@@ -151,6 +150,6 @@ their analysis.
 # Acknowledgements
 
 We acknowledge contributions from Amir Hossein Alikhah Mishamandani during the development of the package. This work also received high level guidance from Breanna Shi, Dori P., and thanks to
-other staffs from the Human-Augmented Analytics Group to make this happen.
+other staff from the Human-Augmented Analytics Group to make this happen.
 
 # References
