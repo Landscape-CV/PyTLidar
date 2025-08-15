@@ -598,7 +598,7 @@ class BatchProcessingWindow(QMainWindow):
             cloud = load_point_cloud(file, float(self.intensity_threshold))
             cloud = cloud-np.mean(cloud,axis=0)  # Center the point cloud
             self.file_data[self.selected_index]['cloud'] = cloud
-        fidelity = max(1,len(cloud)/100000)
+        fidelity = min(1,100000/len(self.points))
         html = point_cloud_plotting(cloud,subset=True,fidelity=fidelity,marker_size=1)
         self.cloud_web_view = QWebEngineView()
         self.cloud_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
@@ -731,7 +731,7 @@ class SingleFileProcessingWindow(QMainWindow):
     def __init__(self,root,file,inputs,generate_values, show_only_optimal=False,metric = None):
         super().__init__()
         self.setWindowTitle("Single File Processing")
-        self.setGeometry(100, 100, 1920, 1080)  
+        self.setGeometry(100, 100, 1600, 900)  
         self.root = root
         self.args = inputs
         self.generate_values =generate_values
@@ -938,7 +938,7 @@ class SingleFileProcessingWindow(QMainWindow):
     
     def show_point_cloud(self):
         self.append_text("Showing Point Cloud...\n")
-        fidelity = max(1,len(self.points)/100000)
+        fidelity = min(1,100000/len(self.points))
         html = point_cloud_plotting(self.points,subset=True,fidelity=fidelity,marker_size=1)
 
         self.cloud_web_view = QWebEngineView()

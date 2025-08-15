@@ -2290,13 +2290,13 @@ def parse_args(argv):
             print(args)
             sys.stdout.write(f"If --custominput is selected, values for --ipd (PatchDiam1) --minpd (PatchDiam2Min) --maxpd (PatchDiam2Max). See --help if needed")
             return "ERROR"
-    # else:
-    #     if type(args["PatchDiam1"]) != list:
-    #         args["PatchDiam1"]=[args["PatchDiam1"]]
-    #     if type(args["PatchDiam2Min"]) != list:
-    #         args["PatchDiam2Min"]=[args["PatchDiam2Min"]]
-    #     if type(args["PatchDiam2Max"]) != list:
-    #         args["PatchDiam2Max"]=[args["PatchDiam2Max"]]
+    else:
+        if type(args["PatchDiam1"]) == list:
+            args["PatchDiam1"]=int(args["PatchDiam1"][0])
+        if type(args["PatchDiam2Min"]) != list:
+            args["PatchDiam2Min"]=int(args["PatchDiam2Min"][0])
+        if type(args["PatchDiam2Max"]) != list:
+            args["PatchDiam2Max"]=int(args["PatchDiam2Max"][0])
 
     return args
 
