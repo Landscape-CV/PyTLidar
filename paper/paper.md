@@ -66,7 +66,7 @@ Key features of PyTLiDAR include:
 
 -Support for interactive 3D visualization of tree models and parameter tuning 
 
--Batch data processing  
+-Batch data processing 
 
 # Statement of Need
 
