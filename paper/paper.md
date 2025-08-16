@@ -122,7 +122,7 @@ Users can inspect the structural fidelity of the reconstructed model, including 
 This combination of visual feedback and customizable processing offers an efficient path toward accurate and transparent tree structure analysis. 
 If running in batch mode, users may also set the number of parallel cores to utilize to run simultaneous processes.
 
-![QSM Cylinder example. \label{fig:pc1}](figs/cylinders_2.png.png){ width=80% }
+![QSM Cylinder example. \label{fig:pc1}](figs/cylinders_2.png){ width=80% }
 
 Users can also review the morphological summeries of the QSM, including distribution of branch diameters, branch volume, surface area, 
 and length with regard to diameter or order from stem, as with the original TreeQSM implementation (Figure 4).
