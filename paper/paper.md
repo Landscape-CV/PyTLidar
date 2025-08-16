@@ -23,6 +23,8 @@ authors:
   - name: James Stroud
     affiliation: 5
     corresponding: true
+  - name: Breanna Shi
+    affiliation: 2
 
 affiliations:
   - name: School of Computer Science, Georgia Institute of Technology, United States
