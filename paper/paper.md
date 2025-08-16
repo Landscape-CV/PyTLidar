@@ -125,7 +125,7 @@ If running in batch mode, users may also set the number of parallel cores to uti
 ![QSM Cylinder example. \label{fig:pc1}](figs/cylinders_2.png)
 
 Users can also review the morphological summeries of the QSM, including distribution of branch diameters, branch volume, surface area, 
-and length with regard to diameter or order from stem, as with the original TreeQSM implementation (Figure 4).
+and length with regard to diameter or order from stem, as with the original TreeQSM implementation (Figure 4). All of the produced figures are also saved for later viewing and reference.
 
 ![Tree QSM data display \label{fig:pc1}](figs/tree_data.png){ width=60% }
 
