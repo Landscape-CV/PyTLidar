@@ -122,7 +122,7 @@ Users can inspect the structural fidelity of the reconstructed model, including 
 This combination of visual feedback and customizable processing offers an efficient path toward accurate and transparent tree structure analysis. 
 If running in batch mode, users may also set the number of parallel cores to utilize to run simultaneous processes.
 
-![Software interface for processing and interactive visualization. \label{fig:pc1}](figs/cylinders.png){ width=80% }
+![QSM Cylinder example. \label{fig:pc1}](figs/cylinders_2.png.png){ width=80% }
 
 Users can also review the morphological summeries of the QSM, including distribution of branch diameters, branch volume, surface area, 
 and length with regard to diameter or order from stem, as with the original TreeQSM implementation (Figure 4).
@@ -133,8 +133,8 @@ Both treeqsm.py and treeqsm_batch.py may be run directly from the command line. 
 
 # Availability and Installation
 
-PyTLiDAR is available at this [GitHub repository](https://github.com/Landscape-CV/PyTLiDAR). The package requires Python 3.8+ and a few key dependencies listed in the requirements. 
-Installation instructions and example datasets are provided in the repository documentation.
+The latest development version of PyTLiDAR as well as usage instructions are available at this [GitHub repository](https://github.com/Landscape-CV/PyTLiDAR). The package requires Python 3.8+ and a few key dependencies listed in the requirements. 
+Installation instructions and example datasets are provided in the repository documentation. The latest release version is available on PyPi using pip install PyTLiDAR.
 
 # Future Additions
 
