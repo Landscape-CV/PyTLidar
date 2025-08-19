@@ -916,10 +916,14 @@ class SingleFileProcessingWindow(QMainWindow):
         # Step 3: Define inputs for TreeQSM
         print(np.mean(self.points,axis = 0))
         self.points = self.points - np.mean(self.points,axis = 0)
+        # print(np.min(self.points[:,:2],axis=0))
+        # self.points[:,2] = self.points[:,2]-np.min(self.points[:,2],axis=0)
+
+
         if generate_values:
-            self.inputs = define_input(self.file,self.nPD1, self.nPD2Min, self.nPD2Max)[0]
+            self.inputs = define_input(self.points,self.nPD1, self.nPD2Min, self.nPD2Max)[0]
         else:
-            self.inputs = define_input(self.file,1,2,3)[0]
+            self.inputs = define_input(self.points,1,2,3)[0]
             self.nPD1 = [float(i.strip()) for i in self.nPD1.split(',')]
             self.nPD2Min = [float(i.strip()) for i in self.nPD2Min.split(',')]
             self.nPD2Max = [float(i.strip()) for i in self.nPD2Max.split(',')]
@@ -939,6 +943,7 @@ class SingleFileProcessingWindow(QMainWindow):
     def show_point_cloud(self):
         self.append_text("Showing Point Cloud...\n")
         fidelity = min(1,100000/len(self.points))
+
         html = point_cloud_plotting(self.points,subset=True,fidelity=fidelity,marker_size=1)
 
         self.cloud_web_view = QWebEngineView()
