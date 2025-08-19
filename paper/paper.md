@@ -85,16 +85,16 @@ The use of QSM software on point cloud data permits estimation of detailed compo
 providing detailed information for fine-scale estimates of AGB, canopy architecture, and more.
 TreeQSM is a software that has been widely used in forestry and ecology for modeling tree structures from TLS point clouds [@TERRYN2020170]. 
 Comparing to other similar softwares, TreeQSM stands out for speed, reliability, and ease of use, 
-while [Computree](https://www.simpleforest.org/) offers broad functionality but suffers from a large installation size and less intuitive interface. 
-[AdQSM](https://github.com/GuangpengFan/AdQSM) is extremely fast and simple but lacks advanced features and source code access. 
-[aRchi](https://github.com/umr-amap/aRchi) provides various functions but is slow, not sufficiently documented, and harder to set up. 
-[3dForest](https://github.com/VUKOZ-OEL/3d-forest-classic) has a promising GUI but is currently unstable, crashing when loading data. There is also a lack of viable options within Python specifically.
+while [SimpleForest](https://www.simpleforest.org/)[@Hackenberg2021] (available within Computree) offers broad functionality but suffers from a large installation size and less intuitive interface. 
+[AdQSM](https://github.com/GuangpengFan/AdQSM)[@Fan2020] is extremely fast and simple but lacks advanced features and source code access. 
+[aRchi](https://github.com/umr-amap/aRchi) [@aRchi] provides various functions but is slow, not sufficiently documented, and harder to set up. 
+[3dForest](https://github.com/VUKOZ-OEL/3d-forest-classic)[@3DForest] has a promising GUI but is currently unstable, crashing when loading data. There is also a lack of viable options within Python specifically.
 While TreeQSM is used in many applications, its reliance on MATLAB makes it less accessible for users, and its lack of makes the tool less user-friendly and its parameter tuning less efficient. Thus we aimed to port and improve TreeQSM
 
 PyTLidar addresses these issues by providing a native Python implementation of TreeQSM’s core algorithms, 
 wrapped in a streamlined graphical interface that allows researchers to visualize and evaluate their models. 
 It promotes reproducible and exploratory research by offering transparent parameter control, open-source licensing, and seamless integration into Python-based analysis workflows. 
-This work lowers the barrier for adoption of QSM modeling by removing the MATLAB dependency, enhancing accessibility for the broader open-source geospatial and ecological modeling community. 
+This work lowers the barrier for adoption of QSM modeling by removing the MATLAB dependency, enhancing accessibility for the broader open-source geospatial and ecological modeling community. PyTLidar is currently being used and was developed for ongoing projects in ecological monitoring. 
 
 
 # Method

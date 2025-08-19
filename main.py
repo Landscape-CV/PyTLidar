@@ -596,7 +596,8 @@ class BatchProcessingWindow(QMainWindow):
             self.append_text("Loading Point Cloud...\n")
             file = os.path.join(self.folder, self.file_data[self.selected_index]['file'])
             cloud = load_point_cloud(file, float(self.intensity_threshold))
-            cloud = cloud-np.mean(cloud,axis=0)  # Center the point cloud
+            cloud = cloud-np.mean(cloud,axis=0)  # Center the point 
+            cloud[:,2] = cloud[:,2]-np.min(cloud[:,2])  # Set the lowest point to be at z=0
             self.file_data[self.selected_index]['cloud'] = cloud
         fidelity = min(1,100000/len(self.points))
         html = point_cloud_plotting(cloud,subset=True,fidelity=fidelity,marker_size=1)
@@ -916,8 +917,7 @@ class SingleFileProcessingWindow(QMainWindow):
         # Step 3: Define inputs for TreeQSM
         print(np.mean(self.points,axis = 0))
         self.points = self.points - np.mean(self.points,axis = 0)
-        # print(np.min(self.points[:,:2],axis=0))
-        # self.points[:,2] = self.points[:,2]-np.min(self.points[:,2],axis=0)
+        self.points[:,2] = self.points[:,2]-np.min(self.points[:,2],axis=0)
 
 
         if generate_values:
@@ -1149,6 +1149,7 @@ class BatchQSM(QObject):
             if point_cloud is not None:
                 
                 point_cloud = point_cloud - np.mean(point_cloud,axis = 0)
+                point_cloud[:,2] = point_cloud[:,2]-np.min(point_cloud[:,2],axis=0)
 
                 clouds.append(point_cloud)
                 self.plot_data.emit((i,point_cloud))
