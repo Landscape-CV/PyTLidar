@@ -106,7 +106,7 @@ This cylinder-based representation offers a simple yet effective regularization 
 
 PyTLidar is organized into several key modules: core QSM algorithms (treeqsm.py), batch processing utilities (treeqsm_batch.py), GUI components built with [PyQt6](https://pypi.org/project/PyQt6/) (Python bindings for the Qt 6 framework), 
 and visualization tools using Plotly. The software follows a modular design that allows researchers to either use the complete GUI application or integrate individual components into their own Python workflows. 
-![PyTLidar creates a QSM from an input point cloud and a set of parameters representing the size of the initial building blocks of the model. Structural measurements derived from the model and the model itself can then be viewed and evaluated within the tool. \label{fig:pc1}](figs/flowchart.png){ width=100% }
+![PyTLidar creates a QSM from an input point cloud and a set of parameters representing the size of the initial building blocks of the model. Structural measurements derived from the model and the model itself can then be viewed and evaluated within the tool. \label{fig:flowchart}](figs/flowchart.png){ width=100% }
 
 # Software Description
 
@@ -116,7 +116,7 @@ PyTLidar implements the TreeQSM model in Python, and uses PyQt6 (the Python impl
 
  
 
-![Graphical user interface for parameter input and data selection for PyTLidar. \label{fig:pc1}](figs/fig1.jpg){ width=80% }
+![Graphical user interface for parameter input and data selection for PyTLidar. \label{fig:gui}](figs/fig1.jpg){ width=80% }
 
 After parameter and file selection, the software opens a new interface displaying data processing progress. 
 Once the QSM reconstruction process is complete, PyTLidar provides interactive 3D visualization of the generated QSM using [plotly](https://plotly.com/) (Figure 3). 
@@ -124,11 +124,11 @@ Users can inspect the structural fidelity of the reconstructed model, including 
 This combination of visual feedback and customizable processing offers an efficient path toward accurate and transparent tree structure analysis. 
 If running in batch mode, users may also set the number of parallel cores to utilize to run simultaneous processes.
 
-![Point cloud and fitted cylinder of a sample pine. The graphical interface allows a user to compare the produced model (blue lines) directly to the point cloud (points colored by height) to visually evaluate fit. \label{fig:pc1}](figs/cylinders_2.png)
+![Point cloud and fitted cylinder of a sample pine. The graphical interface allows a user to compare the produced model (blue lines) directly to the point cloud (points colored by height) to visually evaluate fit. \label{fig:qsm}](figs/cylinders_2.png)
 
 Users can also review the morphological summaries of the QSM, including distribution of branch diameters, branch volume, surface area, and length with regard to diameter or order from stem, as with the original TreeQSM implementation (Figure 4). All of the produced figures are saved for later viewing and reference.
 
-![Example output data from sample pine. The output plots allow the user to derive summaries of various aspects of the input tree viewed within different categories \label{fig:pc1}](figs/tree_data.png){ width=60% }
+![Example output data from sample pine. The output plots allow the user to derive summaries of various aspects of the input tree viewed within different categories \label{fig:data}](figs/tree_data.png){ width=60% }
 
 Both treeqsm.py and treeqsm_batch.py may be run directly from the command line. This allows users to integrate the same functionality provided in the GUI into their own scripts with ease, whether those scripts are in python or not. Python users can use the package directly and get the full functionality by importing treeqsm. 
 
