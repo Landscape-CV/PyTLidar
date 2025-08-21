@@ -7,7 +7,7 @@ import numba
 from igraph import Graph
 
 
-def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, min_base_dist =.2, connect_ambiguous_points = True, fix_overlapping_segments = True,combine_nearby_bases =True,base_dist_multiplier=2,initial_size_limit =1000,min_height = 0):
+def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, connect_ambiguous_points = True, fix_overlapping_segments = True,combine_nearby_bases =True,base_dist_multiplier=2,initial_size_limit =1000,min_height = 0, connect_using_midpoint = False, min_Z = 0):
     """Shortest-Path Segmentation of Point Cloud Utilizing a Voronoi Cover Set and "Scan-Line" Graph Generation
 
     Args:
@@ -22,6 +22,8 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
         base_dist_multiplier (int, optional): optional multiplier for max_dist to be used on base layer. Defaults to 2.
         initial_size_limit (int, optional): Size limit of clusters grown on each layer. Defaults to 1000.
         min_height (int, optional): minimum height of found segments. Defaults to 0.
+        connect_using_midpoint (bool, optional): If True, connects segments using the midpoint of the segment during a second shortest path pass. Defaults to False.
+        min_Z (float, optional): Minimum Z value of point cloud to be used in determining base layer. Defaults to 0.
     """
     
     
@@ -63,7 +65,6 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
     
     
     cloud = center_points[:,:3].cpu().numpy()
-    min_Z = np.min(cloud[:,2])
     I = (cloud[:,2]-min_Z)<base_height
     cloud = cloud[I]
     included_cover_sets = np.where(I)
@@ -102,7 +103,7 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
     full_pcd = o3d.geometry.PointCloud()
     full_pcd.points = o3d.utility.Vector3dVector(cloud)
     full_pcd_tree = o3d.geometry.KDTreeFlann(full_pcd)
-    min_Z = np.min(cloud[:,2])
+
     I = (cloud[:,2]-min_Z)<base_height
     
     prev_base_height = min_height
@@ -152,17 +153,17 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
 
     for base in tree_bases:#Only utilize base if base cluster is large enough
         base_set = center_points[segments ==base]
-        if  len(base_set[:,2])>5:
+        if  len(base_set[:,2])>3:
             filtered_tree_bases.append(base)
 
     if combine_nearby_bases:#Combine bases that are within a certain distance, this helps for trees that have non-trunk segments that dip into base layer
-        filtered_tree_bases=combine_close_bases(segments,center_points,filtered_tree_bases,min_base_dist)
+        filtered_tree_bases=combine_close_bases(segments,center_points,filtered_tree_bases)
         filtered_tree_bases = filtered_tree_bases.cpu().numpy()
         mod_filtered_tree_bases = []
         for base in tree_bases:
             base_set = center_points[segments ==base]
             # if  len(base_set[:,2]<min_Z+.3)>1:
-            if  len(base_set[:,2])>5:
+            if  len(base_set[:,2])>3:
                 mod_filtered_tree_bases.append(base)
         filtered_tree_bases=mod_filtered_tree_bases
 
@@ -170,8 +171,10 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
     
     print("Connect Segments")
     segments,not_explored = connect_segments(pcd_tree,pcd,segments,full_not_explored,filtered_tree_bases,max_dist*2,network,False,True)#Shortest Path to lowest point of tree
-    print("Connect More Segments")
-    segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist,network,False,False)#Shortest path to average point of tree
+    if connect_using_midpoint:
+        print("Connect More Segments")
+        segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist,network,False,False)#Shortest path to average point of tree
+    
     if connect_ambiguous_points:
         print("Connect Final Segments")
         segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist*1.5,network,True,True)#Shortest path to min point of tree -- allow connections to clusters that are not adjacent to assigned
@@ -356,13 +359,13 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
                     continue
                 else:
                     euc_dist = np.sqrt(np.array([(pcd.points[idx]- pcd.points[base])**2 for idx in tree_base_points]).sum(axis=1))
-                    top = np.argsort(euc_dist)[0]
+                    top = np.argsort(euc_dist)[:2]#Only consider two closest bases to avoid connecting across large distances
                     path_dist=np.array(network.distances(base,tree_base_points[top],weights='weight'))[0]
                     if np.min(path_dist)==np.inf:
                         not_expanded[base]=True
                         continue
-                    # base_seg=tree_bases[np.argmin(path_dist)]
-                    base_seg=tree_bases[top]
+                    base_seg=tree_bases[np.argmin(path_dist)]
+                    # base_seg=tree_bases[top]
             else:
 
                 base_idx = np.where(np.isin(tree_bases, tree_base_seg))[0]
@@ -384,7 +387,7 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
         
     return segments,not_expanded
 
-def combine_close_bases(segments,center_points,bases, bound = .1):
+def combine_close_bases(segments,center_points,bases):
     """combines bases that are within a certain distance of each other into one base
 
     Args:
@@ -494,7 +497,7 @@ def fix_overlap(segments,center_points,network):
     bases = np.unique(segments)
     bounds = get_bounds(bases,segments,center_points)
     base_mins = get_minimums(segments,center_points)
-
+    overlapping_bases = []
     for i in range(len(bases)):
         base = center_points[segments ==bases[i]]
         min_y = torch.min(base[:,1])
@@ -507,6 +510,8 @@ def fix_overlap(segments,center_points,network):
         overlap = get_overlap(bounds,seg_bound)
         if sum(overlap)>1:
             for j in range(len(bases)):
+                if i==j:
+                    continue
                 test_bases = [base_mins[i],base_mins[j]]
                 point_data = center_points[segments ==bases[i]]
 
@@ -521,6 +526,7 @@ def fix_overlap(segments,center_points,network):
                    
 
     return segments
+    
 
 def get_minimums(segments,center_points):
     """Find lowest point of each segment

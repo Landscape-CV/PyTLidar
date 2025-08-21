@@ -30,6 +30,7 @@ except ImportError:
 import open3d as o3d
 from robpy.covariance import DetMCD,FastMCD
 from scipy.spatial.transform import Rotation 
+from scipy.interpolate import griddata
 
 
 
@@ -2353,6 +2354,181 @@ def get_axis_sort(point_cloud,axis):
     rotated_cloud =rotate_cloud(point_cloud,axis)
     sorted_indices = np.argsort(rotated_cloud[:, 2])
     return sorted_indices
+
+@jit(nopython=True, parallel=True)
+def get_surface_points(ground_points, grid_size):
+    """
+        Get highest points of each cell in a point cloud.
+    Args:
+        ground_points: Point cloud of points classified as ground
+        grid_size: size of the grid cells to divide the point cloud into.
+    Returns:
+        Array of points representing the highest point in each cell.
+    """
+    
+    
+    # Create a grid to divide the point cloud into cells
+    x_min, x_max = np.min(ground_points[:, 0]), np.max(ground_points[:, 0])
+    y_min, y_max = np.min(ground_points[:, 1]), np.max(ground_points[:, 1])
+    x_mx = np.ceil((x_max - x_min) / grid_size)
+    y_mx = np.ceil((y_max - y_min) / grid_size)
+    grid_cells = int(np.ceil(max(x_mx, y_mx)))
+    x_bins = np.linspace(x_min, x_max, grid_cells + 1)
+    y_bins = np.linspace(y_min, y_max, grid_cells + 1)
+    
+    # Digitize the points into the grid
+    x_indices = np.digitize(ground_points[:, 0], x_bins) - 1
+    y_indices = np.digitize(ground_points[:, 1], y_bins) - 1
+    
+    # Create a grid to hold the highest points
+    highest_points = []
+    
+    for i in range(grid_cells):
+        for j in range(grid_cells):
+            mask = (x_indices == i) & (y_indices == j)
+            if np.any(mask):
+                cell_points = ground_points[mask]
+                highest_point = cell_points[np.argmax(cell_points[:, 2])]
+                highest_points.append(highest_point.astype(np.float32))
+    
+    return highest_points
+@jit(nopython=True, parallel=True)
+def rasterize_cloud(point_cloud, resolution=0.1):
+    """
+    Rasterize a point cloud into a 2D grid based on the highest z-value in each cell.
+    
+    Args:
+        point_cloud: Point cloud data as a numpy array of shape (N, 3).
+        resolution: Size of each grid cell.
+        
+    Returns:
+        2D numpy array representing the rasterized grid.
+    """
+    x_min, x_max = np.min(point_cloud[:, 0]), np.max(point_cloud[:, 0])
+    y_min, y_max = np.min(point_cloud[:, 1]), np.max(point_cloud[:, 1])
+    
+    x_bins = np.arange(x_min, x_max + resolution, resolution)
+    y_bins = np.arange(y_min, y_max + resolution, resolution)
+    
+    raster_grid = np.full((len(x_bins)-1, len(y_bins)-1), np.nan,dtype =np.float64)
+    
+    x_indices = np.digitize(point_cloud[:, 0], x_bins) - 1
+    y_indices = np.digitize(point_cloud[:, 1], y_bins) - 1
+    
+    for i in range(len(point_cloud)):
+        x_idx = x_indices[i]
+        y_idx = y_indices[i]
+        if 0 <= x_idx < raster_grid.shape[0] and 0 <= y_idx < raster_grid.shape[1]:
+            raster_grid[x_idx, y_idx] = max(raster_grid[x_idx, y_idx], point_cloud[i, 2]) if not np.isnan(raster_grid[x_idx, y_idx]) else point_cloud[i, 2]
+    
+    # raster_grid[raster_grid == -np.inf] = np.nan
+    
+    return raster_grid
+
+def fill_raster_gaps(raster_grid):
+    """
+    Fill gaps (NaN values) in a raster grid using nearest neighbor interpolation.
+    
+    Args:
+        raster_grid: 2D numpy array representing the rasterized grid with NaN values.
+        
+    Returns:
+        2D numpy array with NaN values filled.
+    """
+    x = np.arange(raster_grid.shape[1])
+    y = np.arange(raster_grid.shape[0])
+    xx, yy = np.meshgrid(x, y)
+    
+    valid_mask = ~np.isnan(raster_grid)
+    filled_grid = griddata(
+        (xx[valid_mask], yy[valid_mask]),
+        raster_grid[valid_mask],
+        (xx, yy),
+        method='nearest'
+    )
+    
+    return filled_grid
+@jit(nopython=True, parallel=True)
+def get_notable_features(cloud_raster,threshold =.01,y_min = 0,x_min=0, resolution=0.1):
+    """
+    Get notable features from a rasterized point cloud.
+    
+    Args:
+        cloud_raster: 2D numpy array representing the rasterized grid.
+        threshold: Minimum height difference to consider a feature notable.
+        
+    Returns:
+        List of notable features as (x, y, height) tuples.
+    """
+    notable_features = []
+    for i in range(1, cloud_raster.shape[0] - 1):
+        for j in range(1, cloud_raster.shape[1] - 1):
+            if not np.isnan(cloud_raster[i, j]):
+                neighbors = [
+                    cloud_raster[i-1, j], cloud_raster[i+1, j],
+                    cloud_raster[i, j-1], cloud_raster[i, j+1]
+                ]
+                max_neighbor = max(neighbors)
+                if cloud_raster[i, j] - max_neighbor > threshold:
+                    notable_features.append((i*resolution+x_min, j*resolution+y_min, cloud_raster[i, j]))
+    
+    return notable_features
+
+def subtract_terrain(point_cloud,terrain_raster,grid_size=0.1):
+    """
+    Subtract terrain height from point cloud to get normalized heights.
+    
+    Args:
+        point_cloud: Point cloud data as a numpy array of shape (N, 3).
+        terrain_raster: 2D numpy array representing the terrain height.
+        
+    Returns:
+        Point cloud with normalized heights.
+    """
+    x_min, x_max = np.min(point_cloud[:, 0]), np.max(point_cloud[:, 0])
+    y_min, y_max = np.min(point_cloud[:, 1]), np.max(point_cloud[:, 1])
+    
+    x_bins = np.arange(x_min, x_max + grid_size, grid_size)
+    y_bins = np.arange(y_min, y_max + grid_size, grid_size)
+    
+    x_indices = np.digitize(point_cloud[:, 0], x_bins) - 1
+    y_indices = np.digitize(point_cloud[:, 1], y_bins) - 1
+    
+    normalized_heights = point_cloud[:, 2].copy()
+    
+    for i in range(len(point_cloud)):
+        if 0 <= x_indices[i] < terrain_raster.shape[0] and 0 <= y_indices[i] < terrain_raster.shape[1]:
+            normalized_heights[i] -= terrain_raster[x_indices[i], y_indices[i]]
+
+    return np.column_stack((point_cloud[:, :2], normalized_heights))
+
+def add_terrain(point_cloud, terrain_raster):
+    """
+    Add terrain height to point cloud to get absolute heights.
+    
+    Args:
+        point_cloud: Point cloud data as a numpy array of shape (N, 3).
+        terrain_raster: 2D numpy array representing the terrain height.
+        
+    Returns:
+        Point cloud with absolute heights.
+    """
+    x_min, x_max = np.min(point_cloud[:, 0]), np.max(point_cloud[:, 0])
+    y_min, y_max = np.min(point_cloud[:, 1]), np.max(point_cloud[:, 1])
+    
+    x_bins = np.arange(x_min, x_max + 0.1, 0.1)
+    y_bins = np.arange(y_min, y_max + 0.1, 0.1)
+    
+    x_indices = np.digitize(point_cloud[:, 0], x_bins) - 1
+    y_indices = np.digitize(point_cloud[:, 1], y_bins) - 1
+    
+    absolute_heights = point_cloud[:, 2].copy()
+    
+    for i in range(len(point_cloud)):
+        if 0 <= x_indices[i] < terrain_raster.shape[0] and 0 <= y_indices[i] < terrain_raster.shape[1]:
+            absolute_heights[i] += terrain_raster[x_indices[i], y_indices[i]]
+    
+    return np.column_stack((point_cloud[:, :2], absolute_heights))
 
 
     
