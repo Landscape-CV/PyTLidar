@@ -51,28 +51,12 @@ bibliography: paper.bib
 
 [PyTLidar](https://github.com/Landscape-CV/PyTLiDAR) is an open-source Python package that reconstructs 3D tree Quantitative Structure Models (QSM) from Terresrial lidar Scan (TLS) data, 
 providing a user-friendly tool improving and expanding based on the MATLAB-based [TreeQSM](https://github.com/InverseTampere/TreeQSM?tab=readme-ov-file) method [@TreeQSM]. 
-PyTLidar provides an accessible, extensible, and GUI-driven workflow for researchers and practitioners in forestry, ecology, and 3D vegetation modeling. 
-The package also integrates interactive visualization tools for inspecting model quality and derived tree metrics.
+PyTLidar provides an accessible, extensible, and GUI-driven workflow for researchers and practitioners in forestry, ecology, and 3D vegetation modeling. The package also integrates interactive visualization tools for inspecting model quality and derived tree metrics. The ease of use and installation of PyTLidar is of great value to ecologists and other users that are less familiar with matlab and other more computationally technical tools. 
 
-Key features of PyTLidar include:
+The key features of PyTLidar are a recreation of the TreeQSM core functionality, and an enhanced method of setting up experiments and viewing results. It provides functionality for loading and extracting point cloud data from .las and .laz files as well as automatic calculation of a range of initial parameters for the QSM model based on point cloud structure. The QSM creation methods include generation of a Voronoi partition of the point cloud, segment detection, and cylinder fitting. PyTLidar also calculates various tree metrics including branch length and volume, crown volume, and more, and provides these results in flat file form as well as visual graphics. QSMs are also output in an interactive html format which can be viewed directly in the GUI as well as saved and shared. All of this is packaged within a simple to use GUI as well as providing support for command line and direct Python interfacing. 
 
--Loading and extracting point cloud data from .las and .laz files 
 
--Automatic calculation of a range of initial parameters for the QSM model based on point cloud structure 
 
--Generation of Voronoi partition (cover sets) of point cloud 
-
--Detection of segments through topological analysis of cover sets 
-
--Fitting of cylinders 
-
--Calculation of various tree metrics including branch length and volume, crown volume, and more 
-
--A user-friendly GUI  for batch or single-file processing 
-
--Support for interactive 3D visualization of tree models and parameter tuning 
-
--Batch data processing
 
 # Statement of Need
 
@@ -129,20 +113,18 @@ If running in batch mode, users may also set the number of parallel cores to uti
 
 Users can also review the morphological summaries of the QSM, including distribution of branch diameters, branch volume, surface area, and length with regard to diameter or order from stem, as with the original TreeQSM implementation (Figure 4). All of the produced figures are saved for later viewing and reference.
 
-![Example output data from sample pine. The output plots allow the user to derive summaries of various aspects of the input tree viewed within different categories \label{fig:data}](figs/tree_data.png){ width=120% }
+![Example output data from sample pine. The output plots allow the user to derive summaries of various aspects of the input tree viewed within different categories including segment measurements by angle, direction and diamter class, as well as overall stem taper \label{fig:data}](figs/tree_data_smaller.png){ width=100% }
 
 Both treeqsm.py and treeqsm_batch.py may be run directly from the command line. This allows users to integrate the same functionality provided in the GUI into their own scripts with ease, whether those scripts are in python or not. Python users can use the package directly and get the full functionality by importing treeqsm. 
 
 # Availability and Installation
 
 The latest development version of PyTLidar as well as usage instructions are available at this [GitHub repository](https://github.com/Landscape-CV/PyTLidar). The package requires Python 3.8+ and a few key dependencies listed in the requirements. 
-Installation instructions and example datasets are provided in the repository documentation. The latest release version is available on PyPi using pip install PyTLidar.
+Installation instructions and example datasets are provided in the repository documentation. The latest release version is available on PyPi and can be installed using ```pip install PyTLidar.```
 
 # Future Additions
 
-While the initial release is focused on porting only TreeQSM, several future additions to PyTLidar are planned. 
-
-The first planned enhancement is to provide a novel pipeline for analyzing lidar scans of entire forest ecosystems to quantify vegetation structure at particular locations. 
+While the initial release is focused on porting only TreeQSM, several future additions to PyTLidar are planned. The first planned enhancement is to provide a novel pipeline for analyzing lidar scans of entire forest ecosystems to quantify vegetation structure at particular locations. 
 This would allow users to load a series of lidar scan tiles and GPS observations of fauna and directly measure the environments, providing greater insights on components of habitat structural complexity. 
 
 Other planned enhancements include functions provided to users for processing lidar point clouds, including but not limited to both established and novel methods to perform ground 
