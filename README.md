@@ -129,7 +129,7 @@ Below is the algorithm sequence of the TreeQSM process on a single file and test
 import PyTLiDAR.treeqsm as qsm
 
 
-file = 'file.las'
+file = 'example_pine.las'
 
 P = qsm.Utils.load_point_cloud(file) #Load las file
 
@@ -163,6 +163,25 @@ trunk = P[T, :]  # Point cloud of the trunk
 treedata, triangulation = qsm.tree_data(cylinder, branch, trunk, inputs,iter )
 
 ```
+#Tests
+
+Run the tests using pytest:
+```
+pytest
+```
+
+This will run all the test cases under the tests/ directory. The tests include basic functionality checks for the core components of QSM creation.
+
+You can also run specific tests by passing the test file or function name:
+
+pytest tests/test_calculate.py
+
+Due to the complex nature of inputs and outputs of the algorithm, manual tests are also recommended. Using Dataset/example_pine.las run:
+
+```
+python -m PyTLidar.treeqsm example_pine.las --normalize --verbose 
+```
+
 
 # Under Development
 

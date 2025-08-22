@@ -485,14 +485,16 @@ if __name__ == "__main__":
             except FileNotFoundError:
                 os.mkdir("results")
                 os.chdir("results")
-        for file in os.listdir():
-            remove = True
-            for string,filename in saved_files:
-                if string in file and filename in file:
-                    remove = False
-            if remove:
-                os.remove(file)
-            
+        if len(parsed_args["Optimum"])!=[]:
+            sys.stdout.write("Removing non-optimal files from results folder...\n")
+            for file in os.listdir():
+                remove = True
+                for string,filename in saved_files:
+                    if string in file and filename in file:
+                        remove = False
+                if remove:
+                    os.remove(file)
+                
     
 
     # except:

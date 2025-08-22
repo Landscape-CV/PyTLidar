@@ -3,8 +3,8 @@ import setuptools
 
 
 setuptools.setup(
-    name="PyTLiDAR",
-    version="0.0.1.12",
+    name="PyTLidar",
+    version="0.0.1",
     author="John Hagood",
 
     url="https://github.com/Landscape-CV/PyTLiDAR",
@@ -29,8 +29,6 @@ setuptools.setup(
         'python-dotenv',
         'igraph',
         'scikit_learn',
-        'scipy',
-        'torch==2.6.0',
-        'trimesh',
+        'scipy'
     ],
 )

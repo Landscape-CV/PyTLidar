@@ -51,13 +51,15 @@ class BatchQSM():
             os.chdir("results")
         else:
             os.chdir('results')
-        for file in os.listdir():
-            remove = True
-            for string,filename in self.saved_files:
-                if string in file and filename in file:
-                    remove = False
-            if remove:
-                os.remove(file)
+        if  len(parsed_args["Optimum"]) != []:
+            sys.stdout.write("Removing non-optimal files from results folder...\n")
+            for file in os.listdir():
+                remove = True
+                for string,filename in self.saved_files:
+                    if string in file and filename in file:
+                        remove = False
+                if remove:
+                    os.remove(file)
         os.chdir(original_location)
     def run(self):
         """

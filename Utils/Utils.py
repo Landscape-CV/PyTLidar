@@ -2293,9 +2293,9 @@ def parse_args(argv):
     else:
         if type(args["PatchDiam1"]) == list:
             args["PatchDiam1"]=int(args["PatchDiam1"][0])
-        if type(args["PatchDiam2Min"]) != list:
+        if type(args["PatchDiam2Min"]) == list:
             args["PatchDiam2Min"]=int(args["PatchDiam2Min"][0])
-        if type(args["PatchDiam2Max"]) != list:
+        if type(args["PatchDiam2Max"]) == list:
             args["PatchDiam2Max"]=int(args["PatchDiam2Max"][0])
 
     return args

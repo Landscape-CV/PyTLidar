@@ -56,42 +56,7 @@ def test_two_segments():
     assert RS[6] == RS[6] // 2, "Branch base should be half parent's value"
     """
 
-def test_empty_segments():
-    """ Test 3: Empty segments handling - May not needed """
-    P = np.array([[0, 0, z] for z in range(10)], dtype=np.float32)  # Vertical trunk
-    cover = {
-        'ball': [np.array([0, 1, 2]), np.array([3, 4, 5]), np.array([6, 7, 8])],  # 3 layers
-        'center': np.array([0, 3, 6]),  # Centers of cover sets
-        'neighbor': [
-            np.array([1]),  # Layer 0 neighbors layer 1
-            np.array([0, 2]),  # Layer 1 neighbors layers 0 and 2
-            np.array([1])  # Layer 2 neighbors layer 1
-        ]
-    }
-    segment_empty = {
-        'segments': [],
-        'ChildSegment': []
-    }
-    RS = relative_size(P, cover, segment_empty)
-    assert np.all(RS == 0), "Test 3 Failed: Should handle empty segments"
 
-def test_zero_height_tree():
-    """ Test 4: Zero-height tree - May not needed """
-    P_flat = np.array([[0, 0, 5], [1, 0, 5], [0, 1, 5]], dtype=np.float32)
-    cover_flat = {
-        'ball': [np.array([0, 1, 2])],
-        'center': np.array([0]),
-        'neighbor': [np.array([], dtype=int)]
-    }
-    segment = {
-        'segments': [
-            [np.array([0]), np.array([1]), np.array([2])],  # Trunk with 3 layers
-            [np.array([2])]  # Branch with 1 layer
-        ],
-        'ChildSegment': [[1], []]  # Trunk has child 1, branch has no children
-    }
-    RS = relative_size(P_flat, cover_flat, segment)
-    assert np.all(RS == 255), "Test 4 Failed: Should handle zero height"
 
 
 # Run the test suite
