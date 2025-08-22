@@ -485,8 +485,9 @@ if __name__ == "__main__":
             except FileNotFoundError:
                 os.mkdir("results")
                 os.chdir("results")
-        if len(parsed_args["Optimum"])!=[]:
+        if parsed_args["Optimum"]!=[]:
             sys.stdout.write("Removing non-optimal files from results folder...\n")
+            
             for file in os.listdir():
                 remove = True
                 for string,filename in saved_files:

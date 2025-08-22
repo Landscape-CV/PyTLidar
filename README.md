@@ -182,7 +182,9 @@ Due to the complex nature of inputs and outputs of the algorithm, manual tests a
 python -m PyTLidar.treeqsm example_pine.las --normalize --verbose 
 ```
 
+Compare the tree_data_Tree1_t1_m1.txt file that is generated to Dataset/results/example_pine_tree_data.txt. The algorithm is randomized, so many values will not match, but no value should be significantly different. 
 
+This test can also be run using the GUI, and a visual check can also be done as a sanity check on the resulting numbers.
 # Under Development
 
 Below are functionalities that are under active development to be included in future pip versions.
@@ -200,3 +202,26 @@ make a file in your parent director named `.env` and paste the following into it
 ```
 DATA_FOLDER_FILEPATH = ...
 ```
+#Contributing
+##Reporting Bugs
+
+Submit a Report: You may submit your bug report to issues. Please include any relevant output.
+Check to see if your issue has already been reported, commenting on the issue may help pinpoint the fix and also elevate the priority.
+
+##Suggestions
+
+Share your thoughts: You may submit your idea in issues as well. The more descriptive the better, but minor usability suggestions are welcome as well.
+
+##Development
+
+###Contributing Fixes
+
+You may create a fork of our repository to submit a pull request. Your request will be reviewed and if approved will be incorporated. For best chances at approval, attach to an existing issue or create your own to resolve. 
+
+###Contributing New Features
+
+If you have a simple feature to add, you may follow the same procedure as contributing a fix. However, if you have a larger feature, collaboration with the broader team may be warranted. If you feel this is the case, please reach out to someone on the dev team and a plan can be developed for your collaboration and certain permissions may be granted. 
+
+#License
+
+PyTLidar is published under the GPL 3.0 License 
