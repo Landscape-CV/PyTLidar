@@ -210,7 +210,7 @@ Check to see if your issue has already been reported, commenting on the issue ma
 
 ## Suggestions
 
-Share your thoughts: You may submit your idea in issues as well. The more descriptive the better, but minor usability suggestions are welcome as well.
+Share your thoughts: You may submit your idea in issues as well. The more descriptive the better, but minor usability suggestions are welcome.
 
 ## Development
 
