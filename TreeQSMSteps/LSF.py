@@ -802,8 +802,8 @@ def least_squares_cylinder(P, cyl0, weight=None, Q=None):
             rel = False
         iter_count += 1
 
-    if par[4]>max_rad or par[4]<.001:
-        par = best_par
+    # if par[4]>max_rad or par[4]<.001:
+    #     par = best_par
     # Compute final cylinder parameters.
     cyl_out = {}
     cyl_out['radius'] = float(par[4])
