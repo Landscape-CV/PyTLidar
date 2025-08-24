@@ -131,7 +131,7 @@ Other planned enhancements include functions provided to users for processing li
 filtering, tree segmentation and leaf/wood separation. The intended goal for this package is to provide a single source for any user processing terrestrial lidar to perform every step of 
 their analysis. 
 
-# Acknowledgments
+# Acknowledgements
 
 We acknowledge contributions and guidance during the development of the package from Dori Peters, Amir Hossein Alikhah Mishamandani and other staff from the Human-Augmented Analytics Group to make this happen.
 
