@@ -7,14 +7,14 @@ setuptools.setup(
     version="0.0.1",
     author="John Hagood",
 
-    url="https://github.com/Landscape-CV/PyTLiDAR",
+    url="https://github.com/Landscape-CV/PyTLidar",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
-    packages=['PyTLiDAR.Utils', 'PyTLiDAR.plotting', 'PyTLiDAR.TreeQSMSteps'],
-    py_modules=['PyTLiDAR.main', 'PyTLiDAR.treeqsm', 'PyTLiDAR.treeqsm_batch'],
+    packages=['PyTLidar.Utils', 'PyTLidar.plotting', 'PyTLidar.TreeQSMSteps'],
+    py_modules=['PyTLidar.main', 'PyTLidar.treeqsm', 'PyTLidar.treeqsm_batch'],
     python_requires=">=3.8",
     install_requires=[
         'alphashape',
