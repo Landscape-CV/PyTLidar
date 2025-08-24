@@ -1138,158 +1138,139 @@ def surface_coverage2(axis, length, vec, height, nl, ns):
     return surf_cov
 
 
-@jit(nopython=True)
-def surface_coverage_filtering(P, axis,start,length, lh, ns):
+def surface_coverage_filtering(P, c, lh, ns):
     """
-    Filter a 3d-point cloud based on given cylinder (axis and radius) by
-    dividing the point cloud into "ns" equal-angle sectors and "lh"-height
-    layers along the axis. For each sector-layer intersection (a region in
-    the cylinder surface) keep only the points closest to the axis.
+    Filters a 3D point cloud based on the assumption that it samples a cylinder.
+    The cylinder is defined by the structure (dictionary) c with fields:
+        - "axis": (3,) array, cylinder axis direction.
+        - "start": (3,) array, starting point of the cylinder.
+        - "length": scalar, length of the cylinder.
+    The function divides the cylinder surface into layers (of height lh) and
+    ns angular sectors. For each sector-layer cell, only the points closest to
+    the axis are retained. Additionally, it estimates a new radius, surface coverage,
+    and a mean absolute deviation (mad) from the selected distances.
 
     Inputs:
-    P             Point cloud, (n_points x 3)-matrix
-    c             Cylinder, stucture array with fields "axis", "start",
-                    "length"
-    lh            Height of the layers
-    ns            Number of sectors
+        P  : (n_points x 3) NumPy array representing the point cloud.
+        c  : dict with at least keys "axis", "start", "length". Will be updated with new keys.
+        lh : Scalar; height of each layer.
+        ns : Initial number of sectors.
 
-    Returns:
-    Pass          Logical vector indicating which points pass the filtering
-    c             Cylinder, stucture array with additional fields "radius",
-                    "SurfCov", "mad", "conv", "rel", estimated from the
-                    filtering
+    Outputs:
+        Pass : Boolean NumPy array of length n_points indicating which points pass the filtering.
+        c    : Updated cylinder dictionary with additional keys:
+                    "radius", "SurfCov", "mad", "conv", "rel".
     """
-    # Compute the distances, heights and angles of the points
-    
-    d, V, h, B = distances_to_line(P, axis, start)
+    # --- Step 1. Compute distances, projected vectors, and heights.
+    # distances_to_line returns (d, V, h, _) -- we ignore the fourth output.
+    d, V, h, _ = distances_to_line(P, c["axis"], c["start"])
     h = h - np.min(h)
-    U, W = orthonormal_vectors(axis)
-    #print(U)
-    #V_proj = np.dot(V, np.column_stack((U, W)))
-    V_proj = V @ np.column_stack((U, W))
+
+    # Compute two orthonormal vectors U and W perpendicular to c.axis.
+    U, W = orthonormal_vectors(c["axis"])
+    # Project V onto the plane spanned by U and W.
+    V_proj = np.dot(V, np.column_stack((U, W)))  # shape: (n_points, 2)
     ang = np.arctan2(V_proj[:, 1], V_proj[:, 0]) + np.pi
-    #print(ang)
 
-    # Initial layer and sector computation
-    nl_initial = max(int(np.ceil(length / lh)), 1)
-    Layer = np.ceil(h / length * nl_initial).astype(np.int64)
-    Layer = np.clip(Layer, 1, nl_initial)
-    Sector = np.ceil(ang / (2 * np.pi) * ns).astype(np.int64)
-    Sector = np.clip(Sector, 1, ns)
-    #print(Sector)
+    # --- Step 2. Initial partitioning into layers and sectors.
+    nl = int(np.ceil(c["length"] / lh))
+    # Compute layer indices (using 1-indexing in MATLAB, then converting to 0-indexing):
+    Layer = np.ceil(h / c["length"] * nl).astype(int)
+    Layer[Layer < 1] = 1
+    Layer[Layer > nl] = nl
+    # Sector indices:
+    Sector = np.ceil(ang / (2 * np.pi) * ns).astype(int)
+    Sector[Sector < 1] = 1
+    # Compute lexicographic order:
+    # In MATLAB: LexOrd = [Layer, Sector-1]*[1; nl] → Layer + (Sector-1)*nl.
+    # Convert to 0-index: subtract 1 from Layer.
+    LexOrd = (Layer - 1) + (Sector - 1) * nl  # Now in range 0 ... (nl*ns - 1)
 
-    # Sort based on lexicographic order of (sector,layer)
-    LexOrd = Layer + (Sector - 1) * nl_initial  # Equivalent to MATLAB's [Layer Sector-1]*[1 nl]'
+    # Sort LexOrd and apply the same permutation to d.
     SortOrd = np.argsort(LexOrd)
-    LexOrd = LexOrd[SortOrd]
+    LexOrd_sorted = LexOrd[SortOrd]
     ds = d[SortOrd]
-    #print(SortOrd)
-    #print(LexOrd)
-    #print(ds)
-
-    # Estimate the distances for each sector-layer intersection
-    Dis = np.zeros((nl_initial, ns))
-    #print(nl_initial, ns)
-    #print(LexOrd // nl_initial)
     np_points = P.shape[0]
-    p = 0
-    max_ns=np.int64(36)
-    min_ns=np.int64(8)
-    while p < np_points:
+
+    # For each cell (group of points with same LexOrd), store a distance estimate.
+    Dis = np.zeros((nl, ns))
+    p_idx = 0
+    while p_idx < np_points:
         t = 1
-        while (p + t < np_points) and (LexOrd[p] == LexOrd[p + t]):
-            t =t+ 1
-        D = np.min(ds[p:p + t])
-        current_Layer = LexOrd[p] % nl_initial+1
-        # if current_Layer == 0:
-        #     current_Layer = 1
-        current_Sector = (LexOrd[p] - current_Layer) // nl_initial + 1
-        #print(current_Layer, current_Sector)
-        Dis[current_Layer - 1, current_Sector - 1] = min(1.05 * D, D + 0.02)
-        p =p+ t
-    #print(Dis)
-    # Compute the number of sectors (new ns and nl) based on estimated radius
-    Dis=Dis.flatten()
-    non_zero_Dis = Dis[Dis > 0]
-    if len(non_zero_Dis) == 0:
-        R = 0.0
-    else:
-        R = np.median(non_zero_Dis)
-    a = max(0.02, 0.2 * R)
-    ns_new = int(np.ceil(2 * np.pi * R / a))
-    ns_new = np.maximum(min_ns,np.minimum(ns_new,max_ns))#np.clip(ns_new, 8, 36)
-    nl_new = int(np.ceil(length / a))
-    nl_new = np.maximum(nl_new, 3)
-    #print(ns_new, nl_new)
+        while (p_idx + t < np_points) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
+            t += 1
+        group_d = ds[p_idx : p_idx + t]
+        D_val = np.min(group_d)
+        cell_idx = LexOrd_sorted[p_idx]  # This is a flat index (0-indexed) into Dis.
+        Dis.flat[cell_idx] = min(1.05 * D_val, D_val + 0.02)
+        p_idx += t
 
-    # Recompute layers and sectors with new ns and nl
-    Layer_new = np.ceil(h / length * nl_new).astype(np.int64)
-    Layer_new = np.minimum(Layer_new,nl_new)#np.clip(Layer_new, 1, nl_new)
-    Sector_new = np.ceil(ang / (2 * np.pi) * ns_new).astype(np.int64)
-    Sector_new = np.maximum(Sector_new,ns_new)#np.clip(Sector_new, 1, ns_new)
+    # --- Step 3. Estimate cylinder radius and update partition parameters.
+    valid = Dis > 0
+    R_val = np.median(Dis[valid]) if np.any(valid) else 0
+    a_val = max(0.02, 0.2 * R_val)
+    ns_new = int(np.ceil(2 * np.pi * R_val / a_val))
+    ns_new = min(36, max(ns_new, 8))
+    nl_new = int(np.ceil(c["length"] / a_val))
+    nl_new = max(nl_new, 3)
 
-    # Sort based on lexicographic order of (Sector_new,Layer_new)
-    LexOrd_new = Layer_new + (Sector_new - 1) * nl_new
-    SortOrd_new = np.argsort(LexOrd_new)
-    LexOrd_new = LexOrd_new[SortOrd_new]
-    sorted_d_new = d[SortOrd_new]
-    #print(LexOrd_new)
-    #print(SortOrd_new)
-    #print(sorted_d_new)
+    # Recompute layer and sector indices with updated nl and ns.
+    Layer = np.ceil(h / c["length"] * nl_new).astype(int)
+    Layer[Layer < 1] = 1
+    Layer[Layer > nl_new] = nl_new
+    Sector = np.ceil(ang / (2 * np.pi) * ns_new).astype(int)
+    Sector[Sector < 1] = 1
+    LexOrd = (Layer - 1) + (Sector - 1) * nl_new
+    SortOrd = np.argsort(LexOrd)
+    LexOrd_sorted = LexOrd[SortOrd]
+    d_sorted = d[SortOrd]
 
-    # Filtering for each sector-layer intersection
-    Dis_new = np.zeros((nl_new, ns_new))
-    try:
-        Pass = np.zeros(len(P), dtype=np.bool)
-    except:
-        Pass = np.zeros(len(P), dtype=np.bool_)
-    p = 0  # index of point under processing
-    k = 0  # number of nonempty cells
-    r = max(0.01, 0.05 * R)  # cell diameter from the closest point
-    #print(np_points)
-    while p < np_points:
+    # --- Step 4. Filtering: for each cell, keep points close to the axis.
+    Dis = np.zeros((nl_new, ns_new))
+    Pass = np.zeros(np_points, dtype=bool)
+    p_idx = 0
+    k = 0
+    r_val = max(0.01, 0.05 * R_val)
+    while p_idx < np_points:
         t = 1
-        while (p + t < np_points) and (LexOrd_new[p] == LexOrd_new[p + t]):
-            t =t+ 1
-        ind = np.arange(p, p + t)
-        D = sorted_d_new[ind]
-        #print(D)
-        #print(ind)
-        Dmin = np.min(D)
-        I = D <= Dmin + r
-        Pass[ind[I]] = True
-        current_Layer = LexOrd_new[p] % nl_new
-        #print(current_Layer)
-        if current_Layer == 0:
-            current_Layer = nl_new
-        current_Sector = (LexOrd_new[p] - current_Layer) // nl_new + 1
-        Dis_new[current_Layer - 1, current_Sector - 1] = min(1.05 * Dmin, Dmin + 0.02)
-        p =p+ t
-        k =k+ 1
-    #print(Dis_new)
-    # Sort the "Pass"-vector back to original point cloud order
-    inv_sorted_indices = np.argsort(SortOrd_new)
-    Pass_ordered = Pass[inv_sorted_indices]
+        while (p_idx + t < np_points) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
+            t += 1
+        ind = np.arange(p_idx, p_idx + t)
+        D_group = d_sorted[ind]
+        Dmin = np.min(D_group)
+        I = D_group <= (Dmin + r_val)
+        # Mark the corresponding original indices as passing.
+        selected = SortOrd[p_idx : p_idx + t][I]
+        Pass[selected] = True
+        cell_idx = LexOrd_sorted[p_idx]
+        Dis.flat[cell_idx] = min(1.05 * Dmin, Dmin + 0.02)
+        p_idx += t
+        k += 1
+    # d_filtered: only the distances of points that pass.
+    d_filtered = d[Pass]
 
-    # Compute radius, SurfCov and mad
-    d_filtered = d[Pass_ordered]
-    Dis_new=Dis_new.flatten()
-    non_zero_Dis_new = Dis_new[Dis_new > 0]
-    if len(non_zero_Dis_new) == 0:
-        R_final = 0.0
-    else:
-        R_final = np.median(non_zero_Dis_new)
-    if len(d_filtered) == 0:
-        mad = 0.0
-    else:
-        mad = np.sum(np.abs(d_filtered - R_final)) / len(d_filtered)
-    k = np.sum(Dis_new > 0)
-    SurfCov = k / (nl_new * ns_new)
-    #print(k, nl_new, ns_new)
-    # Update cylinder dictionary
-    
+    # --- Step 5. Restore the original ordering of Pass.
+    n_sort = len(SortOrd)
+    InvSortOrd = np.empty_like(SortOrd)
+    InvSortOrd[SortOrd] = np.arange(n_sort)
+    Pass = Pass[InvSortOrd]
 
-    return Pass_ordered, R_final,SurfCov,mad
+    # --- Step 6. Compute final statistics.
+    valid_D = Dis > 0
+    R_new = np.median(Dis[valid_D]) if np.any(valid_D) else 0
+    if d_filtered.size > 0:
+        mad_val = np.sum(np.abs(d_filtered - R_new)) / d_filtered.size
+    else:
+        mad_val = 0.0
+
+    # Update cylinder structure with new estimates.
+    c["radius"] = R_new
+    c["SurfCov"] = k / (nl_new * ns_new)
+    c["mad"] = mad_val
+    c["conv"] = 1
+    c["rel"] = 1
+
+    return Pass, c
 
 
 
@@ -2290,13 +2271,13 @@ def parse_args(argv):
             print(args)
             sys.stdout.write(f"If --custominput is selected, values for --ipd (PatchDiam1) --minpd (PatchDiam2Min) --maxpd (PatchDiam2Max). See --help if needed")
             return "ERROR"
-    # else:
-    #     if type(args["PatchDiam1"]) != list:
-    #         args["PatchDiam1"]=[args["PatchDiam1"]]
-    #     if type(args["PatchDiam2Min"]) != list:
-    #         args["PatchDiam2Min"]=[args["PatchDiam2Min"]]
-    #     if type(args["PatchDiam2Max"]) != list:
-    #         args["PatchDiam2Max"]=[args["PatchDiam2Max"]]
+    else:
+        if type(args["PatchDiam1"]) == list:
+            args["PatchDiam1"]=int(args["PatchDiam1"][0])
+        if type(args["PatchDiam2Min"]) == list:
+            args["PatchDiam2Min"]=int(args["PatchDiam2Min"][0])
+        if type(args["PatchDiam2Max"]) == list:
+            args["PatchDiam2Max"]=int(args["PatchDiam2Max"][0])
 
     return args
 

@@ -320,14 +320,7 @@ def cylinder_fitting(P, Points, Ind, nl, si):
                 ## Filter points and estimate radius
                 #print(Q0, c0)
                 if Q0.shape[0] > 20:
-                    axis = c0['axis']
-                    start = c0['start']
-                    Keep, R_final,SurfCov,mad = Utils.surface_coverage_filtering(Q0, axis,start, c0['length'],0.02, 20)
-                    c0['radius'] = R_final
-                    c0['SurfCov'] = SurfCov
-                    c0['mad'] = mad
-                    c0['conv'] = 1
-                    c0['rel'] = 1
+                    Keep, c0 = Utils.surface_coverage_filtering(Q0, c0, 0.02, 20)
                     reg = reg[Keep]
                     Q0 = Q0[Keep]
                 else:
@@ -501,14 +494,8 @@ def cylinder_fitting(P, Points, Ind, nl, si):
 
             ## Define other outputs
             #print("Q0 ", Q0, "c0", c0)  # Q0 is the same
-            axis = c0['axis']
-            start = c0['start']
-            Keep, R_final,SurfCov,mad = Utils.surface_coverage_filtering(Q0, axis,start,c0['length'], 0.02, 20)
-            c0['radius'] = R_final
-            c0['SurfCov'] = SurfCov
-            c0['mad'] = mad
-            c0['conv'] = 1
-            c0['rel'] = 1
+            Keep, c0 = Utils.surface_coverage_filtering(Q0, c0, 0.02, 20)
+            
             #print("Keep ", Keep, "c0", c0)
             Reg = [Points[Keep]]
             Q0 = Q0[Keep]

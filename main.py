@@ -596,9 +596,10 @@ class BatchProcessingWindow(QMainWindow):
             self.append_text("Loading Point Cloud...\n")
             file = os.path.join(self.folder, self.file_data[self.selected_index]['file'])
             cloud = load_point_cloud(file, float(self.intensity_threshold))
-            cloud = cloud-np.mean(cloud,axis=0)  # Center the point cloud
+            cloud = cloud-np.mean(cloud,axis=0)  # Center the point 
+            cloud[:,2] = cloud[:,2]-np.min(cloud[:,2])  # Set the lowest point to be at z=0
             self.file_data[self.selected_index]['cloud'] = cloud
-        fidelity = max(1,len(cloud)/100000)
+        fidelity = min(1,100000/len(self.points))
         html = point_cloud_plotting(cloud,subset=True,fidelity=fidelity,marker_size=1)
         self.cloud_web_view = QWebEngineView()
         self.cloud_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
@@ -731,7 +732,7 @@ class SingleFileProcessingWindow(QMainWindow):
     def __init__(self,root,file,inputs,generate_values, show_only_optimal=False,metric = None):
         super().__init__()
         self.setWindowTitle("Single File Processing")
-        self.setGeometry(100, 100, 1920, 1080)  
+        self.setGeometry(100, 100, 1600, 900)  
         self.root = root
         self.args = inputs
         self.generate_values =generate_values
@@ -916,10 +917,13 @@ class SingleFileProcessingWindow(QMainWindow):
         # Step 3: Define inputs for TreeQSM
         print(np.mean(self.points,axis = 0))
         self.points = self.points - np.mean(self.points,axis = 0)
+        self.points[:,2] = self.points[:,2]-np.min(self.points[:,2],axis=0)
+
+
         if generate_values:
-            self.inputs = define_input(self.file,self.nPD1, self.nPD2Min, self.nPD2Max)[0]
+            self.inputs = define_input(self.points,self.nPD1, self.nPD2Min, self.nPD2Max)[0]
         else:
-            self.inputs = define_input(self.file,1,2,3)[0]
+            self.inputs = define_input(self.points,1,2,3)[0]
             self.nPD1 = [float(i.strip()) for i in self.nPD1.split(',')]
             self.nPD2Min = [float(i.strip()) for i in self.nPD2Min.split(',')]
             self.nPD2Max = [float(i.strip()) for i in self.nPD2Max.split(',')]
@@ -938,7 +942,8 @@ class SingleFileProcessingWindow(QMainWindow):
     
     def show_point_cloud(self):
         self.append_text("Showing Point Cloud...\n")
-        fidelity = max(1,len(self.points)/100000)
+        fidelity = min(1,100000/len(self.points))
+
         html = point_cloud_plotting(self.points,subset=True,fidelity=fidelity,marker_size=1)
 
         self.cloud_web_view = QWebEngineView()
@@ -1144,6 +1149,7 @@ class BatchQSM(QObject):
             if point_cloud is not None:
                 
                 point_cloud = point_cloud - np.mean(point_cloud,axis = 0)
+                point_cloud[:,2] = point_cloud[:,2]-np.min(point_cloud[:,2],axis=0)
 
                 clouds.append(point_cloud)
                 self.plot_data.emit((i,point_cloud))
