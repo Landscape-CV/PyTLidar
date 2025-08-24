@@ -1031,7 +1031,7 @@ class SingleFileProcessingWindow(QMainWindow):
 
     def process_file(self):
         self.append_text("Processing file. This may take several minutes...\n")
-        
+        self.button.setEnabled(False)
         task = SingleQSM(self,self.points,self.inputs)
         self.qsm_thread = BackgroundProcess(task)
         task.finished.connect(self.complete_processing)
@@ -1072,7 +1072,7 @@ class SingleFileProcessingWindow(QMainWindow):
         
     def complete_processing(self,package):
         self.append_text("Processing Complete...\n")
-
+        self.button.setEnabled(True)
         data,plot = package
         self.cyl_plots =plot
         self.data=data

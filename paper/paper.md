@@ -50,10 +50,10 @@ bibliography: paper.bib
 # Summary
 
 [PyTLidar](https://github.com/Landscape-CV/PyTLiDAR) is an open-source Python package that reconstructs 3D tree Quantitative Structure Models (QSM) from Terresrial lidar Scan (TLS) data, 
-providing a user-friendly tool improving and expanding based on the MATLAB-based [TreeQSM](https://github.com/InverseTampere/TreeQSM?tab=readme-ov-file) method [@TreeQSM]. 
+providing a user-friendly tool that improves and expands about the MATLAB-based [TreeQSM](https://github.com/InverseTampere/TreeQSM?tab=readme-ov-file) method [@TreeQSM]. 
 PyTLidar provides an accessible, extensible, and GUI-driven workflow for researchers and practitioners in forestry, ecology, and 3D vegetation modeling. The package also integrates interactive visualization tools for inspecting model quality and derived tree metrics. The ease of use and installation of PyTLidar is of great value to ecologists and other users that are less familiar with matlab and other more computationally technical tools. 
 
-The key features of PyTLidar are a recreation of the TreeQSM core functionality, and an enhanced method of setting up experiments and viewing results. It provides functionality for loading and extracting point cloud data from .las and .laz files as well as automatic calculation of a range of initial parameters for the QSM model based on point cloud structure. The QSM creation methods include generation of a Voronoi partition of the point cloud, segment detection, and cylinder fitting. PyTLidar also calculates various tree metrics including branch length and volume, crown volume, and more, and provides these results in flat file form as well as visual graphics. QSMs are also output in an interactive html format which can be viewed directly in the GUI as well as saved and shared. All of this is packaged within a simple to use GUI as well as providing support for command line and direct Python interfacing. 
+The key features of PyTLidar are a recreation of the TreeQSM core functionality, and an enhanced method of setting up experiments and viewing results. It provides functionality for loading and extracting point cloud data from .las and .laz files as well as automatic calculation of a range of initial parameters for the QSM model based on point cloud structure. The QSM creation methods include generation of a Voronoi partition of the point cloud, segment detection, detection of parent-child relationships of branches and cylinder fitting. PyTLidar also calculates various tree metrics such as branch length and volume and provides these results in flat file form as well as visual graphics. QSMs are also output in an interactive html format which can be viewed directly in the GUI as well as saved and shared. All of this is packaged within a simple to use GUI as well as providing support for command line and direct Python interfacing. 
 
 
 
@@ -69,21 +69,21 @@ The use of QSM software on point cloud data permits estimation of detailed compo
 providing detailed information for fine-scale estimates of AGB, canopy architecture, and more.
 TreeQSM is a software that has been widely used in forestry and ecology for modeling tree structures from TLS point clouds [@TERRYN2020170]. 
 Comparing to other similar softwares, TreeQSM stands out for speed, reliability, and ease of use, 
-while [SimpleForest](https://www.simpleforest.org/)[@Hackenberg2021] (available within Computree) offers broad functionality but suffers from a large installation size and less intuitive interface. 
-[AdQSM](https://github.com/GuangpengFan/AdQSM)[@Fan2020] is extremely fast and simple but lacks advanced features and source code access. 
-[aRchi](https://github.com/umr-amap/aRchi) [@aRchi] provides various functions but is slow, not sufficiently documented, and harder to set up. 
-[3dForest](https://github.com/VUKOZ-OEL/3d-forest-classic)[@3DForest] has a promising GUI but is currently unstable, crashing when loading data. There is also a lack of viable options within Python specifically.
+while [SimpleForest](https://www.simpleforest.org/)[@Hackenberg2021] (available within Computree) seems to be similarly capable to TreeQSM, but is only available through Computree, which has been undergoing an extended upgrade process and lacks up-to-date documentation. 
+[AdQSM](https://github.com/GuangpengFan/AdQSM)[@Fan2020] is extremely fast and simple but lacks many of the statistics and visualizations other tools have and has not been officially released by the authors. 
+[aRchi](https://github.com/umr-amap/aRchi) [@aRchi] provides various functions but takes significantly longer to create a QSM than comparable packages. 
+[3dForest](https://github.com/VUKOZ-OEL/3d-forest-classic)[@3DForest] has a promising GUI but was unstable during testing, crashing when loading data. There is also a lack of viable options within Python specifically.
 While TreeQSM is used in many applications, its reliance on MATLAB makes it less accessible for users, and its lack of makes the tool less user-friendly and its parameter tuning less efficient. Thus we aimed to port and improve TreeQSM
 
 PyTLidar addresses these issues by providing a native Python implementation of TreeQSM’s core algorithms, 
-wrapped in a streamlined graphical interface that allows researchers to visualize and evaluate their models. 
+wrapped in a streamlined graphical interface that allows researchers to visualize and evaluate models. 
 It promotes reproducible and exploratory research by offering transparent parameter control, open-source licensing, and seamless integration into Python-based analysis workflows. 
-This work lowers the barrier for adoption of QSM modeling by removing the MATLAB dependency, enhancing accessibility for the broader open-source geospatial and ecological modeling community. PyTLidar is currently being used and was developed for ongoing projects in ecological monitoring. 
+This work lowers the barrier for adoption of QSM modeling by removing the MATLAB dependency, enhancing accessibility for the broader open-source geospatial and ecological modeling community. PyTLidar is currently being used for ongoing projects in ecological monitoring. 
 
 
 # Method
 
-TreeQSM models individual trees from terrestrial lidar scans by first creating a voronoi partition of the point cloud. This assigns the points within the cloud to an initial cluster based on it's proximity to an initial point. The size of these regions, referred to as cover sets, are determined by the input patch diameters. Since the cover sets form the building blocks for reconstructing the tree’s global shape, the selection of the patch diameter can have major impact on the quality of the resulting QSM. Larger patch diameters will connect points further away, counteracting occlusion, but will lose detail. Conversely, smaller patch diameters will increase detail, but be more susceptible to occlusion. As part of the construction of the initial voronoi partition, the algorithm also determines the neighboring cover sets. Based on topological investigation of neighboring cover sets, the point cloud is segmented into individual branches, with parent-children relationships of branches recorded. This process is repeated, recreating the voronoi partition using a range of patch diameters based on location along the tree. Points determined to be along the trunk use size values closer to the max patch diameter, while points further up the tree use values closer to min patch diameter. After the second segment detection, each branch is approximated as a collection of connected cylinders of varying radius, length, and orientation. The cylinders are fit using standard root-finding methods to minimize distance between points and approximated cylinder surface. 
+TreeQSM models individual trees from terrestrial lidar scans by first creating a Voronoi partition of the point cloud. This assigns the points within the cloud to an initial cluster based on its proximity to an initial point. The size of these regions, referred to as cover sets, are determined by the input patch diameters. Since the cover sets form the building blocks for reconstructing the tree’s global shape, the selection of the patch diameter can have major impact on the quality of the resulting QSM. Larger patch diameters will connect points further away, counteracting occlusion, with a corresponding loss in detail. Conversely, smaller patch diameters will increase detail, but be more susceptible to occlusion. As part of the construction of the initial partition, the algorithm also determines the neighboring cover sets. Based on topological investigation of neighboring cover sets, the point cloud is segmented into individual branches, with parent-children relationships of branches recorded. This process is repeated, recreating the cover sets using a range of patch diameters based on location along the tree. Points determined to be along the trunk use size values closer to the max patch diameter, while points further up the tree use values closer to min patch diameter. After the second segment detection, each branch is approximated as a collection of connected cylinders of varying radius, length, and orientation. The cylinders are fit using standard root-finding methods to minimize distance between points and approximated cylinder surface. 
 This cylinder-based representation offers a simple yet effective regularization of the complex tree structure, supporting downstream analyses such as stem volume estimation or structural trait extraction [@rs5020491] [@rs70404581].
 
 # Software Architecture
@@ -131,7 +131,7 @@ Other planned enhancements include functions provided to users for processing li
 filtering, tree segmentation and leaf/wood separation. The intended goal for this package is to provide a single source for any user processing terrestrial lidar to perform every step of 
 their analysis. 
 
-# Acknowledgements
+# Acknowledg ments
 
 We acknowledge contributions and guidance during the development of the package from Dori Peters, Amir Hossein Alikhah Mishamandani and other staff from the Human-Augmented Analytics Group to make this happen.
 
