@@ -113,7 +113,7 @@ If running in batch mode, users may also set the number of parallel cores to uti
 
 Users can also review the morphological summaries of the QSM, including distribution of branch diameters, branch volume, surface area, and length with regard to diameter or order from stem, as with the original TreeQSM implementation (Figure 4). All of the produced figures are saved for later viewing and reference.
 
-![Example output data from sample pine. The output plots allow the user to derive summaries of various aspects of the input tree viewed within different categories including segment measurements by angle, direction and diamter class, as well as overall stem taper \label{fig:data}](figs/tree_data_smaller.png){ width=100% }
+![Example output data from sample pine. The output plots allow the user to derive summaries of various aspects of the input tree viewed within different categories including segment measurements by angle, direction and diameter class, as well as overall stem taper \label{fig:data}](figs/tree_data_smaller.png){ width=100% }
 
 Both treeqsm.py and treeqsm_batch.py may be run directly from the command line. This allows users to integrate the same functionality provided in the GUI into their own scripts with ease, whether those scripts are in python or not. Python users can use the package directly and get the full functionality by importing treeqsm. 
 
