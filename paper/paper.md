@@ -10,6 +10,7 @@ authors:
     orcid: 0009-0002-3894-4464
     affiliation: [1, 2]
     corresponding: true
+    email: jhagood7@gatech.edu
   - name: Fan Yang
     orcid: 0009-0006-9787-2471
     affiliation: [1, 2]
