@@ -939,7 +939,7 @@ def branch_distribution(treedata, branch, dist):
     Args:
         (dict): Updated dictionary with branch distribution results.
     """
-    # Extract branch properties (excluding the first element, as in MATLAB's 2:end)
+    
     BOrd = branch['order']#[1:]
     BVol = branch['volume']#[1:]
     BAre = branch['area']#[1:]
@@ -957,7 +957,7 @@ def branch_distribution(treedata, branch, dist):
     # Determine parameters based on distribution type
     if dist == 'Dia':
         Par = branch['diameter']#[1:]  # Diameter distribution
-        n = int(np.ceil(100 * np.max(Par)))  # Number of bins
+        n = int(np.ceil(100 * np.max(Par)))*2  # Number of bins
         a = 0.005  # Diameter bin size (1 cm classes)
     elif dist == 'Hei':
         Par = branch['height']#[1:]  # Height distribution
