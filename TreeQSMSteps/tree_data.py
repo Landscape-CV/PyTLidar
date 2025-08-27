@@ -29,7 +29,8 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     Returns:
         (dict, int/dict): Tree data and triangulation results, triangulation results are 0 if not computed.
     """
-    matplotlib.rcParams.update({'font.size': 8})
+    matplotlib.rcParams.update({'font.size': 8,'font.family':'Arial'})
+
     # Define some variables from cylinder
     Rad = cylinder['radius']
     Len = cylinder['length']
