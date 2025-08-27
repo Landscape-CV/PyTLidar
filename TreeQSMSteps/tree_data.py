@@ -1029,12 +1029,12 @@ def branch_order_distribution(treedata, branch):
     BranchOrdDist = np.zeros((BO, 4))
 
     # Compute distributions for each branch order
-    for i in range(1, BO+1):
+    for i in range(0, BO):
         I = branch['order'] == i  # Filter branches of the current order
-        BranchOrdDist[i-1, 0] = np.sum(branch['volume'][I])  # Volume
-        BranchOrdDist[i-1, 1] = np.sum(branch['area'][I])    # Area
-        BranchOrdDist[i-1, 2] = np.sum(branch['length'][I])  # Length
-        BranchOrdDist[i-1, 3] = np.sum(I)                    # Number of branches
+        BranchOrdDist[i, 0] = np.sum(branch['volume'][I])  # Volume
+        BranchOrdDist[i, 1] = np.sum(branch['area'][I])    # Area
+        BranchOrdDist[i, 2] = np.sum(branch['length'][I])  # Length
+        BranchOrdDist[i, 3] = np.sum(I)                    # Number of branches
 
     # Store results in treedata
     treedata['VolBranchOrd'] = BranchOrdDist[:, 0]
