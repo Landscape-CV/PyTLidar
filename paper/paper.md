@@ -37,7 +37,7 @@ affiliations:
     index: 1
   - name: The Jones Center at Ichauway, United States
     index: 2
-  - name: University of Texas at Austin, United States
+  - name: Pasteur Labs, Inc.
     index: 3
   - name: School of Biological Sciences, Georgia Institute of Technology, United States
     index: 4

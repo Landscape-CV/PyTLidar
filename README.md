@@ -1,3 +1,9 @@
+# PyTLidar
+
+PyTLidar is a python module designed for manipulating and calculating metrics from terrestrial lidar data. Version 1 makes the TreeQSM[link] capabilites available through Python, eliminating the need for proprietary tools. Development of version 2.0 is in progress to enhance the capabilities with tree segmentation, calculation of digital elevation models, and detailed environmental measurements at scale.
+
+
+
 # Installation
 
 The release version of PyTLiDAR can be installed as a standard python package
@@ -160,7 +166,7 @@ T = segment2['segments'][0]
 T = np.concatenate(T)  
 T = np.concatenate([cover2['ball'][idx] for idx in T]) 
 trunk = P[T, :]  # Point cloud of the trunk
-treedata, triangulation = qsm.tree_data(cylinder, branch, trunk, inputs,iter )
+treedata, _ = qsm.tree_data(cylinder, branch, trunk, inputs,iter )
 
 ```
 # Tests
