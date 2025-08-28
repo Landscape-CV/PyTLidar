@@ -74,7 +74,7 @@ while [SimpleForest](https://www.simpleforest.org/) [@Hackenberg2021] (available
 [AdQSM](https://github.com/GuangpengFan/AdQSM) [@Fan2020] is extremely fast and simple but lacks many of the statistics and visualizations other tools have and has not been officially released by the authors. 
 [aRchi](https://github.com/umr-amap/aRchi) [@aRchi] provides various functions but takes significantly longer to create a QSM than comparable packages. 
 [3dForest](https://github.com/VUKOZ-OEL/3d-forest-classic) [@3DForest] has a promising GUI but was unstable during testing, crashing when loading data. There is also a lack of viable options within Python specifically.
-While TreeQSM is used in many applications, its reliance on MATLAB makes it less accessible for users, and its lack of makes the tool less user-friendly and its parameter tuning less efficient. Thus we aimed to port and improve TreeQSM
+While TreeQSM is used in many applications, its reliance on MATLAB makes it less accessible for users, and its lack of makes the tool less user-friendly and its parameter tuning less efficient. Thus we aimed to port and improve TreeQSM.
 
 PyTLidar addresses these issues by providing a native Python implementation of TreeQSM’s core algorithms, 
 wrapped in a streamlined graphical user interface that allows researchers to visualize and evaluate models. 
