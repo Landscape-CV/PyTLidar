@@ -30,76 +30,7 @@ Creates cover sets (surface patches) and their neighbor-relation for a point clo
 
 ---
 
-### uniform_cover
 
-Creates uniform cover sets and neighbor-relation of a point cloud using fixed-radius balls.
-
-**Args:**
-- `P` (`numpy.ndarray`): Point cloud.
-- `inputs`: Input structure, the following fields are needed:
-  - `PatchDiam1`: Minimum distance between centers of cover sets.
-  - `BallRad1`: Radius of the balls used to generate the uniform cover.
-  - `nmin1`: Minimum number of points in a BallRad1 ball.
-- `np_points` (`int`): The total number of points in the point cloud.
-
-**Returns:**
-- `dict`: Dictionary containing:
-  - `ball`: Cover sets, (n_sets x 1)-cell.
-  - `center`: Center points of the cover sets, (n_sets x 1)-vector.
-
----
-
-### variable_cover
-
-Creates variable-size cover sets and neighbor-relation for a point cloud.
-
-**Args:**
-- `P` (`numpy.ndarray`): Point cloud.
-- `inputs`: Input structure.
-- `RelSize`: Relative size for each point.
-- `np_points` (`int`): Number of points.
-
-**Returns:**
-- `dict`: Dictionary containing:
-  - `ball`: Cover sets.
-  - `center`: Center points.
-  - `neighbor`: Neighboring cover sets.
-
----
-
-### create_PointsInSets
-
-Generates array of points in each cover set. Separated out for numba compilation.
-
-**Args:**
-- `nb` (`int`): Number of cover sets.
-- `np_points` (`int`): Number of points.
-- `BoP` (`np.ndarray`): Ball/cover set assignment for each point.
-
-**Returns:**
-- `list`: List of arrays, each containing the indices of points in a cover set.
-
----
-
-### create_cover
-
-Creates the cover sets data structure.
-
-**Args:**
-- `Ball` (`list`): Large balls for generation of the cover sets and their neighbors.
-- `Cen` (`list`): Center points of the balls/cover sets.
-- `BoP` (`np.ndarray`): Ball/cover set assignment for each point.
-- `nb` (`int`): Number of sets generated.
-- `np_points` (`int`): Number of points.
-
-**Returns:**
-- `dict`: Dictionary containing:
-  - `ball`: Cover sets.
-  - `center`: Center points.
-  - `neighbor`: Neighboring cover sets.
-  - `sets`: Ball/cover set assignment for each point (zero-based).
-
----
 
 ## correct_segments.py
 
@@ -121,41 +52,6 @@ Reassigns segments to make them more consistent with expected tree structure.
 
 ---
 
-### search_stem_top
-
-Search the stem's top segment such that the resulting stem:
-1. Is one of the highest segments (goes to the top of the tree),
-2. Is horizontally close to the bottom of the stem (goes straight up),
-3. Has a length close to the distance between its bottom and top (is not too curved).
-
-**Args:**
-- `P` (`np.ndarray`): Point cloud.
-- `Ce` (`np.ndarray`): Centers of the cover sets.
-- `Bal` (`list`): Ball (cover set) indices.
-- `Segs` (`list`): Segments.
-- `SPar` (`np.ndarray`): Parent segment information.
-- `dmin` (`float`): Minimum distance parameter.
-
-**Returns:**
-- `int`: Index of the stem's top segment.
-
----
-
-### modify_topology
-
-Make stem and branches as long as possible by modifying the topology.
-
-**Args:**
-- `P` (`np.ndarray`): Point cloud.
-- `Ce` (`np.ndarray`): Centers of the cover sets.
-- `Bal` (`list`): Ball (cover set) indices.
-- `Segs` (`list`): Segments.
-- `SPar` (`np.ndarray`): Parent segment information.
-- `SChi` (`list`): Child segment information.
-- `dmin` (`float`): Minimum distance parameter.
-
-**Returns:**
-- `(list, np.ndarray, list)`: Modified segments, modified parent segment information, and modified child segment information.
 
 ---
 
@@ -211,50 +107,6 @@ Calculate tree attributes from cylinder QSM data.
 
 ---
 
-### dbh_cylinder
-
-Calculate the diameter at breast height (DBH) from cylinder data.
-
-**Args:**
-- `treedata` (`dict`): Dictionary to store tree data.
-- `trunk` (`np.ndarray`): Point cloud of the trunk.
-- `Trunk` (`np.ndarray`): Boolean array indicating trunk cylinders.
-- `cylinder` (`dict`): Cylinder data (radius, length, start, axis).
-- `ind` (`np.ndarray`): Indices of the cylinders.
-
-**Returns:**
-- `dict`: Updated tree data with DBH attributes.
-
----
-
-### crown_measures
-
-Calculate crown measures from cylinder and branch data.
-
-**Args:**
-- `treedata` (`dict`): Dictionary to store tree data.
-- `cylinder` (`dict`): Cylinder data.
-- `branch` (`dict`): Branch data.
-
-**Returns:**
-- `(dict, np.ndarray)`: Updated tree data and spreads.
-
----
-
-### triangulate_stem
-
-Calculate stem using triangulation method.
-
-**Args:**
-- `treedata` (`dict`): Dictionary to store tree data.
-- `cylinder` (`dict`): Cylinder data (start, radius, length, axis, branch).
-- `branch` (`dict`): Branch data (diameter, height, order).
-- `trunk` (`np.ndarray`): Point cloud of the trunk.
-
-**Returns:**
-- `(dict, dict)`: Updated tree data with triangulation attributes and triangulation data.
-
----
 
 ## segments.py
 
@@ -290,36 +142,5 @@ Defines the location of the base of the trunk on the first pass, and the main br
 
 **Returns:**
 - `(dict, np.ndarray, np.ndarray)`: Cover sets with updated neighbors, base of the trunk, cover sets not part of the tree.
-
----
-
-### define_trunk
-
-Determines the trunk of the tree by expanding the base upwards through connected cover sets. Used by `tree_sets` function only, not a standalone function.
-
-**Args:**
-- `cover` (`dict`): Cover sets.
-- `aux` (`dict`): Auxiliary data.
-- `Base` (`np.ndarray`): Base indices.
-- `Forb` (`np.ndarray`): Forbidden indices.
-- `inputs` (`dict`): Input parameters.
-
-**Returns:**
-- `tuple`: Trunk mask and updated cover.
-
----
-
-### define_main_branches
-
-Determines location of the primary branches of tree. Used by `tree_sets` function only, not a standalone function.
-
-**Args:**
-- `cover` (`dict`): Cover sets.
-- `segment` (`dict`): Segment data.
-- `aux` (`dict`): Auxiliary data.
-- `inputs` (`dict`): Input parameters.
-
-**Returns:**
-- `tuple`: Trunk mask and updated cover.
 
 ---
