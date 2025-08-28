@@ -8,27 +8,27 @@ tags:
 authors:
   - name: John Hagood
     orcid: 0009-0002-3894-4464
-    affiliation: [1, 2]
+    affiliation: 1
     corresponding: true
   - name: Fan Yang
     orcid: 0009-0006-9787-2471
-    affiliation: [1, 2]
+    affiliation: 1
     corresponding: true
   - name: Shruti Motiwale
-    affiliation: [2, 4]
+    affiliation: 3
     corresponding: false
     orcid:  0000-0002-2964-0541
   - name: Breanna Shi
-    affiliation: 2
+    affiliation: 1
     corresponding: false
     orcid: 0009-0002-5332-4626
   - name: Jeffery B. Cannon
     orcid: 0000-0002-8436-8712
-    affiliation: 3
+    affiliation: 2
     corresponding: true
   - name: James T. Stroud
     orcid: 0000-0003-0734-6795
-    affiliation: 5
+    affiliation: 4
     corresponding: true
   
 
