@@ -33,16 +33,14 @@ authors:
   
 
 affiliations:
-  - name: School of Computer Science, Georgia Institute of Technology, United States
+  - name: College of Computing, Georgia Institute of Technology, United States
     index: 1
-  - name: Human Augmented Analytics Groups (HAAG), Georgia Institute of Technology, United States
-    index: 2
   - name: The Jones Center at Ichauway, United States
-    index: 3
+    index: 2
   - name: University of Texas at Austin, United States
-    index: 4
+    index: 3
   - name: School of Biological Sciences, Georgia Institute of Technology, United States
-    index: 5
+    index: 4
 
 date: 2025-06-30
 journal: JOSS
