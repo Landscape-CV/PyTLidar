@@ -599,7 +599,7 @@ class BatchProcessingWindow(QMainWindow):
             cloud = cloud-np.mean(cloud,axis=0)  # Center the point 
             cloud[:,2] = cloud[:,2]-np.min(cloud[:,2])  # Set the lowest point to be at z=0
             self.file_data[self.selected_index]['cloud'] = cloud
-        fidelity = min(1,100000/len(self.points))
+        fidelity = min(1,100000/len(cloud))
         html = point_cloud_plotting(cloud,subset=True,fidelity=fidelity,marker_size=1)
         self.cloud_web_view = QWebEngineView()
         self.cloud_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
@@ -613,7 +613,8 @@ class BatchProcessingWindow(QMainWindow):
         qsm = self.file_data[self.selected_index]['QSM'][index]
         cover = qsm['cover']
         segments = qsm['segment']
-        html = qsm_plotting(self.file_data[self.selected_index]['cloud'], cover, segments,qsm)
+        fidelity = min(1,100000/len(self.file_data[self.selected_index]['cloud']))
+        html = qsm_plotting(self.file_data[self.selected_index]['cloud'], cover, segments,qsm,subset=True,fidelity=fidelity,marker_size=1)
         self.seg_web_view = QWebEngineView()
         self.seg_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
         self.ui.layout().addWidget(self.seg_web_view, 0, 1,2,1)
@@ -1007,7 +1008,8 @@ class SingleFileProcessingWindow(QMainWindow):
         qsm = self.data[index]
         cover = qsm['cover']
         segments = qsm['segment']
-        html = qsm_plotting(self.points, cover, segments,qsm)
+        fidelity = min(1,100000/len(self.points))
+        html = qsm_plotting(self.points, cover, segments,qsm,subset=True,fidelity=fidelity,marker_size=1)
         self.seg_web_view = QWebEngineView()
         self.seg_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
         self.ui.layout().addWidget(self.seg_web_view, 0, 1,2,1)
