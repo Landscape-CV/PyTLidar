@@ -124,6 +124,8 @@ def plot_distribution(QSM, fig, rela, cumu, dis, dis2=None, dis3=None, dis4=None
         x = np.arange(-170, 181, 10)
     elif dis.endswith('Zen') or dis.endswith('Ang'):
         x = np.arange(10, 10 * n + 1, 10)
+    elif dis.endswith('Dia'):
+        x = np.arange(1, n + 1) * .5
     else:
         x = np.arange(1, n + 1)
     # d =D.T
@@ -131,7 +133,8 @@ def plot_distribution(QSM, fig, rela, cumu, dis, dis2=None, dis3=None, dis4=None
     if len(D.shape) >1:
         rang= max(np.max(x)-np.min(x),100)
         for i,row in enumerate(D):
-            plt.bar(x, row,width=1*rang//100)
+            plt.bar(x, row,width=1*rang//100,alpha=.9-(i)*.3,label = 'All Branches' if i==0 else '1st Order Branches')
+        plt.legend(fontsize='xx-small', loc='best')
     else:
         rang= max(np.max(x)-np.min(x),100)
         for i,row in enumerate(D):

@@ -377,6 +377,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                         fidelity = min(100000/ P.shape[0],1)  # Adjust fidelity based on point cloud size
                         base_fig = point_cloud_plotting(P, subset=True,fidelity=fidelity,marker_size=.5,return_html=False)
                         qsm_plotting(P,cover2,segment2,qsm,return_html=True,subset = True, fidelity=fidelity,marker_size=1)
+                        
                         fig,cyl_html = cylinders_line_plotting(cylinder, 100, 8,string,False,base_fig=base_fig,display = True if inputs['disp']==2 else False)
                         qsm["file_id"]=string
                         cyl_htmls.append(cyl_html)

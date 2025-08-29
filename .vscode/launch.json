@@ -11,7 +11,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["/Users/johnhagood/Downloads/tree_0160.laz", "--threshold" ,"45000", "--custominput" ,"--normalize", "--ipd" ,".05", ".08", "--minpd" ,".03" ,".05" ,"--maxpd", ".1",  "--optimum", "trunk+1branch_mean_dis", "--outputdirectory","results"]
+            "args": ["/Users/johnhagood/Documents/Github/Public/PyTLiDAR/Dataset/example_pine.las", "--threshold" ,"0", "--custominput" ,"--normalize", "--ipd" ,".05", ".08", "--minpd" ,".03" ,".05" ,"--maxpd", ".1",  "--optimum", "trunk+1branch_mean_dis", "--outputdirectory","results","--verbose"]
         },
 
         {

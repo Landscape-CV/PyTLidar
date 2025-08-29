@@ -41,7 +41,7 @@ try:
 except ImportError:
     import Utils.Utils as Utils
 
-def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=3,return_html = True,subset=False,fidelity = .1):
+def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=1,return_html = True,subset=False,fidelity = .1, leaf_filter = False):
     """
     Plots the given point cloud in 3D interactively using Plotly.
 
@@ -58,10 +58,19 @@ def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=3,return_ht
     if type(cover_sets)==dict:
         if cover_sets['ball'] is []:
             cover_sets = np.zeros(n)
-        if segments['segments'] is []:
-            segments = np.zeros(n)
-        segs = [np.concatenate(seg).astype(np.int64) for seg in segments["segments"]]
-        segment_ids = Utils.assign_segments(points,segs,cover_sets["sets"])
+        # if segments['segments'] is []:
+        #     segments = np.zeros(n)
+        
+        cover = cover_sets['sets']
+        I = np.argsort(cover)
+        points = points[I]
+        neg_mask = cover ==-1
+        num_indices = np.bincount(cover[~neg_mask])
+        num_indices = np.concatenate([np.array([np.sum(neg_mask)]),num_indices])
+        segs = np.concatenate([np.array([-1]),segments["SegmentArray"]])
+        segment_ids= np.repeat(segs, num_indices) 
+        # segs = [np.concatenate(seg).astype(np.int64) for seg in segments["segments"]]
+        # segment_ids = Utils.assign_segments(points,segs,cover_sets["sets"])
         cover_set_ids = cover_sets["sets"]  
     else:
         segment_ids = segments
@@ -109,16 +118,26 @@ def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=3,return_ht
     # trace = make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=True, additional_labels=segment_ids)
     # ]
     #Create 5 traces, only one visible at a time
-    traces = [
-        # make_trace(points, points[:, 0], "X", marker_size, visible=False),
-        # make_trace(points, points[:, 1], "Y", marker_size, visible=False),
-        # make_trace(points, points[:, 2], "Z", marker_size, visible=True),  # Default visible
-        make_categorical_color_trace(points, cover_set_ids, "Cover Set", marker_size, visible=False, additional_labels=cover_set_ids),
-        make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=True, additional_labels=segment_ids),
-        make_categorical_color_trace(points[~leaf_mask], segment_ids[~leaf_mask], "Segment without leaves", marker_size, visible=True),
-        make_categorical_color_trace(points[~filtered_mask], segment_ids[~filtered_mask], "Segment with full filtering", marker_size, visible=True)
-    ]
-
+    if leaf_filter:
+        traces = [
+            # make_trace(points, points[:, 0], "X", marker_size, visible=False),
+            # make_trace(points, points[:, 1], "Y", marker_size, visible=False),
+            # make_trace(points, points[:, 2], "Z", marker_size, visible=True),  # Default visible
+            make_categorical_color_trace(points, cover_set_ids, "Cover Set", marker_size, visible=False, additional_labels=cover_set_ids),
+            make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=True, additional_labels=segment_ids),
+            make_categorical_color_trace(points[~leaf_mask], segment_ids[~leaf_mask], "Segment without leaves", marker_size, visible=True),
+            make_categorical_color_trace(points[~filtered_mask], segment_ids[~filtered_mask], "Segment with full filtering", marker_size, visible=True)
+        ]
+    else:
+        traces = [
+            # make_trace(points, points[:, 0], "X", marker_size, visible=False),
+            # make_trace(points, points[:, 1], "Y", marker_size, visible=False),
+            # make_trace(points, points[:, 2], "Z", marker_size, visible=True),  # Default visible
+            make_categorical_color_trace(points, cover_set_ids, "Cover Set", marker_size, visible=False, additional_labels=cover_set_ids),
+            make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=True, additional_labels=segment_ids),
+            # make_categorical_color_trace(points[~leaf_mask], segment_ids[~leaf_mask], "Segment without leaves", marker_size, visible=True),
+            # make_categorical_color_trace(points[~filtered_mask], segment_ids[~filtered_mask], "Segment with full filtering", marker_size, visible=True)
+        ]
     fig = go.Figure(data=traces)
 
     # Buttons to toggle traces
@@ -126,15 +145,7 @@ def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=3,return_ht
         updatemenus=[
             dict(
                 buttons=[
-                    # dict(label="Color by X", method="update",
-                    #      args=[{"visible": [True, False, False, False, False]},
-                    #            {"title": "Point Cloud Colored by X"}]),
-                    # dict(label="Color by Y", method="update",
-                    #      args=[{"visible": [False, True, False, False, False]},
-                    #            {"title": "Point Cloud Colored by Y"}]),
-                    # dict(label="Color by Z", method="update",
-                    #      args=[{"visible": [False, False, True, False, False]},
-                    #            {"title": "Point Cloud Colored by Z"}]),
+
                     dict(label="Color by Cover Set", method="update",
                          args=[{"visible": [ True, False,False,False]},
                                {"title": "Point Cloud Colored by Cover Set"}]),
@@ -147,7 +158,14 @@ def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=3,return_ht
                     dict(label="Fully Filtered Segments", method="update",
                          args=[{"visible": [ False, False,False,True]},
                                {"title": "Point Cloud Colored by Segment"}]),
-                ],
+                ] 
+                if leaf_filter else [
+                        dict(label="Color by Cover Set", method="update",
+                         args=[{"visible": [ True, False,False,False]},
+                               {"title": "Point Cloud Colored by Cover Set"}]),
+                    dict(label="Color by Segment", method="update",
+                         args=[{"visible": [ False, True,False,False]},
+                               {"title": "Point Cloud Colored by Segment"}])],
                 direction="down",
                 showactive=True,
                 type="buttons",
@@ -156,7 +174,7 @@ def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=3,return_ht
                 xanchor="left",
                 yanchor="top"
             )
-        ],
+        ] ,
         title="Point Cloud Colored by Cover_set",
         title_x=0.5,  # Center the title
         scene=dict(

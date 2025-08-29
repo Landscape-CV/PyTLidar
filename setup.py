@@ -4,7 +4,8 @@ import setuptools
 
 setuptools.setup(
     name="PyTLidar",
-    version="0.0.1",
+    version="1.0.1",
+
     author="John Hagood",
 
     url="https://github.com/Landscape-CV/PyTLidar",

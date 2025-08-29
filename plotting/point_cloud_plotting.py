@@ -61,7 +61,7 @@ def point_cloud_plotting(points, marker_size=3,fidelity=.1, subset = False, retu
                 marker=dict(
                     size=marker_size,
                     color=points[:, 2],  # Color by Z-coordinate for a heatmap effect
-                    colorscale="Jet",  # Heatmap color scheme
+                    colorscale="Viridis",  # Heatmap color scheme
                     colorbar=dict(title="Height (Z-axis)")
                 ),
             )
