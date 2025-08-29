@@ -13,7 +13,7 @@ pip install PyTLidar
 
 # TreeQSM
 
-### TreeQSM Application Usage: GUI
+## TreeQSM Application Usage: GUI
 
 To launch the GUI application run
 ```
@@ -25,15 +25,69 @@ The below interface will appear, with instructions for generating your QSM model
 You may choose to run a single file or multiple, with the ability to view the point cloud and results on the subsequent screen.
 
 
-![Software interface for user input and data selection. \label{fig:pc1}](paper/figs/fig1.jpg)
+![Home Page](figs/home_page.png)
+
+### Parameter Selection
+
+If given an intensity threshold PyTLidar, will remove all points less than the given intensity. 
+
+There are two options for Patch Diameter parameter selection: Automated and Custom. This option is selected using the "Generate Values" checkbox (Checked is automated, unchecked is custom.
+
+For automated, you simply put the number of different values you'd like to test in the text box, then values will be calculated based on detected properties of the given point cloud. 
+For custom, you must list the values you'd like to use separated by commas. You may list as many values as you'd like. 
+
+For either parameter selection option, this will generate NxMxL runs where N, M, and L are the number of initial patch diameter, min patch diameter, and max patch diameter as each combination of values is tested. 
+
+#### Recommendations
+
+For your first time running a specific species and class, we recommend running first with the tool generating 3-4 values for each parameter. This will give you a good idea of a reasonable range for each parameter. These values will be provided on the next screen, and you can either run as is, or pick a smaller number of values within that range. 
+After the run, evaluate each parameter for how well it fits your data. This can be done visually by looking at the various outputs and comparing how well the model matches to the point cloud and how reasonable the metrics are to your expectations. Alternatively, if you select show only optimal model, you can objectively evaluate how well each set of parameters fit based on the selected optimum metric.
+You may change which metric to use after running in the display view as well.
+
+Once you have an ideal set of parameters for that type of tree, we recommend maintaining those values for all trees in batch mode. This will help avoid unnecessary runs. 
+
+If you have several classes of trees, a similar method can be used only using a subset of trees in batch mode. 
+
+### Optimum
+
+When selecting "Show Only Optimal", PyTLidar will display only the model with the set of parameters that give the best values (typically minimum) for the chosen optimum value. 
+For example, if selecting "all_mean_dist", this will show the model (and selected parameters) that gives the lowest value for average distance between cylinder surface and points for all points. 
+See more options in [optimum_metrics](optimum_metrics.md).
+
+### Single File Navigation
+
+![Single File Navigation](figs/single_file_control_panel.png)
+
+![Point cloud](figs/point_cloud.png)
 
 
-### TreeQSM Application Usage: CLI
+#### Display Options
+![Options](figs/Optimum_Options.png)
+### Outputs
+
+![Tree Data 1](figs/tree_data_screen_1.png)
+
+![Tree Data 2](figs/tree_data_screen_2.png)
+
+![Tree Data 3](figs/tree_data_screen_3.png)
+
+![Tree Data 4](figs/tree_data_screen_4.png)
+
+![Segment Plot](figs/segment_plot.png)
+
+![Cylinder Ploit](figs/cylinder.png)
+### Batch File Navigation
+
+![Batch Processing Pre-Run](figs/batch_control_panel.png)
+
+![Batch Processing Post-Run](figs/batch_control_panel_post_run.png)
+
+## TreeQSM Application Usage: CLI
 
 
 We also provide multiple command line interface options using PyTLidar.treeqsm and PyTLidar.treeqsm_batch
 
-You may run the following your terminal
+You may run the following in your terminal
 
 ```
 python -m PyTLidar.treeqsm file.las
@@ -83,7 +137,7 @@ python -m PyTLidar.treeqsm file.las --normalize --ipd 2
 python -m PyTLidar.treeqsm_batch folder --normalize --custominput --ipd .05 .08 --minpd .03 .05 --maxpd .1 --optimum trunk_mean_dis
 ```
 
-### TreeQSM Module Quick Start
+## TreeQSM Module Quick Start
 
 The TreeQSM module can be used directly as well if you need more customization of the output data or direct connection to the objects. Further information on each of these functions' inputs and outputs can be found in ![core_api.md].
 
