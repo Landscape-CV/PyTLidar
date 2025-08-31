@@ -29,7 +29,8 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     Returns:
         (dict, int/dict): Tree data and triangulation results, triangulation results are 0 if not computed.
     """
-    matplotlib.rcParams.update({'font.size': 8})
+    matplotlib.rcParams.update({'font.size': 8,'font.family':'Arial'})
+
     # Define some variables from cylinder
     Rad = cylinder['radius']
     Len = cylinder['length']
@@ -939,11 +940,11 @@ def branch_distribution(treedata, branch, dist):
     Args:
         (dict): Updated dictionary with branch distribution results.
     """
-    # Extract branch properties (excluding the first element, as in MATLAB's 2:end)
-    BOrd = branch['order'][1:]
-    BVol = branch['volume'][1:]
-    BAre = branch['area'][1:]
-    BLen = branch['length'][1:]
+    
+    BOrd = branch['order']#[1:]
+    BVol = branch['volume']#[1:]
+    BAre = branch['area']#[1:]
+    BLen = branch['length']#[1:]
     if len(BOrd) == 0:
         treedata[f'VolBranch{dist}'] = np.array([0])
         treedata[f'VolBranch1{dist}'] = np.array([0])
@@ -956,23 +957,23 @@ def branch_distribution(treedata, branch, dist):
         return treedata
     # Determine parameters based on distribution type
     if dist == 'Dia':
-        Par = branch['diameter'][1:]  # Diameter distribution
-        n = int(np.ceil(100 * np.max(Par)))  # Number of bins
+        Par = branch['diameter']#[1:]  # Diameter distribution
+        n = int(np.ceil(100 * np.max(Par)))*2  # Number of bins
         a = 0.005  # Diameter bin size (1 cm classes)
     elif dist == 'Hei':
-        Par = branch['height'][1:]  # Height distribution
+        Par = branch['height']#[1:]  # Height distribution
         n = int(np.ceil(treedata['TreeHeight']))  # Number of bins
         a = 1  # Height bin size (1 m classes)
     elif dist == 'Ang':
-        Par = branch['angle'][1:]  # Angle distribution
+        Par = branch['angle']#[1:]  # Angle distribution
         n = 18  # Number of bins
         a = 10  # Angle bin size (10-degree classes)
     elif dist == 'Zen':
-        Par = branch['zenith'][1:]  # Zenith angle distribution
+        Par = branch['zenith']#[1:]  # Zenith angle distribution
         n = 18  # Number of bins
         a = 10  # Zenith bin size (10-degree classes)
     elif dist == 'Azi':
-        Par = branch['azimuth'][1:] + 180  # Azimuth angle distribution
+        Par = branch['azimuth']+180#[1:] + 180  # Azimuth angle distribution
         n = 36  # Number of bins
         a = 10  # Azimuth bin size (10-degree classes)
     else:
@@ -1029,12 +1030,12 @@ def branch_order_distribution(treedata, branch):
     BranchOrdDist = np.zeros((BO, 4))
 
     # Compute distributions for each branch order
-    for i in range(1, BO + 1):
+    for i in range(0, BO):
         I = branch['order'] == i  # Filter branches of the current order
-        BranchOrdDist[i - 1, 0] = np.sum(branch['volume'][I])  # Volume
-        BranchOrdDist[i - 1, 1] = np.sum(branch['area'][I])    # Area
-        BranchOrdDist[i - 1, 2] = np.sum(branch['length'][I])  # Length
-        BranchOrdDist[i - 1, 3] = np.sum(I)                    # Number of branches
+        BranchOrdDist[i, 0] = np.sum(branch['volume'][I])  # Volume
+        BranchOrdDist[i, 1] = np.sum(branch['area'][I])    # Area
+        BranchOrdDist[i, 2] = np.sum(branch['length'][I])  # Length
+        BranchOrdDist[i, 3] = np.sum(I)                    # Number of branches
 
     # Store results in treedata
     treedata['VolBranchOrd'] = BranchOrdDist[:, 0]
