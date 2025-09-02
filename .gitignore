@@ -16,3 +16,5 @@ results*
 Dataset/fairchild_lidar
 .idea/
 test.py
+cloth_nodes.txt
+

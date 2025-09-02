@@ -252,7 +252,7 @@ class Ecomodel:
             #settings for Missouri data
             # segment_point_cloud(tile,base_height=.75, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1.2,max_dist=.17,combine_nearby_bases=False,initial_size_limit=100000,min_height =.1)
             
-            segment_point_cloud(tile,min_height=.1,connect_using_midpoint=True,base_height=.5)
+            segment_point_cloud(tile,min_height=.1,connect_using_midpoint=False,base_height=.45,base_dist_multiplier=2.5,connect_ambiguous_points=True)
             mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
@@ -1202,6 +1202,7 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 
 if __name__ == "__main__":
     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
+    folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
 #     # model = Ecomodel()
 #     # combined_cloud = Ecomodel.combine_las_files(folder,model)
 #     # process_entire_pointcloud(Ecomodel())
@@ -1212,7 +1213,7 @@ if __name__ == "__main__":
     # combined_cloud.subdivide_tiles(cube_size = 15)
     # combined_cloud.remove_duplicate_points()
     # combined_cloud.recombine_tiles()
-    ## combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
+    # combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
     
     # combined_cloud.filter_ground(combined_cloud._raw_tiles)
     # combined_cloud.pickle("test_model_.pickle")
@@ -1225,16 +1226,7 @@ if __name__ == "__main__":
     #     tile.to(tile.device)
     
     
-    # # combined_cloud.subdivide_tiles(cube_size = 3)
-    # # combined_cloud.filter_ground(combined_cloud.tiles.flatten())
-    # # combined_cloud.recombine_tiles()
-    # # for tile in combined_cloud._raw_tiles:
-    # #     tile.to(tile.device)
-    # # combined_cloud.subdivide_tiles(cube_size = 1)
-    # # print("Ground filtered")
-    # # combined_cloud.denoise()
-    # # combined_cloud.recombine_tiles()
-    # # tile.to_xyz("filtered.xyz")
+
     # print("filtered")
 
     # combined_cloud.pickle("test_model_ground_removed.pickle")

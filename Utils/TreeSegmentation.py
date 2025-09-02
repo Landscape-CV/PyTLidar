@@ -177,7 +177,7 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
     
     if connect_ambiguous_points:
         print("Connect Final Segments")
-        segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist*1.5,network,True,True)#Shortest path to min point of tree -- allow connections to clusters that are not adjacent to assigned
+        segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist,network,True,True)#Shortest path to min point of tree -- allow connections to clusters that are not adjacent to assigned
     if fix_overlapping_segments:
         print("Fix Overlap")
         segments = fix_overlap(segments,center_points,network)
@@ -364,7 +364,7 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
                     if np.min(path_dist)==np.inf:
                         not_expanded[base]=True
                         continue
-                    base_seg=tree_bases[np.argmin(path_dist)]
+                    base_seg=tree_bases[top[np.argmin(path_dist)]]
                     # base_seg=tree_bases[top]
             else:
 
