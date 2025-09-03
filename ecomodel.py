@@ -208,6 +208,7 @@ class Ecomodel:
                 numpy.ndarray: Clustered point cloud, shape (n_points, 3).
         """         
         
+        # inputs = {'PatchDiam1': 0.08, 'BallRad1':.08, 'nmin1': 15}
         inputs = {'PatchDiam1': 0.15, 'BallRad1':.15, 'nmin1': 25}
         # inputs = {'PatchDiam1': 0.1, 'BallRad1':.125, 'nmin1': 5}
         
@@ -252,7 +253,7 @@ class Ecomodel:
             #settings for Missouri data
             # segment_point_cloud(tile,base_height=.75, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1.2,max_dist=.17,combine_nearby_bases=False,initial_size_limit=100000,min_height =.1)
             
-            segment_point_cloud(tile,min_height=.1,connect_using_midpoint=False,base_height=.45,base_dist_multiplier=2.5,connect_ambiguous_points=True)
+            segment_point_cloud(tile,min_height=.1,connect_using_midpoint=False,base_height=.3,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False)
             mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
@@ -811,24 +812,49 @@ class Ecomodel:
             tile.remove_duplicate_points()
 
 
-    def denoise(self,eps = .1, min_samples = 10):
+    def denoise(self,grid_size = .1, min_points = 10, resolution =.05):
         """
-        Denoise the point cloud by removing outliers using DBSCAN clustering.
-        Parameters: 
-                eps (float): Maximum distance between two samples for one to be considered as in the neighborhood of the other.
-                min_samples (int): Number of samples in a neighborhood for a point to be considered as a core point.
-        Returns:        
-                numpy.ndarray: Denoised point cloud, shape (n_points, 3).
+        Denoise the point cloud by subdividing into a X x Y tiles and creating a voronoi partition using cover_sets()
+          with a patch diameter of resolution and atleast min_points in each patch.
+
         """
         for tile in self.tiles.flatten():
             if tile == 0:
                 continue
             tile.numpy()
-            clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(tile.cloud)
-            mask = clustering.labels_ != -1
+            print("Denoising tile")
+            minX = np.min(tile.cloud[:,0])
+            minY = np.min(tile.cloud[:,1])
+            maxX = np.max(tile.cloud[:,0])
+            maxY = np.max(tile.cloud[:,1])
+            X = np.ceil((maxX-minX) / grid_size).astype(int)
+            Y = np.ceil((maxY-minY) / grid_size).astype(int)
+            
+            mask = np.zeros(len(tile.cloud),dtype=bool)
+            for i in range(X):  
+                for j in range(Y):
+                    print(f"Processing grid {i},{j} of {X},{Y}")
+                    cube_min = np.array([minX + i * grid_size, minY + j * grid_size])
+                    cube_max = np.array([minX + (i + 1) * grid_size, minY + (j + 1) * grid_size])
+                    point_mask = np.all((tile.cloud[:, :2] >= cube_min) & (tile.cloud[:, :2] <= cube_max), axis=1)
+                    if np.sum(point_mask) < min_points:
+                        continue
+                    sub_cloud = tile.cloud[point_mask]
+                    inputs = {'PatchDiam1': resolution, 'BallRad1':resolution+.01, 'nmin1': min_points}
+                    cover = cover_sets(sub_cloud, inputs)
+                    labels = cover['sets']
+                    sub_mask = labels >-1
+                    mask[point_mask] = np.logical_or(mask[point_mask],sub_mask)
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
-            print("Removed ",len(clustering.labels_)-len(tile.cloud)," outliers")
+            tile.cover_sets = tile.cover_sets[mask]
+            tile.cluster_labels = tile.cluster_labels[mask]
+            tile.segment_labels = tile.segment_labels[mask]
+            tile.trunk_points = tile.trunk_points[mask]
+            
+            
+
+            
         
 
     def pickle(self,name):
@@ -915,7 +941,7 @@ class Tile:
         self.cover_sets = np.zeros(len(cloud))-1
         self.cluster_labels = np.zeros(len(cloud))-1
         self.segment_labels = np.zeros(len(cloud))-1
-        self.trunk_points = np.zeros(len(cloud))
+        self.trunk_points = np.zeros(len(cloud))-1
         self.cylinder_starts = np.empty((0,3))
         self.cylinder_radii = np.array([])
         self.cylinder_axes = np.empty((0,3))
@@ -1218,7 +1244,7 @@ if __name__ == "__main__":
     # combined_cloud.filter_ground(combined_cloud._raw_tiles)
     # combined_cloud.pickle("test_model_.pickle")
     # combined_cloud = Ecomodel.unpickle("test_model_.pickle")
-    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,0.5)
+    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
     # combined_cloud.normalize_raw_tiles()
     
     
@@ -1232,6 +1258,7 @@ if __name__ == "__main__":
     # combined_cloud.pickle("test_model_ground_removed.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
     combined_cloud.subdivide_tiles(cube_size = 15)
+    # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
     # combined_cloud.remove_duplicate_points()
 
     
