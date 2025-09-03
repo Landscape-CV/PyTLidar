@@ -25,6 +25,7 @@ from plotting.point_cloud_plotting import point_cloud_plotting
 from plotting.cylinders_plotting import cylinders_plotting
 from plotting.qsm_plotting import qsm_plotting
 import TreeQSMSteps.LSF as LSF
+from scipy.spatial import Delaunay
 from scipy.spatial.transform import Rotation 
 from scipy.spatial.distance import cdist
 import time
@@ -71,7 +72,7 @@ class Ecomodel:
 
     def normalize_raw_tiles(self):
         """
-        Normalize the point cloud  to have zero mean and unit variance.
+        Normalize the point cloud to ensure numerical stability.
         Parameters: 
                 None
         Returns:        
@@ -80,12 +81,19 @@ class Ecomodel:
         means = np.zeros(3)
         N =0
         for tile in self._raw_tiles:
+            
             means+=np.mean(tile.cloud, axis=0)*len(tile.cloud)
             N+=len(tile.cloud)
         self.mean = means/N
         for tile in self._raw_tiles:    
-            tile.cloud = tile.cloud - self.mean
-            tile.point_data[:, 0:3] = tile.point_data[:, 0:3] - self.mean
+            if tile.terrain_model is not None:
+                tile.cloud = Utils.subtract_terrain(tile.cloud,tile.terrain_model,grid_size=tile.grid_size)
+            
+            tile.cloud[:,:2] = tile.cloud[:,:2] - self.mean[:2]
+            
+            tile.point_data[:, 0:3] = tile.cloud
+        
+
             
             
     def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2): 
@@ -105,6 +113,8 @@ class Ecomodel:
             non_ground = CSF.VecInt() # a list to indicate the index of non-ground points after calculation
             csf.do_filtering(ground, non_ground)
             non_ground_mask = np.array(non_ground)
+            ground_mask = np.array(ground)
+            tile.ground = tile.cloud[ground_mask]
             tile.point_data = tile.point_data[non_ground_mask]
             tile.cloud = tile.cloud[non_ground_mask]
             new_min_z = min(new_min_z, tile.cloud[:, 2].min())
@@ -164,6 +174,30 @@ class Ecomodel:
             
         self.min_z = new_min_z
             
+    def get_terrain_model(self,tile_list,grid_size = 0.1):
+        """
+        Get the terrain model from the point cloud P.
+        Parameters: 
+                None
+        Returns:        
+                numpy.ndarray: Terrain model, shape (n_points, 3).
+        """
+        for tile in tile_list:
+            #random subset of ground points to speed up processing
+            if tile == 0 or tile.ground is None:
+                continue
+
+            if len(tile.ground)>10000:
+                indices = np.random.choice(len(tile.ground), size=10000, replace=False)
+                ground_points = tile.ground[indices]
+            # surface = Utils.get_surface_points(ground_points, grid_size)
+
+            # ground_points = ground_points-np.mean(ground_points,axis=0)#normalize ground points to improve numerical stability
+            surface = Utils.rasterize_cloud(ground_points, grid_size)
+            surface = Utils.fill_raster_gaps(surface)
+
+            tile.terrain_model = surface
+            tile.grid_size = grid_size
 
     def segment_trees(self, intensity_threshold= 0):
         """
@@ -174,6 +208,7 @@ class Ecomodel:
                 numpy.ndarray: Clustered point cloud, shape (n_points, 3).
         """         
         
+        # inputs = {'PatchDiam1': 0.08, 'BallRad1':.08, 'nmin1': 15}
         inputs = {'PatchDiam1': 0.15, 'BallRad1':.15, 'nmin1': 25}
         # inputs = {'PatchDiam1': 0.1, 'BallRad1':.125, 'nmin1': 5}
         
@@ -215,8 +250,11 @@ class Ecomodel:
 
             print("Segment Cloud")
             start = time.time()
-            segment_point_cloud(tile,min_height=.1)
-            mask = tile.segment_labels >-1#filters out points that could not be connected, ideal will segment better and this will be uneccesary
+            #settings for Missouri data
+            # segment_point_cloud(tile,base_height=.75, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1.2,max_dist=.17,combine_nearby_bases=False,initial_size_limit=100000,min_height =.1)
+            
+            segment_point_cloud(tile,min_height=.1,connect_using_midpoint=False,base_height=.3,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False)
+            mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
             tile.segment_labels=tile.segment_labels[mask]
@@ -329,8 +367,11 @@ class Ecomodel:
                 #     print(f"Segment {segment} too small after leaf removal")
                 #     tile.segment_labels[mask] = -1
                 #     continue
-                
-                qsm_input = define_input(tree_cloud,1,1,1)[0]
+                try:
+                    qsm_input = define_input(tree_cloud,1,1,1)[0]
+                except np.linalg.LinAlgError as e:
+                    print(f"Unable to find axis for segment {segment}")
+                    tile.segment_labels[mask] = -1
                 qsm_input['PatchDiam1'] = 0.025
                 qsm_input['PatchDiam2Min'] = 0.05
                 qsm_input['PatchDiam2Max'] = 0.08
@@ -387,10 +428,6 @@ class Ecomodel:
                
                 
                 for seg in np.unique(cloud_segments):
-                    # if segment > 200000:
-                    #     break
-                    # if segment <140000:
-                    #     continue
                     seg_mask = cloud_segments == seg
                     segment_cloud = tree_cloud[seg_mask]
                     
@@ -644,7 +681,7 @@ class Ecomodel:
         Z = np.ceil((self.max_z - self.min_z) / cube_size).astype(int)
         MinX = self.min_x-self.mean[0]
         MinY = self.min_y-self.mean[1]
-        MinZ = self.min_z
+        MinZ = self.min_z-self.mean[2]
         
 
         
@@ -659,20 +696,20 @@ class Ecomodel:
                     
                 if data_type == 'numpy':
                     # Calculate the coordinates of the cube
-                    cube_min = np.array([MinX + i * cube_size, MinY + j * cube_size, MinZ ])
-                    cube_max = np.array([MinX + (i + 1) * cube_size, MinY + (j + 1) * cube_size, MinZ + (Z) * cube_size])
+                    cube_min = np.array([MinX + i * cube_size, MinY + j * cube_size])
+                    cube_max = np.array([MinX + (i + 1) * cube_size, MinY + (j + 1) * cube_size])
                     points = np.zeros(shape = (0,4))
                     for tile in self._raw_tiles:
                         # tile.to_xyz("normalized_tile.xyz")
-                        mask = np.all((tile.cloud >= cube_min) & (tile.cloud <= cube_max), axis=1)
+                        mask = np.all((tile.cloud[:,:2] >= cube_min) & (tile.cloud[:,:2] <= cube_max), axis=1)
                         points = np.concatenate([points, tile.point_data[mask]])
 
 
                 else:
                     # Calculate the coordinates of the cube
                    
-                    cube_min = torch.tensor([MinX + i * cube_size, MinY + j * cube_size, MinZ ]).to(torch.float32).to(self.device)
-                    cube_max = torch.tensor([MinX + (i + 1) * cube_size, MinY + (j + 1) * cube_size, MinZ + Z * cube_size]).to(torch.float32).to(self.device)
+                    cube_min = torch.tensor([MinX + i * cube_size, MinY + j * cube_size]).to(torch.float32).to(self.device)
+                    cube_max = torch.tensor([MinX + (i + 1) * cube_size, MinY + (j + 1) * cube_size]).to(torch.float32).to(self.device)
                     
                 
 
@@ -680,7 +717,7 @@ class Ecomodel:
                     for tile in self._raw_tiles:
 
                         tile.to(tile.device)
-                        mask = torch.all((tile.cloud >= cube_min) & (tile.cloud <= cube_max), axis=1)
+                        mask = torch.all((tile.cloud[:,:2] >= cube_min) & (tile.cloud[:,:2] <= cube_max), axis=1)
                         points = torch.concatenate([points, tile.point_data[mask]])
                 if len(points)>0:
                     if k ==0:
@@ -775,24 +812,49 @@ class Ecomodel:
             tile.remove_duplicate_points()
 
 
-    def denoise(self,eps = .1, min_samples = 10):
+    def denoise(self,grid_size = .1, min_points = 10, resolution =.05):
         """
-        Denoise the point cloud by removing outliers using DBSCAN clustering.
-        Parameters: 
-                eps (float): Maximum distance between two samples for one to be considered as in the neighborhood of the other.
-                min_samples (int): Number of samples in a neighborhood for a point to be considered as a core point.
-        Returns:        
-                numpy.ndarray: Denoised point cloud, shape (n_points, 3).
+        Denoise the point cloud by subdividing into a X x Y tiles and creating a voronoi partition using cover_sets()
+          with a patch diameter of resolution and atleast min_points in each patch.
+
         """
         for tile in self.tiles.flatten():
             if tile == 0:
                 continue
             tile.numpy()
-            clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(tile.cloud)
-            mask = clustering.labels_ != -1
+            print("Denoising tile")
+            minX = np.min(tile.cloud[:,0])
+            minY = np.min(tile.cloud[:,1])
+            maxX = np.max(tile.cloud[:,0])
+            maxY = np.max(tile.cloud[:,1])
+            X = np.ceil((maxX-minX) / grid_size).astype(int)
+            Y = np.ceil((maxY-minY) / grid_size).astype(int)
+            
+            mask = np.zeros(len(tile.cloud),dtype=bool)
+            for i in range(X):  
+                for j in range(Y):
+                    print(f"Processing grid {i},{j} of {X},{Y}")
+                    cube_min = np.array([minX + i * grid_size, minY + j * grid_size])
+                    cube_max = np.array([minX + (i + 1) * grid_size, minY + (j + 1) * grid_size])
+                    point_mask = np.all((tile.cloud[:, :2] >= cube_min) & (tile.cloud[:, :2] <= cube_max), axis=1)
+                    if np.sum(point_mask) < min_points:
+                        continue
+                    sub_cloud = tile.cloud[point_mask]
+                    inputs = {'PatchDiam1': resolution, 'BallRad1':resolution+.01, 'nmin1': min_points}
+                    cover = cover_sets(sub_cloud, inputs)
+                    labels = cover['sets']
+                    sub_mask = labels >-1
+                    mask[point_mask] = np.logical_or(mask[point_mask],sub_mask)
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
-            print("Removed ",len(clustering.labels_)-len(tile.cloud)," outliers")
+            tile.cover_sets = tile.cover_sets[mask]
+            tile.cluster_labels = tile.cluster_labels[mask]
+            tile.segment_labels = tile.segment_labels[mask]
+            tile.trunk_points = tile.trunk_points[mask]
+            
+            
+
+            
         
 
     def pickle(self,name):
@@ -874,17 +936,19 @@ class Tile:
             self.max_y = float(torch.max(cloud[:, 1]))
             self.max_z = float(torch.max(cloud[:, 2]))
         self.contains_ground = contains_ground
+        self.ground =None
+        self.terrain_model = None
         self.cover_sets = np.zeros(len(cloud))-1
         self.cluster_labels = np.zeros(len(cloud))-1
         self.segment_labels = np.zeros(len(cloud))-1
-        self.trunk_points = np.zeros(len(cloud))
+        self.trunk_points = np.zeros(len(cloud))-1
         self.cylinder_starts = np.empty((0,3))
         self.cylinder_radii = np.array([])
         self.cylinder_axes = np.empty((0,3))
         self.cylinder_lengths = np.array([])
         self.branch_labels = np.array([])
         self.branch_orders = np.array([])
-
+        
     def remove_duplicate_points(self):
         cloud, mask = np.unique(self.cloud,return_index = True, axis=0,)
         self.point_data = self.point_data[mask]
@@ -1163,43 +1227,39 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 
 
 if __name__ == "__main__":
-    folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
+    # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
+    folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
 #     # model = Ecomodel()
 #     # combined_cloud = Ecomodel.combine_las_files(folder,model)
 #     # process_entire_pointcloud(Ecomodel())
 #     # Example usage
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-    model = Ecomodel()
-    combined_cloud = Ecomodel.combine_las_files(folder,model)
-    combined_cloud.subdivide_tiles(cube_size = 15)
-    combined_cloud.remove_duplicate_points()
-    combined_cloud.recombine_tiles()
-    combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
-    
-    combined_cloud.filter_ground(combined_cloud._raw_tiles)
-    combined_cloud.normalize_raw_tiles()
-    
-    
-    for tile in combined_cloud._raw_tiles:
-        tile.to(tile.device)
-    
-    
-    # combined_cloud.subdivide_tiles(cube_size = 3)
-    # combined_cloud.filter_ground(combined_cloud.tiles.flatten())
+    # model = Ecomodel()
+    # combined_cloud = Ecomodel.combine_las_files(folder,model)
+    # combined_cloud.subdivide_tiles(cube_size = 15)
+    # combined_cloud.remove_duplicate_points()
     # combined_cloud.recombine_tiles()
+    # combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
+    
+    # combined_cloud.filter_ground(combined_cloud._raw_tiles)
+    # combined_cloud.pickle("test_model_.pickle")
+    # combined_cloud = Ecomodel.unpickle("test_model_.pickle")
+    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
+    # combined_cloud.normalize_raw_tiles()
+    
+    
     # for tile in combined_cloud._raw_tiles:
     #     tile.to(tile.device)
-    # combined_cloud.subdivide_tiles(cube_size = 1)
-    # print("Ground filtered")
-    # combined_cloud.denoise()
-    # combined_cloud.recombine_tiles()
-    # tile.to_xyz("filtered.xyz")
-    print("filtered")
+    
+    
 
-    combined_cloud.pickle("test_model_ground_removed.pickle")
+    # print("filtered")
+
+    # combined_cloud.pickle("test_model_ground_removed.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
     combined_cloud.subdivide_tiles(cube_size = 15)
-    combined_cloud.remove_duplicate_points()
+    # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
+    # combined_cloud.remove_duplicate_points()
 
     
     combined_cloud.segment_trees()
