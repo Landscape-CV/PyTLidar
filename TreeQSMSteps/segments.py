@@ -157,7 +157,16 @@ def segments(cover, Base, Forb,qsm=True):
             # If the study region has zero size, then the current segment is
             # complete and determine the base of the next segment
             Segs[s] = np.array(Seg[:nl+1], dtype = 'object')
-            S = np.concatenate(Seg[:nl+1])
+            
+            try:
+                S = np.concatenate(Seg[:nl+1])
+            except:
+                for i in range(len(Seg[:nl+1])):
+                    try:
+                        len(Seg[i])
+                    except:
+                        Seg[i] = np.array([Seg[i]])
+                S = np.concatenate(Seg[:nl+1])
             ForbAll[S] = True
 
             if s < b:
@@ -207,7 +216,10 @@ def define_cut(Nei,CutPre,Forb,Fal):
         Forb (_type_): _description_
         Fal (_type_): _description_
     """
-    
+    try:
+        len(CutPre)
+    except:
+        CutPre = np.array([CutPre])
     Cut = np.concatenate([Nei[c] for c in CutPre])
     Cut = Utils.unique_elements_array(Cut,Fal)
     I = Forb[Cut]

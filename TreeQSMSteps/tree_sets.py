@@ -106,8 +106,13 @@ def define_base_forb(P, cover, aux, inputs, segment=None):
         SoP = segment['SegmentOfPoint'][cover['center']]
         stem = aux['Ind'][SoP == 0]
         I = Ce[stem, 2] < aux['Hmin'] + BaseHeight
-        Base = stem[I]
+        if np.any(I):
+            Base = stem[I]
+            
+        else:
+            Base = stem[np.argmin(Ce[stem, 2])]
         Forb = aux['Fal']
+
     
     else:
         

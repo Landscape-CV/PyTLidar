@@ -9,7 +9,7 @@ except ImportError:
     from .cylinders_plotting import rotation_matrix_from_z
 
 
-def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_name = None, overwrite = False, base_fig = None,display = True):
+def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_name = None, overwrite = False, base_fig = None,display = True,line_threshold=.1):
     """
     Plot cylinders as segments with width proportional to radius.
 
@@ -40,7 +40,7 @@ def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_nam
         length = cylinders['length'][i]
         color = 'blue'  # Default color
 
-        if radius <= 0.1:
+        if radius <= line_threshold:
             # Render as line
             end = start + np.array(axis) * length
 
