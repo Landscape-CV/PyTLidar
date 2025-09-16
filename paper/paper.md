@@ -129,5 +129,6 @@ their analysis.
 # Acknowledgements
 
 We acknowledge contributions and guidance during the development of the package from Dori Peters, Amir Hossein Alikhah Mishamandani and other staff from the Human-Augmented Analytics Group to make this happen.
-
+# Correspondence
+Any questions regarding the manuscript or the tool may be directed to John Hagood (jhagood7@gatech.edu), Fan Yang (fyang352@gatech.edu), Jeffery Cannon (Jeffery.Cannon@jonesctr.org), or James Stroud (stroud@gatech.edu)
 # References
