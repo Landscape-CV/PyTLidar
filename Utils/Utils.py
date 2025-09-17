@@ -2462,6 +2462,7 @@ def subtract_terrain(point_cloud,terrain_raster,grid_size=0.1):
     Args:
         point_cloud: Point cloud data as a numpy array of shape (N, 3).
         terrain_raster: 2D numpy array representing the terrain height.
+        grid_size: float representing the 
         
     Returns:
         Point cloud with normalized heights.
@@ -2469,17 +2470,18 @@ def subtract_terrain(point_cloud,terrain_raster,grid_size=0.1):
     x_min, x_max = np.min(point_cloud[:, 0]), np.max(point_cloud[:, 0])
     y_min, y_max = np.min(point_cloud[:, 1]), np.max(point_cloud[:, 1])
     
-    x_bins = np.arange(x_min, x_max + grid_size, grid_size)
-    y_bins = np.arange(y_min, y_max + grid_size, grid_size)
-    
-    x_indices = np.digitize(point_cloud[:, 0], x_bins) - 1
-    y_indices = np.digitize(point_cloud[:, 1], y_bins) - 1
+    num_bins = terrain_raster.shape[0]
+
+    x_bins = np.linspace(x_min, x_max, num_bins-1)
+    y_bins = np.linspace(y_min, y_max, num_bins-1)
+
+    x_indices = np.digitize(point_cloud[:, 0], x_bins)
+    y_indices = np.digitize(point_cloud[:, 1], y_bins)
     
     normalized_heights = point_cloud[:, 2].copy()
-    
+
     for i in range(len(point_cloud)):
-        if 0 <= x_indices[i] < terrain_raster.shape[0] and 0 <= y_indices[i] < terrain_raster.shape[1]:
-            normalized_heights[i] -= terrain_raster[x_indices[i], y_indices[i]]
+        normalized_heights[i] -= terrain_raster[x_indices[i], y_indices[i]]
 
     return np.column_stack((point_cloud[:, :2], normalized_heights))
 

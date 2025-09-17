@@ -96,7 +96,7 @@ class Ecomodel:
 
             
             
-    def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2): 
+    def filter_ground(self,tile_list): 
         csf = CSF.CSF()
         new_min_z = float('inf')
         for tile in tile_list:
@@ -104,9 +104,9 @@ class Ecomodel:
                 continue
             tile.numpy()
             # prameter settings
-            csf.params.bSloopSmooth = False
-            csf.params.cloth_resolution = 0.3
-            
+            csf.params.cloth_resolution = 2
+            csf.params.class_threshold = 0.5
+            csf.params.interations = 500
 
             csf.setPointCloud(tile.cloud)
             ground = CSF.VecInt()  # a list to indicate the index of ground points after calculation
@@ -117,6 +117,12 @@ class Ecomodel:
             tile.ground = tile.cloud[ground_mask]
             tile.point_data = tile.point_data[non_ground_mask]
             tile.cloud = tile.cloud[non_ground_mask]
+            
+            max_ground_z = tile.ground[:, 2].max()
+            above_ground_mask = tile.cloud[:, 2] > max_ground_z
+            tile.cloud = tile.cloud[above_ground_mask]
+            tile.point_data = tile.point_data[above_ground_mask]
+
             new_min_z = min(new_min_z, tile.cloud[:, 2].min())
         self.min_z = new_min_z
 
@@ -183,15 +189,15 @@ class Ecomodel:
                 numpy.ndarray: Terrain model, shape (n_points, 3).
         """
         for tile in tile_list:
-            #random subset of ground points to speed up processing
             if tile == 0 or tile.ground is None:
                 continue
 
+
+            #random subset of ground points to speed up processing
             if len(tile.ground)>10000:
                 indices = np.random.choice(len(tile.ground), size=10000, replace=False)
                 ground_points = tile.ground[indices]
             # surface = Utils.get_surface_points(ground_points, grid_size)
-
             # ground_points = ground_points-np.mean(ground_points,axis=0)#normalize ground points to improve numerical stability
             surface = Utils.rasterize_cloud(ground_points, grid_size)
             surface = Utils.fill_raster_gaps(surface)
@@ -1229,6 +1235,7 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 if __name__ == "__main__":
     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
     folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
+    # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
 #     # model = Ecomodel()
 #     # combined_cloud = Ecomodel.combine_las_files(folder,model)
 #     # process_entire_pointcloud(Ecomodel())
@@ -1236,7 +1243,7 @@ if __name__ == "__main__":
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
     model = Ecomodel()
     combined_cloud = Ecomodel.combine_las_files(folder,model)
-    combined_cloud.subdivide_tiles(cube_size = 15)
+    combined_cloud.subdivide_tiles(cube_size = 10)
     combined_cloud.remove_duplicate_points()
     combined_cloud.recombine_tiles()
     combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
@@ -1257,7 +1264,7 @@ if __name__ == "__main__":
 
     combined_cloud.pickle("test_model_ground_removed.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
-    combined_cloud.subdivide_tiles(cube_size = 15)
+    combined_cloud.subdivide_tiles(cube_size = 10)
     # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
     # combined_cloud.remove_duplicate_points()
 
