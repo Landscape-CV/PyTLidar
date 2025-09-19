@@ -13,7 +13,8 @@ results*
 *.pickle
 .venv
 .env
-Dataset/fairchild_lidar
+Dataset/*
+!Dataset/.gitkeep
 .idea/
 test.py
 cloth_nodes.txt

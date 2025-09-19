@@ -1233,8 +1233,10 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 
 
 if __name__ == "__main__":
+
+    folder = os.path.join(os.path.dirname(__file__), "Dataset")
     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
-    folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
+    #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
     # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
 #     # model = Ecomodel()
 #     # combined_cloud = Ecomodel.combine_las_files(folder,model)
