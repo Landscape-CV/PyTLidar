@@ -17,3 +17,4 @@ scikit_learn==1.6.1
 scipy==1.15.3
 torch==2.6.0
 trimesh==4.6.4
+
