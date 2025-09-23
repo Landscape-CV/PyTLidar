@@ -6,7 +6,9 @@ PyTLidar is a python module designed for manipulating and calculating metrics fr
 
 # Installation
 
-The release version of PyTLidar can be installed as a standard python package
+The release version of PyTLidar can be installed as a standard python package.
+
+**Note**: Due to Open3d dependency. Python version must be between Python 3.8 and 3.11 (inclusive)
 
 ```
 pip install PyTLidar
