@@ -115,7 +115,7 @@ Both treeqsm.py and treeqsm_batch.py may be run directly from the command line. 
 
 # Availability and Installation
 
-The latest development version of PyTLidar as well as usage instructions are available at this [GitHub repository](https://github.com/Landscape-CV/PyTLidar). The package requires Python 3.8+ and a few key dependencies listed in the requirements. 
+The latest development version of PyTLidar as well as usage instructions are available at this [GitHub repository](https://github.com/Landscape-CV/PyTLidar). The package requires Python 3.8-3.11 and a few key dependencies listed in the requirements. 
 Installation instructions and example datasets are provided in the repository documentation. The latest release version is available on PyPi and can be installed using ```pip install PyTLidar.```
 
 # Future Additions
