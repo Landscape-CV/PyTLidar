@@ -67,7 +67,7 @@ def segments(cover, Base, Forb,qsm=True):
     b = s  # The index of the latest found base
 
     SBas[s] = Base
-    Seg = [None] * 1000  # The cover set layers in the current segment
+    Seg = [None] * 10000  # The cover set layers in the current segment
     Seg[0] = Base
 
     ForbAll = Fal.copy()  # The forbidden sets
