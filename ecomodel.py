@@ -96,7 +96,7 @@ class Ecomodel:
 
             
             
-    def filter_ground(self,tile_list): 
+    def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2,remove_under_ground = True): 
         csf = CSF.CSF()
         new_min_z = float('inf')
         for tile in tile_list:
@@ -115,6 +115,10 @@ class Ecomodel:
             non_ground_mask = np.array(non_ground)
             ground_mask = np.array(ground)
             tile.ground = tile.cloud[ground_mask]
+            if remove_under_ground:
+                #get average z of ground
+                avg_ground_z = np.mean(tile.cloud[ground_mask][:,2])
+                non_ground_mask=non_ground_mask[tile.cloud[non_ground_mask][:,2]>avg_ground_z+offset]
             tile.point_data = tile.point_data[non_ground_mask]
             tile.cloud = tile.cloud[non_ground_mask]
             
@@ -259,7 +263,7 @@ class Ecomodel:
             #settings for Missouri data
             # segment_point_cloud(tile,base_height=.75, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1.2,max_dist=.17,combine_nearby_bases=False,initial_size_limit=100000,min_height =.1)
             
-            segment_point_cloud(tile,min_height=.1,connect_using_midpoint=False,base_height=.3,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False,layer_size=.16)
+            segment_point_cloud(tile,min_height=.3,connect_using_midpoint=False,base_height=.5,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False,layer_size=.16,min_Z=float(torch.min(tile.cloud[:,2])))
             mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
@@ -378,6 +382,10 @@ class Ecomodel:
                 except np.linalg.LinAlgError as e:
                     print(f"Unable to find axis for segment {segment}")
                     tile.segment_labels[mask] = -1
+                except Exception as e:
+                    print(f"Error defining initial params for segment {segment}")
+                    tile.segment_labels[mask] = -1
+                    continue
                 qsm_input['PatchDiam1'] = 0.025
                 qsm_input['PatchDiam2Min'] = 0.05
                 qsm_input['PatchDiam2Max'] = 0.08
@@ -1251,7 +1259,7 @@ if __name__ == "__main__":
     combined_cloud.filter_ground(combined_cloud._raw_tiles)
     combined_cloud.pickle("test_model_.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_.pickle")
-    combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
+    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
     combined_cloud.normalize_raw_tiles()
     
     
