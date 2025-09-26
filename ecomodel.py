@@ -96,7 +96,7 @@ class Ecomodel:
 
             
             
-    def filter_ground(self,tile_list): 
+    def filter_ground(self, tile_list, write_cloth=False):
         csf = CSF.CSF()
         new_min_z = float('inf')
         for tile in tile_list:
@@ -111,7 +111,7 @@ class Ecomodel:
             csf.setPointCloud(tile.cloud)
             ground = CSF.VecInt()  # a list to indicate the index of ground points after calculation
             non_ground = CSF.VecInt() # a list to indicate the index of non-ground points after calculation
-            csf.do_filtering(ground, non_ground)
+            csf.do_filtering(ground, non_ground, exportCloth=write_cloth)
             non_ground_mask = np.array(non_ground)
             ground_mask = np.array(ground)
             tile.ground = tile.cloud[ground_mask]
@@ -205,7 +205,7 @@ class Ecomodel:
             tile.terrain_model = surface
             tile.grid_size = grid_size
 
-    def segment_trees(self, intensity_threshold= 0):
+    def segment_trees(self, intensity_threshold= 0, save_clusters=False):
         """
         Segments the point cloud into groups from a single tree
         Parameters: 
@@ -269,12 +269,14 @@ class Ecomodel:
             
             # tile.cluster_labels = labels
 
-            
+            if save_clusters:
+                results_folder = "results"
+                os.makedirs(results_folder, exist_ok=True)
+                out_path = os.path.join(results_folder, f"clustered_{i}.xyz")
+                tile.to_xyz(out_path, True)
+                print(f"Clustered tile written to {out_path}")
 
-            
-
-            print("Writing File")
-            tile.to_xyz(f"clustered_{i}.xyz", True)
+        print("Tree segmentation finished.")
 
             
     def get_qsm_segments(self,intensity_threshold = 40000):
@@ -863,26 +865,36 @@ class Ecomodel:
             
         
 
-    def pickle(self,name):
+    def pickle(self, name, folder="pickle"):
         """
-        Save the point cloud to a pickle file.
+        Save the point cloud to a pinside the given folder.
+        Default folder is ./pickle
         Parameters: 
                 name (str): Path to save the pickle file.
         Returns:        
                 None
         """
-        with open(name, 'wb') as f:
+        os.makedirs(folder, exist_ok=True)  # create folder if it doesn't exist
+        path = os.path.join(folder, name)
+        with open(path, 'wb') as f:
             pickle.dump(self, f)
+        print(f"[Ecomodel] Saved pickle to {path}")
+
+
     @staticmethod
-    def unpickle(name):
+    def unpickle(name, folder="pickle"):
         """
-        Load the tile object from a pickle file.
+        Load the tile object from a pickle file inside the given folder.
+        Default folder is ./pickle
         Parameters: 
                 name (str): Path to load the pickle file from.
         Returns:        
                 Ecomodel: Loaded point cloud.
         """
-        with open(name, 'rb') as f:
+        path = os.path.join(folder, name)
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"[Ecomodel] Pickle file not found: {path}")
+        with open(path, 'rb') as f:
             return pickle.load(f)
 
 
