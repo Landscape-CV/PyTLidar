@@ -1290,6 +1290,11 @@ if __name__ == "__main__":
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
     model = Ecomodel()
     combined_cloud = Ecomodel.combine_las_files(folder,model)
+
+    if combined_cloud is None:
+        print("Exiting: please add LAS/LAZ files and rerun.")
+        exit(0)
+
     combined_cloud.subdivide_tiles(cube_size = 10)
     combined_cloud.remove_duplicate_points()
     combined_cloud.recombine_tiles()
