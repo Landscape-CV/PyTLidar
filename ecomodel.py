@@ -223,7 +223,7 @@ class Ecomodel:
         # inputs = {'PatchDiam1': 0.1, 'BallRad1':.125, 'nmin1': 5}
         
         cover_set_adjust = 0 
-        for i,tile in enumerate(self.tiles.flatten()):
+        for i,tile in enumerate(self.tiles.flatten(), start =1):
             if tile == 0:
                 continue
             
@@ -293,7 +293,7 @@ class Ecomodel:
         """
         
         max_segment = 0
-        for i,tile in enumerate(self.tiles.flatten()):
+        for i,tile in enumerate(self.tiles.flatten(), start = 1):
             if tile == 0:
                 continue
             
@@ -556,7 +556,7 @@ class Ecomodel:
         Returns:        
                 numpy.ndarray: Cylinders, shape (n_cylinders, 3).
         """
-        for i,tile in enumerate(self._raw_tiles):
+        for i,tile in enumerate(self._raw_tiles, start=1):
             if tile == 0:
                 continue
           
