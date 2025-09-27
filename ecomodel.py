@@ -1278,7 +1278,7 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 
 if __name__ == "__main__":
 
-    folder = os.path.join(os.path.dirname(__file__), "Dataset")
+    folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
 
     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
     #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
