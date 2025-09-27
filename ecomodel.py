@@ -807,26 +807,50 @@ class Ecomodel:
         
         """
 
-        files = os.listdir(folder)
-        files = [f for f in files if f.endswith('.las') or f.endswith('.laz')]
+        os.makedirs(folder, exist_ok=True)
+
+        files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
+
         if len(files) == 0:
-            print("No LAS or LAZ files found in the folder.")
-            return
+            print(f"No LAS or LAZ files found in '{folder}'.")
+            return None
+
+        elif len(files) == 1:
+            print(f"Found 1 LAS/LAZ file in '{folder}'.")
+            file = files[0]
+            print(f"Loading file: {file}")
+            filepath = os.path.join(folder, file)
+            point_cloud, point_data = Utils.load_point_cloud(filepath, intensity_threshold, True)
+            if point_cloud is not None:
+                ecomodel.add_tile(Tile(point_cloud, point_data, True))
+            print("Finished loading LAS/LAZ file.")
+            return ecomodel
+
         # Define input for each tree
-        for i, file in enumerate(files):
-            print(i)
+        for i, file in enumerate(files, start=1):
+            print(f"Loading file {i}/{len(files)}: {file}")
+            filepath = os.path.join(folder, file)
+
             point_cloud, point_data = Utils.load_point_cloud(os.path.join(folder, file), intensity_threshold,True)
             if point_cloud is not None:
-                
                 ecomodel.add_tile(Tile(point_cloud,point_data,True))
-                
+
+        print("Finished combining LAS/LAZ files.")
+
         return ecomodel
 
     def remove_duplicate_points(self):
-        for tile in self.tiles.flatten():
-            tile.numpy()
-            tile.remove_duplicate_points()
+        for i, tile in enumerate(self.tiles.flatten(), start=1):
+            if tile == 0 or tile is None:
+                print(f"[remove_duplicate_points] Skipping tile {i}: empty (0 or None).")
+                continue
+            if not hasattr(tile, "remove_duplicate_points"):
+                print(f"[remove_duplicate_points] Skipping tile {i}: no 'remove_duplicate_points' method.")
+                continue
 
+            tile.remove_duplicate_points()
+            tile.numpy()
+            print(f"[remove_duplicate_points] Processed tile {i}.")
 
     def denoise(self,grid_size = .1, min_points = 10, resolution =.05):
         """
