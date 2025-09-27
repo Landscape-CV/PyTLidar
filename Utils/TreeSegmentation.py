@@ -168,7 +168,9 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
         filtered_tree_bases=mod_filtered_tree_bases
 
 
-    
+    if len(filtered_tree_bases)==0:
+        tile.segment_labels = torch.zeros(len(tile.cloud))-2
+        return
     print("Connect Segments")
     segments,not_explored = connect_segments(pcd_tree,pcd,segments,full_not_explored,filtered_tree_bases,max_dist*2,network,False,True)#Shortest Path to lowest point of tree
     if connect_using_midpoint:
