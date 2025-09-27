@@ -411,10 +411,10 @@ class Ecomodel:
                 cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input, segment1)
                 print("Segment 2")
                 segment1 = segments(cover1, Base, Forb)
-                print("Correct 2")
-                segment1 =correct_segments(tree_cloud,cover1,segment1,qsm_input,0,1,1)
 
                 if self.USE_QSM_CYLINDERS: 
+                    print("Correct 2")
+                    segment1 =correct_segments(tree_cloud,cover1,segment1,qsm_input,0,1,1)
                     print("Starting Cylinder Fitting")
                     cylinder = cylinders(tree_cloud,cover1,segment1,qsm_input)
                     tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
@@ -422,7 +422,7 @@ class Ecomodel:
                     tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
                     tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
 
-                    print("Actual Number of found cylinders: ", tile.cylinder_starts.shape)
+                    print("Actual Number of found cylinders: ", tile.cylinder_starts.shape[0])
 
 
 
@@ -1262,45 +1262,45 @@ if __name__ == "__main__":
     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
     # folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
 
-#     folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
-# #     # model = Ecomodel()
-# #     # combined_cloud = Ecomodel.combine_las_files(folder,model)
-# #     # process_entire_pointcloud(Ecomodel())
-# #     # Example usage
-#     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-#     model = Ecomodel()
-#     combined_cloud = Ecomodel.combine_las_files(folder,model)
-#     combined_cloud.subdivide_tiles(cube_size = 10)
-#     combined_cloud.remove_duplicate_points()
-#     combined_cloud.recombine_tiles()
-#     combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
+    folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
+#     # model = Ecomodel()
+#     # combined_cloud = Ecomodel.combine_las_files(folder,model)
+#     # process_entire_pointcloud(Ecomodel())
+#     # Example usage
+    # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
+    model = Ecomodel()
+    combined_cloud = Ecomodel.combine_las_files(folder,model)
+    combined_cloud.subdivide_tiles(cube_size = 10)
+    combined_cloud.remove_duplicate_points()
+    combined_cloud.recombine_tiles()
+    combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
     
-#     combined_cloud.filter_ground(combined_cloud._raw_tiles)
-#     combined_cloud.pickle("test_model_.pickle")
-#     combined_cloud = Ecomodel.unpickle("test_model_.pickle")
-#     # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
-#     combined_cloud.normalize_raw_tiles()
+    combined_cloud.filter_ground(combined_cloud._raw_tiles)
+    combined_cloud.pickle("test_model_.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model_.pickle")
+    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
+    combined_cloud.normalize_raw_tiles()
     
     
-#     for tile in combined_cloud._raw_tiles:
-#         tile.to(tile.device)
+    for tile in combined_cloud._raw_tiles:
+        tile.to(tile.device)
     
     
 
-#     print("filtered")
+    print("filtered")
 
-#     combined_cloud.pickle("test_model_ground_removed.pickle")
-#     combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
-#     combined_cloud.subdivide_tiles(cube_size = 10)
-#     # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
-#     # combined_cloud.remove_duplicate_points()
+    combined_cloud.pickle("test_model_ground_removed.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
+    combined_cloud.subdivide_tiles(cube_size = 10)
+    # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
+    # combined_cloud.remove_duplicate_points()
 
     
-#     combined_cloud.segment_trees()
-#     combined_cloud.pickle("test_model_trees_segmented.pickle")
-#     combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
-#     combined_cloud.get_qsm_segments(40000)
-#     combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
+    combined_cloud.segment_trees()
+    combined_cloud.pickle("test_model_trees_segmented.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
+    combined_cloud.get_qsm_segments(40000)
+    combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud.recombine_tiles()
     # Palm
