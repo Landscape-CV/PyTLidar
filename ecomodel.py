@@ -99,7 +99,7 @@ class Ecomodel:
 
             
             
-    def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2,remove_under_ground = True): 
+    def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2,remove_under_ground = True, write_cloth=False): 
         csf = CSF.CSF()
         new_min_z = float('inf')
         for tile in tile_list:
@@ -114,7 +114,7 @@ class Ecomodel:
             csf.setPointCloud(tile.cloud)
             ground = CSF.VecInt()  # a list to indicate the index of ground points after calculation
             non_ground = CSF.VecInt() # a list to indicate the index of non-ground points after calculation
-            csf.do_filtering(ground, non_ground)
+            csf.do_filtering(ground, non_ground, exportCloth=write_cloth)
             non_ground_mask = np.array(non_ground)
             ground_mask = np.array(ground)
             tile.ground = tile.cloud[ground_mask]
@@ -212,7 +212,7 @@ class Ecomodel:
             tile.terrain_model = surface
             tile.grid_size = grid_size
 
-    def segment_trees(self, intensity_threshold= 0):
+    def segment_trees(self, intensity_threshold= 0, save_clusters=False):
         """
         Segments the point cloud into groups from a single tree
         Parameters: 
@@ -226,7 +226,7 @@ class Ecomodel:
         # inputs = {'PatchDiam1': 0.1, 'BallRad1':.125, 'nmin1': 5}
         
         cover_set_adjust = 0 
-        for i,tile in enumerate(self.tiles.flatten()):
+        for i,tile in enumerate(self.tiles.flatten(), start =1):
             if tile == 0:
                 continue
             
@@ -276,12 +276,14 @@ class Ecomodel:
             
             # tile.cluster_labels = labels
 
-            
+            if save_clusters:
+                results_folder = "results"
+                os.makedirs(results_folder, exist_ok=True)
+                out_path = os.path.join(results_folder, f"clustered_{i}.xyz")
+                tile.to_xyz(out_path, True)
+                print(f"Clustered tile written to {out_path}")
 
-            
-
-            print("Writing File")
-            tile.to_xyz(f"clustered_{i}.xyz", True)
+        print("Tree segmentation finished.")
 
             
     def get_qsm_segments(self,intensity_threshold = 40000):
@@ -294,7 +296,7 @@ class Ecomodel:
         """
         
         max_segment = 0
-        for i,tile in enumerate(self.tiles.flatten()):
+        for i,tile in enumerate(self.tiles.flatten(), start = 1):
             if tile == 0:
                 continue
             
@@ -569,7 +571,7 @@ class Ecomodel:
         Returns:        
                 numpy.ndarray: Cylinders, shape (n_cylinders, 3).
         """
-        for i,tile in enumerate(self._raw_tiles):
+        for i,tile in enumerate(self._raw_tiles, start=1):
             if tile == 0:
                 continue
           
@@ -823,26 +825,50 @@ class Ecomodel:
         
         """
 
-        files = os.listdir(folder)
-        files = [f for f in files if f.endswith('.las') or f.endswith('.laz')]
+        os.makedirs(folder, exist_ok=True)
+
+        files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
+
         if len(files) == 0:
-            print("No LAS or LAZ files found in the folder.")
-            return
+            print(f"No LAS or LAZ files found in '{folder}'.")
+            return None
+
+        elif len(files) == 1:
+            print(f"Found 1 LAS/LAZ file in '{folder}'.")
+            file = files[0]
+            print(f"Loading file: {file}")
+            filepath = os.path.join(folder, file)
+            point_cloud, point_data = Utils.load_point_cloud(filepath, intensity_threshold, True)
+            if point_cloud is not None:
+                ecomodel.add_tile(Tile(point_cloud, point_data, True))
+            print("Finished loading LAS/LAZ file.")
+            return ecomodel
+
         # Define input for each tree
-        for i, file in enumerate(files):
-            print(i)
+        for i, file in enumerate(files, start=1):
+            print(f"Loading file {i}/{len(files)}: {file}")
+            filepath = os.path.join(folder, file)
+
             point_cloud, point_data = Utils.load_point_cloud(os.path.join(folder, file), intensity_threshold,True)
             if point_cloud is not None:
-                
                 ecomodel.add_tile(Tile(point_cloud,point_data,True))
-                
+
+        print("Finished combining LAS/LAZ files.")
+
         return ecomodel
 
     def remove_duplicate_points(self):
-        for tile in self.tiles.flatten():
-            tile.numpy()
-            tile.remove_duplicate_points()
+        for i, tile in enumerate(self.tiles.flatten(), start=1):
+            if tile == 0 or tile is None:
+                print(f"[remove_duplicate_points] Skipping tile {i}: empty (0 or None).")
+                continue
+            if not hasattr(tile, "remove_duplicate_points"):
+                print(f"[remove_duplicate_points] Skipping tile {i}: no 'remove_duplicate_points' method.")
+                continue
 
+            tile.remove_duplicate_points()
+            tile.numpy()
+            print(f"[remove_duplicate_points] Processed tile {i}.")
 
     def denoise(self,grid_size = .1, min_points = 10, resolution =.05):
         """
@@ -889,26 +915,36 @@ class Ecomodel:
             
         
 
-    def pickle(self,name):
+    def pickle(self, name, folder="pickle"):
         """
-        Save the point cloud to a pickle file.
+        Save the point cloud to a pinside the given folder.
+        Default folder is ./pickle
         Parameters: 
                 name (str): Path to save the pickle file.
         Returns:        
                 None
         """
-        with open(name, 'wb') as f:
+        os.makedirs(folder, exist_ok=True)  # create folder if it doesn't exist
+        path = os.path.join(folder, name)
+        with open(path, 'wb') as f:
             pickle.dump(self, f)
+        print(f"[Ecomodel] Saved pickle to {path}")
+
+
     @staticmethod
-    def unpickle(name) -> 'Ecomodel':
+    def unpickle(name, folder="pickle")->'Ecomodel':
         """
-        Load the tile object from a pickle file.
+        Load the tile object from a pickle file inside the given folder.
+        Default folder is ./pickle
         Parameters: 
                 name (str): Path to load the pickle file from.
         Returns:        
                 Ecomodel: Loaded point cloud.
         """
-        with open(name, 'rb') as f:
+        path = os.path.join(folder, name)
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"[Ecomodel] Pickle file not found: {path}")
+        with open(path, 'rb') as f:
             return pickle.load(f)
 
 
@@ -1259,10 +1295,12 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 
 
 if __name__ == "__main__":
-    # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
-    # folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
 
-    folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
+    folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
+
+    # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
+    #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
+    # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
 #     # model = Ecomodel()
 #     # combined_cloud = Ecomodel.combine_las_files(folder,model)
 #     # process_entire_pointcloud(Ecomodel())
@@ -1270,6 +1308,11 @@ if __name__ == "__main__":
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
     model = Ecomodel()
     combined_cloud = Ecomodel.combine_las_files(folder,model)
+
+    if combined_cloud is None:
+        print("Exiting: please add LAS/LAZ files and rerun.")
+        exit(0)
+
     combined_cloud.subdivide_tiles(cube_size = 10)
     combined_cloud.remove_duplicate_points()
     combined_cloud.recombine_tiles()
