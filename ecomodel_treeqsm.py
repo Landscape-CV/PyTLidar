@@ -388,8 +388,6 @@ class Ecomodel:
                     tile.segment_labels[segment_mask] = -1
                     continue
                 np.savetxt("inter_out/1_leaf_removal_after.xyz", tree_cloud)
-
-
                 try:
                     qsm_input = define_input(tree_cloud,1,1,1)[0]
                 except np.linalg.LinAlgError as e:
@@ -399,197 +397,14 @@ class Ecomodel:
                     print(f"Error defining initial params for segment {segment}")
                     tile.segment_labels[segment_mask] = -1
                     continue
-                qsm_input['PatchDiam1'] = qsm_input['PatchDiam1'][0]
-                qsm_input['BallRad1'] = qsm_input['BallRad1'][0]
-                qsm_input['BallRad2'] = qsm_input['BallRad2'][0]
-                # qsm_input['PatchDiam1'] = 0.025
-                # qsm_input['PatchDiam2Min'] = 0.05
-                # qsm_input['PatchDiam2Max'] = 0.08
-                # qsm_input['BallRad1'] = 0.03
-                # qsm_input['BallRad2'] = 0.09
-                # qsm_input['nmin1'] = 5
-                print("Cover sets")
-                cover1 = cover_sets(tree_cloud, qsm_input)
-                print("Tree sets")
-                cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input)
-                print("Segments")
-                segment1 = segments( cover1, Base, Forb,qsm=True)#Running with QSM false, this pre-splits segments
-                #Second round of QSM, opting not to do this for now
-                print("Correct")
-                segment1 =correct_segments(tree_cloud,cover1,segment1,qsm_input,0,1,1)#
-                RS = relative_size(tree_cloud, cover1, segment1)
-                print("Cover 2")
-                cover1 = cover_sets(tree_cloud, qsm_input, RS)
-                print("Tree Set 2")
-                cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input, segment1)
-                print("Segment 2")
-                segment1 = segments(cover1, Base, Forb)
 
-                if self.USE_QSM_CYLINDERS: 
-                    print("Correct 2")
-                    segment1 =correct_segments(tree_cloud,cover1,segment1,qsm_input,0,1,1)
-                    print("Starting Cylinder Fitting")
-
-                    cylinder = cylinders(tree_cloud,cover1,segment1,qsm_input)
-                    tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
-                    tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
-                    tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
-                    tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
-
-                    segs = segment1["SegmentArray"]
-                    print("cover", cover1["sets"])
-                    print("segs", segment1["SegmentArray"].shape)
-                    print("tree_cloud", tree_cloud.shape)
-                    print("cover", cover1["sets"].shape)
-                    np.savetxt("coversets.txt", cover1['sets'])
-                    np.savetxt("segments.txt", segs)
-                    
-                    print("Number of cover sets", len(np.unique(cover1['sets'])))
-                    # Cover sets are patches of points. So cover is a 1xN array, where each value is the 
-                    # cover set that that point is associated with. 
-                    # segment1["SegmentArray"] is a 1xC where there is C cover sets, and then the segment ID of that 
-                    # coverset. So that means len(np.unique(cover1['sets'])) is the same as the length of segs. 
-                    # Then the goal we have for the cluster labels is to assign each point its repsective segment.
-                    # But because we only have the cover set id for each point, and the segment for each coverset, 
-                    # we need to do some complex numpy operations: 
-                        
-                    segs = segment1["SegmentArray"] # Get segments
-                    cover = cover1["sets"]# Get the cover sets.
-                    I = np.argsort(cover) # get sorted indexes
-                    tree_mask = range_mask[segment_mask] # get the tree mask, which is the set of points in the cloud that 
-                    print("Tree mask", tree_mask.shape) 
-                    print("tile.point_data", tile.point_data.shape) 
-                    print("wood_mask", wood_mask.shape) 
-                    print("range_mask", range_mask.shape) 
-                    print("segment_mask", segment_mask.shape) 
-                    print("tile.cluster_labels", tile.cluster_labels.shape) 
-                    # Are the tree that we are looking at. 
-
-                    tile.point_data[tree_mask][wood_mask] = tile.point_data[tree_mask][wood_mask][I] # sort points according to cover mask ID
-                    tree_cloud= tree_cloud[I] # sort the tree cloud according to the cover sets. 
-                    neg_mask = cover == -1
-                    num_indices = np.bincount(cover[~neg_mask]) # count the number of actual points for each cover set. 
-                    num_indices = np.concatenate([np.array([np.sum(neg_mask)]),num_indices]) # add to that the 
-                    segs = np.concatenate([np.array([-2,]),segs])
-                    
-                    
-                    cloud_segments= np.repeat(segs, num_indices) 
-                    cluster_mask = range_mask[segment_mask][wood_mask]
-                    print("cluster_mask", cluster_mask.shape) 
-                    print("cloud_segments", cloud_segments.shape) 
-                    tile.cluster_labels[cluster_mask] = cloud_segments
-                    tile.cloud[segment_mask][wood_mask] = tree_cloud
-                        
-
-                    # trunk_mask = range_mask[segment_mask][trunk]
-                    
-
-
-
-
-                    # tile.cluster_labels[trunk_mask] = -3
-                    # tile.trunk_points[trunk_mask]= 1
-                    
-                    print("Actual Number of found cylinders: ", tile.cylinder_starts.shape[0])
-
-
-                else:
-                    # segs = [np.concatenate(seg).astype(np.int64) for seg in segment1["segments"]]
-                    segs = segment1["SegmentArray"]
-
-
-                    cover = cover1["sets"]
-                    # S = np.argsort(cover)
-                    # tree_cloud = tree_cloud[S]
-                    # cover = cover[S]
-                    
-                    # What is I? 
-                    I = np.argsort(cover)
-                    cover = cover
-                    # tree_mask = range_mask[mask][noise_mask][wood_mask]
-                    wood_tree_mask = range_mask[segment_mask][wood_mask]
-                    tile.point_data[wood_tree_mask] = tile.point_data[wood_tree_mask][I]
-                    tree_cloud= tree_cloud[I]
-                    neg_mask = cover ==-1
-                    num_indices = np.bincount(cover[~neg_mask])
-                    num_indices = np.concatenate([np.array([np.sum(neg_mask)]),num_indices])
-                    segs = np.concatenate([np.array([-2,]),segs])
-                    
-                    
-                    cloud_segments= np.repeat(segs, num_indices) 
-
-
-                    new_cloud_segments = cloud_segments.copy()
-                    cloud_range_mask = np.arange(len(cloud_segments))
-                    
-                    
-                    
-                    
+                models, cyl_htmls  = treeqsm(tree_cloud, qsm_input)
+                print(models)
+                qsm = models[0]
+                segments = qsm['segments']
                 
-                    
-                    for seg in np.unique(cloud_segments):
-                        seg_mask = cloud_segments == seg
-                        segment_cloud = tree_cloud[seg_mask]
-                        
-                        if len(segment_cloud)<30:
-                            continue
-                        
-                        try:
-                            axis =Utils.get_axis(segment_cloud)
-                        except:
-                            continue
-                        
-                        lexsort_indices = np.lexsort((segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),axis=0,)
-                        #Comments are optional method for sorting segments to find subsegments
-                        # lexsort_indices = Utils.get_axis_sort(segment_cloud,axis)
-                        # rotated_cloud = Utils.rotate_cloud(segment_cloud,axis)
-                        # rotated_cloud = rotated_cloud[lexsort_indices]
-                        segment_cloud = segment_cloud[lexsort_indices]
-
-                        sub_segments = Utils.split_segments(segment_cloud,6,15)
-                        # sub_segments = Utils.split_segments(rotated_cloud,6,15)
-                        while np.sum(sub_segments)>len(sub_segments)/6:
-
-                            ss_idx = sub_segments.astype(bool)
-                            sub_segments = sub_segments[np.argsort(lexsort_indices)]
-                            I =np.where(sub_segments==1)[0]
-                            # J = np.where(sub_segments==0)[0]
-                            
-                            cluster_mask = cloud_range_mask[seg_mask][I]
-                            new_cloud_segments[cluster_mask] = np.max(new_cloud_segments)+1
-                            segment_cloud = tree_cloud[seg_mask][I]
-                            seg_mask= cluster_mask
-                            lexsort_indices = np.lexsort((segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),axis=0)
-                            
-                            segment_cloud = segment_cloud[lexsort_indices]
-                            
-        
-                            sub_segments = Utils.split_segments(segment_cloud,6,15)
-                            # rotated_cloud= rotated_cloud[ss_idx]
-                            # lexsort_indices = np.argsort(rotated_cloud[:, 2])
-                            # rotated_cloud = rotated_cloud[lexsort_indices]
-                            # sub_segments = Utils.split_segments(rotated_cloud,6,15)
-
-
-                    cloud_segments = new_cloud_segments+max_segment
-                    trunk = new_cloud_segments ==0
-                    
-
                 
-                    max_segment = cloud_segments.max()+max_segment
-                    # # mask_cluster_labels = np.zeros(np.sum(mask))-1
-                    # # mask_cluster_labels[wood_mask] = cloud_segments
 
-                    # cluster_mask = range_mask[mask][noise_mask][wood_mask]
-                    # trunk_mask = range_mask[mask][noise_mask][wood_mask][trunk]
-                    cluster_mask = range_mask[segment_mask]
-                    trunk_mask = range_mask[segment_mask][trunk]
-                    
-                
-                # tile.cloud[cluster_mask] =segment_cloud
-
-                # tile.point_data[cluster_mask] =tile.point_data[mask][I][S]
-                # tile.cluster_labels[mask] = mask_cluster_labels
                 
             print(f"Time to create QSMs in tile {i}:",time.time()-start) 
             # tile.to_xyz(f"clustered_{i}.xyz", True,True)
@@ -597,97 +412,6 @@ class Ecomodel:
                 # print("Writing File")
                 # print("Writing File")
             # tile.to_xyz(f"clustered_{i}.xyz", True)
-
-
-    def get_qsm_segment_treeqsm(self):
-        """
-        Wraps the tree qsm call.....
-        """
-        # tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
-        # tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
-        # tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
-        # tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
-        max_segment = 0
-        for i,tile in enumerate(self.tiles.flatten(), start = 1):
-            if tile == 0:
-                continue
-            
-            tile.numpy()
-            
-            
-
-            
-            tile.cluster_labels = np.array([-2]*len(tile.cloud))
-            start = time.time()
-            range_mask = np.arange(len(tile.cluster_labels))
-            for segment in np.unique(tile.segment_labels)[::-1]:
-                
-                if segment == -1:
-                    continue
-                
-                # mask = (tile.segment_labels == segment) & (tile.point_data[:,3] >intensity_threshold)
-                segment_mask = (tile.segment_labels == segment)
-                if len(tile.cloud[segment_mask]) < 100:
-                    print(f"Segment {segment} too small")
-                    tile.cluster_labels[segment_mask] = -2
-                    continue
-
-                
-                
-
-                tree_cloud = tile.cloud[segment_mask]
-                print("Segment: ",segment)
-                inputs = {'PatchDiam1': 0.02, 'BallRad1':.02, 'nmin1': 5}
-                cover = cover_sets(tree_cloud, inputs, qsm =False, device = self.device, full_point_data = tile.point_data)
-                if len(cover['sets']) == 0:
-                    print("No cover sets found"),
-                    continue
-
-                np.savetxt("inter_out/0_leaf_removal_before.xyz", tree_cloud)
-
-                LR = LeafRemover()
-                wood_mask, leaf_mask = LR.process(tree_cloud, True)
-                
-                # wood_mask = np.isin(labels,np.where(wood_mask)[0])
-                # leaf_mask = np.isin(labels,np.where(leaf_mask)[0])
-                # intensity_mask = tile.point_data[mask][:,3]>intensity_threshold
-
-                # #Only remove leaves if intensity threshold is not met
-                # wood_mask = np.logical_or(wood_mask,intensity_mask)
-                # leaf_mask = np.logical_and(leaf_mask,~intensity_mask)
-                tree_cloud = tree_cloud[wood_mask]
-                # np.savetxt(f"tree_{i}_{segment}_no_leaves.xyz",tree_cloud,delimiter=',')
-                if len(tree_cloud) < 100:
-                    print(f"Segment {segment} too small after leaf removal")
-                    tile.segment_labels[segment_mask] = -1
-                    continue
-                np.savetxt("inter_out/1_leaf_removal_after.xyz", tree_cloud)
-                np.savetxt(f"inter_out/leaf_removal_after_segment_{segment}.xyz", tree_cloud)
-
-                try:
-                    qsm_input = define_input(tree_cloud,1,1,1)[0]
-                    qsm_input['plot'] = 0
-                except np.linalg.LinAlgError as e:
-                    print(f"Unable to find axis for segment {segment}")
-                    tile.segment_labels[segment_mask] = -1
-                except Exception as e:
-                    print(f"Error defining initial params for segment {segment}")
-                    tile.segment_labels[segment_mask] = -1
-                    continue
-                np.savetxt("Tree_cloud_going_in", tree_cloud)
-                models, _ = treeqsm(tree_cloud, qsm_input)
-                if models == "ERROR":
-                    print(f"--> BAD SEGMENT {segment}")
-                    continue
-                qsm = models[0]
-                # print(type(qsm))
-                # print(qsm)
-                cylinder = qsm['cylinder']
-                tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
-                tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
-                tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
-                tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
-
 
 
     def adjust_location(self):
@@ -762,39 +486,6 @@ class Ecomodel:
 
             return cylinder, cyl_plot
     
-    def get_all_cylinders(self):
-        """
-        Puts all the cylinder information from each tile into a big dictionary
-        """
-        cylinder = {}
-
-        cylinder_data = np.empty((0,8))
-        for i,tile in enumerate(self._raw_tiles, start=1):
-            if tile == 0:
-                continue
-
-            cylinder_starts =  tile.cylinder_starts
-            cylinder_radii = tile.cylinder_radii
-            cylinder_axes =  tile.cylinder_axes
-            cylinder_lengths =  tile.cylinder_lengths
-            
-            # Denormalize:
-            # cylinder_starts += self.mean
-            print(self.mean)
-
-            tile_data = np.concatenate((cylinder_starts, cylinder_radii.reshape(-1, 1), cylinder_axes, cylinder_lengths.reshape(-1, 1)), axis=1)
-
-            cylinder_data = np.vstack((cylinder_data, tile_data))
-
-        np.savetxt("Cylinder_data.txt", cylinder_data)
-
-            # Denormalize clylinders back to world coordinates. 
-            # self.mean
-        
-
-        
-
-
     def calc_volumes(self,tile, segments,min_bound,max_bound):
         """
         Get cylinder information
@@ -1489,57 +1180,52 @@ if __name__ == "__main__":
 
     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
     #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
-    # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
-    folder = r'G:\Projects\TreeCanopyLidar\Datasets\MVP_tiles'
+    folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
 #     # model = Ecomodel()
 #     # combined_cloud = Ecomodel.combine_las_files(folder,model)
 #     # process_entire_pointcloud(Ecomodel())
 #     # Example usage
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-    model = Ecomodel()
-    combined_cloud = Ecomodel.combine_las_files(folder,model)
+    # model = Ecomodel()
+    # combined_cloud = Ecomodel.combine_las_files(folder,model)
 
+    # if combined_cloud is None:
+    #     print("Exiting: please add LAS/LAZ files and rerun.")
+    #     exit(0)
 
-    if combined_cloud is None:
-        print("Exiting: please add LAS/LAZ files and rerun.")
-        exit(0)
-
-    combined_cloud.subdivide_tiles(cube_size = 10)
-    combined_cloud.remove_duplicate_points()
-    combined_cloud.recombine_tiles()
+    # combined_cloud.subdivide_tiles(cube_size = 10)
+    # combined_cloud.remove_duplicate_points()
+    # combined_cloud.recombine_tiles()
     # combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
     
-    combined_cloud.filter_ground(combined_cloud._raw_tiles)
-    combined_cloud.pickle("test_model_.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model_.pickle")
-    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
-    combined_cloud.normalize_raw_tiles()
-    combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
-    # exit()
+    # combined_cloud.filter_ground(combined_cloud._raw_tiles)
+    # combined_cloud.pickle("test_model_.pickle")
+    # combined_cloud = Ecomodel.unpickle("test_model_.pickle")
+    # # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
+    # combined_cloud.normalize_raw_tiles()
     
-    for tile in combined_cloud._raw_tiles:
-        tile.to(tile.device)
+    
+    # for tile in combined_cloud._raw_tiles:
+    #     tile.to(tile.device)
     
     
 
-    print("filtered")
+    # print("filtered")
 
-    combined_cloud.pickle("test_model_ground_removed.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
-    combined_cloud.subdivide_tiles(cube_size = 10)
-    # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
-    # combined_cloud.remove_duplicate_points()
+    # combined_cloud.pickle("test_model_ground_removed.pickle")
+    # combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
+    # combined_cloud.subdivide_tiles(cube_size = 10)
+    # # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
+    # # combined_cloud.remove_duplicate_points()
 
     
-    combined_cloud.segment_trees()
-    combined_cloud.pickle("test_model_trees_segmented.pickle")
+    # combined_cloud.segment_trees()
+    # combined_cloud.pickle("test_model_trees_segmented.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
-    combined_cloud.get_qsm_segment_treeqsm()
+    combined_cloud.get_qsm_segments(40000)
     combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud.recombine_tiles()
-    combined_cloud.get_all_cylinders()
-    exit()
     # Palm
     # cylinder,base_plot = combined_cloud.get_voxel(-15,-3,-3,5,fidelity = .3)
     # # Small Voxel
