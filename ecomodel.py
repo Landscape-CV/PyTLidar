@@ -509,6 +509,205 @@ class Ecomodel:
                 # print("Writing File")
             # tile.to_xyz(f"clustered_{i}.xyz", True)
 
+    def get_qsm_segments_rgi(self, intensity_threshold=40000):
+        """
+        Same as get_qsm_segments(), but integrates classify_wood_leaf() from SegmentRGI for
+        leaf/wood separation before QSM processing.
+        """
+
+        def classify_wood_leaf_on_array(tree_cloud):
+            """
+            Run classify_wood_leaf() directly on an in-memory NumPy point cloud array.
+            Saves the temporary segment, classifies it, and rebuilds boolean masks.
+            """
+            from SegmentRGI import classify_wood_leaf
+            from pathlib import Path
+            from tempfile import TemporaryDirectory
+
+            with TemporaryDirectory() as tmpdir:
+                tmp_ply = Path(tmpdir) / "segment.ply"
+                tmp_results = Path(tmpdir) / "results"
+                tmp_results.mkdir(exist_ok=True)
+
+                # Save current segment to temporary PLY
+                pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(tree_cloud[:, :3]))
+                o3d.io.write_point_cloud(str(tmp_ply), pcd)
+
+                # Run existing classification pipeline
+                classify_wood_leaf(str(tmp_ply), save_dir=str(tmp_results), show_plots=False)
+
+                # Read back the classified clouds
+                wood_file = tmp_results / "segment_wood.ply"
+                leaf_file = tmp_results / "segment_leaves.ply"
+                if not wood_file.exists() or not leaf_file.exists():
+                    raise FileNotFoundError("Wood/Leaf outputs not found after classification.")
+
+                wood_pcd = o3d.io.read_point_cloud(str(wood_file))
+                leaf_pcd = o3d.io.read_point_cloud(str(leaf_file))
+                tree_coords = np.asarray(tree_cloud[:, :3])
+                wood_coords = np.asarray(wood_pcd.points)
+                leaf_coords = np.asarray(leaf_pcd.points)
+
+                def build_mask(sub_coords):
+                    mask = np.isin(
+                        tree_coords.view([('', tree_coords.dtype)] * 3),
+                        sub_coords.view([('', sub_coords.dtype)] * 3)
+                    )
+                    return mask.squeeze()
+
+                wood_mask = build_mask(wood_coords)
+                leaf_mask = build_mask(leaf_coords)
+                return wood_mask, leaf_mask
+
+        max_segment = 0
+        for i, tile in enumerate(self.tiles.flatten()):
+            if tile == 0:
+                continue
+
+            tile.numpy()
+            tile.cluster_labels = np.array([-2] * len(tile.cloud))
+            start = time.time()
+            range_mask = np.arange(len(tile.cluster_labels))
+
+            for segment in np.unique(tile.segment_labels)[::-1]:
+                if segment == -1:
+                    continue
+
+                mask = (tile.segment_labels == segment)
+                if len(tile.cloud[mask]) < 100:
+                    print(f"Segment {segment} too small")
+                    tile.cluster_labels[mask] = -2
+                    continue
+
+                tree_cloud = tile.cloud[mask]
+                print("Segment:", segment)
+
+                inputs = {'PatchDiam1': 0.02, 'BallRad1': 0.02, 'nmin1': 5}
+                cover = cover_sets(tree_cloud, inputs, qsm=False,
+                                device=self.device, full_point_data=tile.point_data)
+                if len(cover['sets']) == 0:
+                    print("No cover sets found")
+                    continue
+
+                labels = cover['sets']
+                noise_mask = labels > -1
+                tree_cloud = tree_cloud[noise_mask]
+                if len(tree_cloud) < 100:
+                    print(f"Segment {segment} too small after noise removal")
+                    tile.segment_labels[mask] = -1
+                    continue
+
+                # replace LeafRemover with classify_wood_leaf
+                
+                try:
+                    wood_mask, leaf_mask = classify_wood_leaf_on_array(tree_cloud)
+
+                    # Combine classification result with intensity threshold
+                    intensity_mask = tile.point_data[mask][:, 3] > intensity_threshold
+                    wood_mask = np.logical_or(wood_mask, intensity_mask)
+                    leaf_mask = np.logical_and(leaf_mask, ~intensity_mask)
+
+                    # Filter tree_cloud to retain only wood
+                    tree_cloud = tree_cloud[wood_mask]
+                    np.savetxt(f"tree_{i}_{segment}_no_leaves.xyz",
+                            tree_cloud, delimiter=',')
+                except Exception as e:
+                    print(f"[WARNING] classify_wood_leaf() failed on segment {segment}: {e}")
+                    continue
+
+                try:
+                    qsm_input = define_input(tree_cloud, 1, 1, 1)[0]
+                except np.linalg.LinAlgError as e:
+                    print(f"Unable to find axis for segment {segment}: {e}")
+                    tile.segment_labels[mask] = -1
+                    continue
+
+                qsm_input['PatchDiam1'] = 0.025
+                qsm_input['PatchDiam2Min'] = 0.05
+                qsm_input['PatchDiam2Max'] = 0.08
+                qsm_input['BallRad1'] = 0.03
+                qsm_input['BallRad2'] = 0.09
+                qsm_input['nmin1'] = 5
+
+                print("Cover sets")
+                cover1 = cover_sets(tree_cloud, qsm_input)
+                print("Tree sets")
+                cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input)
+                print("Segments")
+                segment1 = segments(cover1, Base, Forb, qsm=True)
+                print("Correct")
+                segment1 = correct_segments(tree_cloud, cover1, segment1, qsm_input, 0, 1, 1)
+                RS = relative_size(tree_cloud, cover1, segment1)
+                print("Cover 2")
+                cover1 = cover_sets(tree_cloud, qsm_input, RS)
+                print("Tree Set 2")
+                cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input, segment1)
+                print("Segment 2")
+                segment1 = segments(cover1, Base, Forb)
+
+                segs = segment1["SegmentArray"]
+                cover = cover1["sets"]
+                I = np.argsort(cover)
+                tree_mask = range_mask[mask][noise_mask]
+                tile.point_data[tree_mask] = tile.point_data[tree_mask][I]
+                tree_cloud = tree_cloud[I]
+
+                neg_mask = cover == -1
+                num_indices = np.bincount(cover[~neg_mask])
+                num_indices = np.concatenate([np.array([np.sum(neg_mask)]), num_indices])
+                segs = np.concatenate([np.array([-2]), segs])
+
+                cloud_segments = np.repeat(segs, num_indices)
+                new_cloud_segments = cloud_segments.copy()
+                cloud_range_mask = np.arange(len(cloud_segments))
+
+                for seg in np.unique(cloud_segments):
+                    seg_mask = cloud_segments == seg
+                    segment_cloud = tree_cloud[seg_mask]
+
+                    if len(segment_cloud) < 30:
+                        continue
+
+                    try:
+                        axis = Utils.get_axis(segment_cloud)
+                    except Exception:
+                        continue
+
+                    lexsort_indices = np.lexsort(
+                        (segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),
+                        axis=0,
+                    )
+                    segment_cloud = segment_cloud[lexsort_indices]
+                    sub_segments = Utils.split_segments(segment_cloud, 6, 15)
+
+                    while np.sum(sub_segments) > len(sub_segments) / 6:
+                        ss_idx = sub_segments.astype(bool)
+                        sub_segments = sub_segments[np.argsort(lexsort_indices)]
+                        I = np.where(sub_segments == 1)[0]
+                        cluster_mask = cloud_range_mask[seg_mask][I]
+                        new_cloud_segments[cluster_mask] = np.max(new_cloud_segments) + 1
+                        segment_cloud = tree_cloud[seg_mask][I]
+                        seg_mask = cluster_mask
+                        lexsort_indices = np.lexsort(
+                            (segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),
+                            axis=0,
+                        )
+                        segment_cloud = segment_cloud[lexsort_indices]
+                        sub_segments = Utils.split_segments(segment_cloud, 6, 15)
+
+                cloud_segments = new_cloud_segments + max_segment
+                trunk = new_cloud_segments == 0
+                max_segment = cloud_segments.max() + max_segment
+
+                cluster_mask = range_mask[mask][noise_mask]
+                trunk_mask = range_mask[mask][noise_mask][trunk]
+                tile.cluster_labels[cluster_mask] = cloud_segments
+                tile.cluster_labels[trunk_mask] = -3
+                tile.trunk_points[trunk_mask] = 1
+                tile.cloud[tree_mask] = tree_cloud
+
+            print(f"Time to create QSMs in tile {i}: {time.time() - start:.2f} seconds")
+        
 
     def adjust_location(self):
         """
