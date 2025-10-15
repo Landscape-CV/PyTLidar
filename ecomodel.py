@@ -554,6 +554,16 @@ class Ecomodel:
                     print("No cover sets found"),
                     continue
                     
+                if save_leaf_removal_output:
+                    np.savetxt("results/before_leaf_removal.xyz", tree_cloud)
+
+                LR = LeafRemover()
+                wood_mask, leaf_mask = LR.process(tree_cloud, return_mask=True)
+                tree_cloud = tree_cloud[wood_mask]
+
+                if save_leaf_removal_output:
+                    np.savetxt("results/after_leaf_removal.xyz", tree_cloud)
+
 
                 if len(tree_cloud) < 100:
                     print(f"Segment {segment} too small after leaf removal")
