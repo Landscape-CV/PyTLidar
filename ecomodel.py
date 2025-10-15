@@ -44,7 +44,6 @@ import CSF
 
 from Utils.RobustCylinderFitting import RobustCylinderFitterEcomodel
 dotenv.load_dotenv()
-import json
 
 class Ecomodel:
     """The Ecomodel class processes and creates html and pdf reports of a large scale point cloud. 
@@ -1387,12 +1386,12 @@ if __name__ == "__main__":
     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
     #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
     # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
-    folder = r'G:\Projects\TreeCanopyLidar\Datasets\MVP_tiles'
-#     # model = Ecomodel()
-#     # combined_cloud = Ecomodel.combine_las_files(folder,model)
-#     # process_entire_pointcloud(Ecomodel())
-#     # Example usage
-    # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
+    # folder = r'G:\Projects\TreeCanopyLidar\Datasets\MVP_tiles'
+    # model = Ecomodel()
+    # combined_cloud = Ecomodel.combine_las_files(folder,model)
+    # process_entire_pointcloud(Ecomodel())
+    # Example usage
+    folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
     model = Ecomodel()
     combined_cloud = Ecomodel.combine_las_files(folder,model)
 
@@ -1412,11 +1411,9 @@ if __name__ == "__main__":
     # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
     combined_cloud.normalize_raw_tiles()
     combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
-    # exit()
     
     for tile in combined_cloud._raw_tiles:
         tile.to(tile.device)
-    
     
 
     print("filtered")
