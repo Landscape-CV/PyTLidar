@@ -55,7 +55,7 @@ def cylinders_line_plotting(cylinders, scale_factor=1, num_points = 20, file_nam
                 z=z_line,
                 mode='lines',
                 # line=dict(color=color, width=1),
-                line=dict(color=color, width=max(.1,scale_factor * radius * 2)),
+                line=dict(color=color, width=max(.001,scale_factor * radius * 2)),
                 #marker=dict(
                 #    size=scale_factor * radius,
                 #    color=color,
