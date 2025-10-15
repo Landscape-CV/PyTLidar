@@ -136,7 +136,7 @@ def define_input(clouds, nPD1=1, nPD2Min=1, nPD2Max=1):
             'nmin1': 3, 'nmin2': 1, 'OnlyTree': 1, 'Tria': 0, 'Dist': 1,
             'MinCylRad': 0.0025, 'ParentCor': 1, 'TaperCor': 1, 'GrowthVolCor': 0,
             'GrowthVolFac': 1.5, 'tree': i + 1, 'model': 1, 'savemat': 1,
-            'savetxt': 1, 'plot': 2, 'disp': 2
+            'savetxt': 1, 'plot': 2, 'disp': 2, 'savepdf': 1,
         })
 
         inputs.append(input_params)
