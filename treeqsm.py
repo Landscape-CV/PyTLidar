@@ -385,10 +385,11 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                         models.append(qsm)
                         cyl_htmls.append(cyl_html)
                         iter+=1
-        response = Utils.package_outputs(models,cyl_htmls)    
-        if inputs["disp"]==2:
-            sys.stdout.write(json.dumps(response))  
-            sys.stdout.write("\n") 
+        if inputs['savepdf']:
+            response = Utils.package_outputs(models,cyl_htmls)    
+            if inputs["disp"]==2:
+                sys.stdout.write(json.dumps(response))  
+                sys.stdout.write("\n") 
         if processing_queue is not None:
             processing_queue.put([batch,models,cyl_htmls])
         os.chdir(original_location)

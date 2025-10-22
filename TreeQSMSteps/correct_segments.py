@@ -184,7 +184,7 @@ def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
     SubSegs = np.zeros(100, dtype=int)-1  # Segments to be combined to form the stem
 
     while LenDisRatio > MaxLenDisRatio:
-        SubSegs = SubSegs.copy()
+        SubSegs = SubSegs.copy().astype(int)
         StemTops = np.arange(nseg)
         I = Dist < SearchDist  # Only segments with distance to the top < 0.5m
 
@@ -214,6 +214,8 @@ def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
                     nsegs += 1
                     if len(SubSegs)<nsegs:
                         SubSegs = np.concatenate([SubSegs,np.zeros(nsegs-len(SubSegs))])
+                    elif len(SubSegs)==nsegs:
+                        SubSegs = np.concatenate([SubSegs,np.zeros(1,dtype=int)])
                     SubSegs[nsegs] = segment
 
                 # Modify stem
@@ -374,7 +376,7 @@ def search_branch_top(P, Ce, Bal, Segs, SPar, SChi, dmin, BI):
 
         if Segments[j] != BI:
             # Tip point was not in the current segment, modify segments
-            SubSegs[0] = Segments[j].copy()
+            SubSegs[0] = Segments[j].copy().astype(int)
             k = 0
             S = int(Segments[j])
 
@@ -392,8 +394,8 @@ def search_branch_top(P, Ce, Bal, Segs, SPar, SChi, dmin, BI):
             a = a
 
             for i in range(k - 1):
-                I = SubSegs[k - i - 1]  # Segment to be combined to the first segment
-                J = SubSegs[k - i - 2]  # Above segment's child to be combined next
+                I = SubSegs[k - i - 1].astype(int)  # Segment to be combined to the first segment
+                J = SubSegs[k - i - 2].astype(int)  # Above segment's child to be combined next
                 SP = int(spar[I , 1])  # Layer index of the child in the parent
                 SegC = Segs[I ]
                 sp = int(spar[J, 1])  # Layer index of the child's child in the child
@@ -410,7 +412,7 @@ def search_branch_top(P, Ce, Bal, Segs, SPar, SChi, dmin, BI):
                 SubSegs[k - i - 1] = 0
 
             # Combine the last segment to the branch
-            I = SubSegs[0]
+            I = SubSegs[0].astype(int)
             SP = int(spar[I, 1])
             SegC = Segs[I]
             L = len(SegC)
