@@ -2,7 +2,10 @@ import open3d as o3d
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-import RegionGrowing as RG
+try:
+    import RegionGrowing as RG
+except:
+    import SegmentRGI.RegionGrowing as RG
 import os
 
 
@@ -19,6 +22,7 @@ def load_point_cloud(input_path):
     ext = os.path.splitext(input_path)[1].lower()
     if ext in [".pcd", ".ply"]:
         pcd_t = o3d.t.io.read_point_cloud(input_path)
+        
         intensity_key = "scalar_Intensity" if "scalar_Intensity" in pcd_t.point else "Intensity"
         if intensity_key not in pcd_t.point:
             raise ValueError(f"No intensity field found in {input_path}")

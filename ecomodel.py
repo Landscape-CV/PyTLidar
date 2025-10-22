@@ -42,6 +42,12 @@ from robpy.covariance import DetMCD,FastMCD
 from sklearn.covariance import MinCovDet
 import CSF
 
+
+from SegmentRGI.SegmentRGI import classify_wood_leaf
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from plyfile import PlyData, PlyElement
+
 from Utils.RobustCylinderFitting import RobustCylinderFitterEcomodel
 dotenv.load_dotenv()
 
@@ -535,9 +541,7 @@ class Ecomodel:
             Run classify_wood_leaf() directly on an in-memory NumPy point cloud array.
             Saves the temporary segment, classifies it, and rebuilds boolean masks.
             """
-            from SegmentRGI import classify_wood_leaf
-            from pathlib import Path
-            from tempfile import TemporaryDirectory
+            
 
             with TemporaryDirectory() as tmpdir:
                 tmp_ply = Path(tmpdir) / "segment.ply"
@@ -545,8 +549,20 @@ class Ecomodel:
                 tmp_results.mkdir(exist_ok=True)
 
                 # Save current segment to temporary PLY
-                pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(tree_cloud[:, :3]))
-                o3d.io.write_point_cloud(str(tmp_ply), pcd)
+                vertex_dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('Intensity', 'f4')]
+                structured = np.zeros(tree_cloud.shape[0], dtype=vertex_dtype)
+                structured['x'] = tree_cloud[:, 0]
+                structured['y'] = tree_cloud[:, 1]
+                structured['z'] = tree_cloud[:, 2]
+                structured['Intensity'] = tree_cloud[:, 3]
+
+                ply_elements = PlyElement.describe(structured, 'vertex')
+        
+                PlyData([ply_elements]).write(str(tmp_ply))
+
+                # pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(tree_cloud[:, :3]))
+                # o3d.io.write_point_cloud(str(tmp_ply), pcd)
+
 
                 # Run existing classification pipeline
                 classify_wood_leaf(str(tmp_ply), save_dir=str(tmp_results), show_plots=False)
@@ -615,10 +631,10 @@ class Ecomodel:
                 # replace LeafRemover with classify_wood_leaf
                 
                 try:
-                    wood_mask, leaf_mask = classify_wood_leaf_on_array(tree_cloud)
+                    wood_mask, leaf_mask = classify_wood_leaf_on_array(tile.point_data[mask][noise_mask])
 
                     # Combine classification result with intensity threshold
-                    intensity_mask = tile.point_data[mask][:, 3] > intensity_threshold
+                    intensity_mask = tile.point_data[mask][noise_mask][:, 3] > intensity_threshold
                     wood_mask = np.logical_or(wood_mask, intensity_mask)
                     leaf_mask = np.logical_and(leaf_mask, ~intensity_mask)
 
@@ -663,7 +679,7 @@ class Ecomodel:
                 segs = segment1["SegmentArray"]
                 cover = cover1["sets"]
                 I = np.argsort(cover)
-                tree_mask = range_mask[mask][noise_mask]
+                tree_mask = range_mask[mask][noise_mask][wood_mask]
                 tile.point_data[tree_mask] = tile.point_data[tree_mask][I]
                 tree_cloud = tree_cloud[I]
 
@@ -714,8 +730,8 @@ class Ecomodel:
                 trunk = new_cloud_segments == 0
                 max_segment = cloud_segments.max() + max_segment
 
-                cluster_mask = range_mask[mask][noise_mask]
-                trunk_mask = range_mask[mask][noise_mask][trunk]
+                cluster_mask = range_mask[mask][noise_mask][wood_mask]
+                trunk_mask = range_mask[mask][noise_mask][wood_mask][trunk]
                 tile.cluster_labels[cluster_mask] = cloud_segments
                 tile.cluster_labels[trunk_mask] = -3
                 tile.trunk_points[trunk_mask] = 1
@@ -1604,44 +1620,44 @@ if __name__ == "__main__":
     # process_entire_pointcloud(Ecomodel())
     # Example usage
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-    model = Ecomodel()
-    combined_cloud = Ecomodel.combine_las_files(folder,model)
+    # model = Ecomodel()
+    # combined_cloud = Ecomodel.combine_las_files(folder,model)
 
 
-    if combined_cloud is None:
-        print("Exiting: please add LAS/LAZ files and rerun.")
-        exit(0)
+    # if combined_cloud is None:
+    #     print("Exiting: please add LAS/LAZ files and rerun.")
+    #     exit(0)
 
-    combined_cloud.subdivide_tiles(cube_size = 10)
-    combined_cloud.remove_duplicate_points()
-    combined_cloud.recombine_tiles()
-    # combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
-    
-    combined_cloud.filter_ground(combined_cloud._raw_tiles)
-    combined_cloud.pickle("test_model_.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model_.pickle")
-    combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
-    combined_cloud.normalize_raw_tiles()
-    combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
-    
-    for tile in combined_cloud._raw_tiles:
-        tile.to(tile.device)
-    
-
-    print("filtered")
-
-    combined_cloud.pickle("test_model_ground_removed.pickle")
-    combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
-    combined_cloud.subdivide_tiles(cube_size = 10)
-    # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
+    # combined_cloud.subdivide_tiles(cube_size = 10)
     # combined_cloud.remove_duplicate_points()
+    # combined_cloud.recombine_tiles()
+    # # combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
+    
+    # combined_cloud.filter_ground(combined_cloud._raw_tiles)
+    # combined_cloud.pickle("test_model_.pickle")
+    # combined_cloud = Ecomodel.unpickle("test_model_.pickle")
+    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
+    # combined_cloud.normalize_raw_tiles()
+    # combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
+    
+    # for tile in combined_cloud._raw_tiles:
+    #     tile.to(tile.device)
+    
+
+    # print("filtered")
+
+    # combined_cloud.pickle("test_model_ground_removed.pickle")
+    # combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
+    # combined_cloud.subdivide_tiles(cube_size = 10)
+    # # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
+    # # combined_cloud.remove_duplicate_points()
 
     
-    combined_cloud.segment_trees()
-    combined_cloud.reset_terrain()
-    combined_cloud.pickle("test_model_trees_segmented.pickle")
+    # combined_cloud.segment_trees()
+    # combined_cloud.reset_terrain()
+    # combined_cloud.pickle("test_model_trees_segmented.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
-    combined_cloud.get_qsm_segment_treeqsm(save_leaf_removal_output=True)
+    combined_cloud.get_qsm_segments_rgi()
     combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud.recombine_tiles()
