@@ -96,7 +96,10 @@ class Ecomodel:
             
             tile.point_data[:, 0:3] = tile.cloud
         
-
+    def reset_terrain(self):
+        for tile in self._raw_tiles:
+            tile.cloud = Utils.add_terrain(tile.cloud,tile.terrain_model,grid_size=tile.grid_size)
+        
             
             
     def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2,remove_under_ground = True, write_cloth=False): 
@@ -1391,7 +1394,7 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
 
 if __name__ == "__main__":
 
-    # folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
+    folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
 
     # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
     #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
@@ -1401,7 +1404,7 @@ if __name__ == "__main__":
     # combined_cloud = Ecomodel.combine_las_files(folder,model)
     # process_entire_pointcloud(Ecomodel())
     # Example usage
-    folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
+    # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
     model = Ecomodel()
     combined_cloud = Ecomodel.combine_las_files(folder,model)
 
@@ -1418,7 +1421,7 @@ if __name__ == "__main__":
     combined_cloud.filter_ground(combined_cloud._raw_tiles)
     combined_cloud.pickle("test_model_.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_.pickle")
-    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
+    combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
     combined_cloud.normalize_raw_tiles()
     combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
     
@@ -1436,6 +1439,7 @@ if __name__ == "__main__":
 
     
     combined_cloud.segment_trees()
+    combined_cloud.reset_terrain()
     combined_cloud.pickle("test_model_trees_segmented.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
     combined_cloud.get_qsm_segment_treeqsm(save_leaf_removal_output=True)
