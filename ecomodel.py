@@ -128,16 +128,40 @@ class Ecomodel:
             ground_mask = np.array(ground)
             tile.ground = tile.cloud[ground_mask]
             if remove_under_ground:
-                #get average z of ground
-                avg_ground_z = np.mean(tile.cloud[ground_mask][:,2])
-                non_ground_mask=non_ground_mask[tile.cloud[non_ground_mask][:,2]>avg_ground_z+offset]
+                new_non_ground_mask = np.array([],dtype=np.int64)
+                # #get average z of ground
+                # avg_ground_z = np.mean(tile.cloud[ground_mask][:,2])
+                # non_ground_mask=non_ground_mask[tile.cloud[non_ground_mask][:,2]>avg_ground_z+offset]
+                # subdivide into sub-tiles and remove points under ground plane
+                grid_size = .5
+                x_bins = np.arange(tile.min_x, tile.max_x + grid_size, grid_size)
+                y_bins = np.arange(tile.min_y, tile.max_y + grid_size, grid_size)
+                for i in range(len(x_bins)-1):
+                    for j in range(len(y_bins)-1):
+                        x_min = x_bins[i]
+                        x_max = x_bins[i+1]
+                        y_min = y_bins[j]
+                        y_max = y_bins[j+1]
+                        sub_tile_mask = (tile.cloud[:,0]>=x_min) & (tile.cloud[:,0]<x_max) & (tile.cloud[:,1]>=y_min) & (tile.cloud[:,1]<y_max)
+                        if np.sum(sub_tile_mask)==0:
+                            continue
+                        sub_tile_ground_mask = np.union1d(sub_tile_mask ,ground_mask)
+                        sub_tile_ground_points = tile.cloud[sub_tile_ground_mask]
+                        ground_z = np.percentile(sub_tile_ground_points[:,2],95)
+                        sub_tile_non_ground_mask = sub_tile_mask & (tile.cloud[:,2]>ground_z+offset)
+                        new_non_ground_mask = np.concatenate((new_non_ground_mask, np.where(sub_tile_non_ground_mask)[0]))
+                non_ground_mask = new_non_ground_mask
+
+
+                
+                
             tile.point_data = tile.point_data[non_ground_mask]
             tile.cloud = tile.cloud[non_ground_mask]
             
-            max_ground_z = tile.ground[:, 2].max()
-            above_ground_mask = tile.cloud[:, 2] > max_ground_z
-            tile.cloud = tile.cloud[above_ground_mask]
-            tile.point_data = tile.point_data[above_ground_mask]
+            # max_ground_z = tile.ground[:, 2].max()
+            # above_ground_mask = tile.cloud[:, 2] > max_ground_z
+            # tile.cloud = tile.cloud[above_ground_mask]
+            # tile.point_data = tile.point_data[above_ground_mask]
 
             new_min_z = min(new_min_z, tile.cloud[:, 2].min())
         self.min_z = new_min_z
@@ -275,7 +299,7 @@ class Ecomodel:
             #settings for Missouri data
             # segment_point_cloud(tile,base_height=.75, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1.2,max_dist=.17,combine_nearby_bases=False,initial_size_limit=100000,min_height =.1)
             
-            segment_point_cloud(tile,min_height=.3,connect_using_midpoint=False,base_height=.5,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False,layer_size=.16,min_Z=float(torch.min(tile.cloud[:,2])))
+            segment_point_cloud(tile,min_height=.3,connect_using_midpoint=False,base_height=.65,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False,layer_size=.16,min_Z=float(torch.min(tile.cloud[:,2])),combine_nearby_bases=True,)
             mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
@@ -591,6 +615,7 @@ class Ecomodel:
                 return wood_mask, leaf_mask
 
         max_segment = 0
+        
         for i, tile in enumerate(self.tiles.flatten()):
             if tile == 0:
                 continue
@@ -599,7 +624,7 @@ class Ecomodel:
             tile.cluster_labels = np.array([-2] * len(tile.cloud))
             start = time.time()
             range_mask = np.arange(len(tile.cluster_labels))
-
+            tile.to_xyz(f"pre_rgi_tile_{i}.xyz", True)
             for segment in np.unique(tile.segment_labels)[::-1]:
                 if segment == -1:
                     continue
@@ -631,6 +656,8 @@ class Ecomodel:
                 # replace LeafRemover with classify_wood_leaf
                 
                 try:
+                    np.savetxt(f"tree_{i}_{segment}_with_leaves.xyz",
+                            tree_cloud, delimiter=',')
                     wood_mask, leaf_mask = classify_wood_leaf_on_array(tile.point_data[mask][noise_mask])
 
                     # Combine classification result with intensity threshold
@@ -738,6 +765,7 @@ class Ecomodel:
                 tile.cloud[tree_mask] = tree_cloud
 
             print(f"Time to create QSMs in tile {i}: {time.time() - start:.2f} seconds")
+            tile.to_xyz(f"after_leaf_removal_{i}.xyz", True, True)
         
     def get_qsm_segment_treeqsm(self, save_leaf_removal_output=False):
         """
@@ -1615,8 +1643,8 @@ if __name__ == "__main__":
     #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
     # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
     # folder = r'G:\Projects\TreeCanopyLidar\Datasets\MVP_tiles'
-    # model = Ecomodel()
-    # combined_cloud = Ecomodel.combine_las_files(folder,model)
+    model = Ecomodel()
+    combined_cloud = Ecomodel.combine_las_files(folder,model)
     # process_entire_pointcloud(Ecomodel())
     # Example usage
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
@@ -1624,40 +1652,40 @@ if __name__ == "__main__":
     # combined_cloud = Ecomodel.combine_las_files(folder,model)
 
 
-    # if combined_cloud is None:
-    #     print("Exiting: please add LAS/LAZ files and rerun.")
-    #     exit(0)
+    if combined_cloud is None:
+        print("Exiting: please add LAS/LAZ files and rerun.")
+        exit(0)
 
-    # combined_cloud.subdivide_tiles(cube_size = 10)
+    combined_cloud.subdivide_tiles(cube_size = 10)
+    combined_cloud.remove_duplicate_points()
+    combined_cloud.recombine_tiles()
+    # combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
+    
+    combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
+    combined_cloud.pickle("test_model_.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model_.pickle")
+    combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
+    combined_cloud.normalize_raw_tiles()
+    combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
+    
+    for tile in combined_cloud._raw_tiles:
+        tile.to(tile.device)
+    
+
+    print("filtered")
+
+    combined_cloud.pickle("test_model_ground_removed.pickle")
+    combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
+    combined_cloud.subdivide_tiles(cube_size = 10)
+    # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
     # combined_cloud.remove_duplicate_points()
-    # combined_cloud.recombine_tiles()
-    # # combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
-    
-    # combined_cloud.filter_ground(combined_cloud._raw_tiles)
-    # combined_cloud.pickle("test_model_.pickle")
-    # combined_cloud = Ecomodel.unpickle("test_model_.pickle")
-    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
-    # combined_cloud.normalize_raw_tiles()
-    # combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
-    
-    # for tile in combined_cloud._raw_tiles:
-    #     tile.to(tile.device)
-    
-
-    # print("filtered")
-
-    # combined_cloud.pickle("test_model_ground_removed.pickle")
-    # combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
-    # combined_cloud.subdivide_tiles(cube_size = 10)
-    # # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
-    # # combined_cloud.remove_duplicate_points()
 
     
-    # combined_cloud.segment_trees()
-    # combined_cloud.reset_terrain()
-    # combined_cloud.pickle("test_model_trees_segmented.pickle")
+    combined_cloud.segment_trees()
+    combined_cloud.reset_terrain()
+    combined_cloud.pickle("test_model_trees_segmented.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
-    combined_cloud.get_qsm_segments_rgi()
+    combined_cloud.get_qsm_segments_rgi(42000)
     combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud.recombine_tiles()

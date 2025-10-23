@@ -116,6 +116,7 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
     #"Scan-Line" Method: Add to graph one layer at a time
     #Graph 1: Used to cluster points on each layer
     #Graph 2: (Full PCD) Actual full graph to connect clusters and perform shortest-path calculations
+   
     while base_height+min_Z-1<torch.max(tile.cloud[:,2]):
         
         I = ((cloud[:,2]-min_Z)<base_height) & (prev_base_height<(cloud[:,2]-min_Z))
@@ -127,7 +128,7 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
         not_explored = np.ones(len(cloud),dtype = bool)
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(cloud)
-    
+ 
         pcd_tree = o3d.geometry.KDTreeFlann(pcd)
         segments,segment_num = add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist*multiplier,network,full_pcd_tree,full_pcd,included_cover_sets[0],size_limit)
         full_segments[included_cover_sets] = segments
@@ -139,7 +140,7 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
         base_height+=layer_size
         size_limit = 10
         multiplier =1
-        
+      
 
     segments = full_segments.copy()
     full_not_explored = np.ones(len(center_points),dtype = bool)
@@ -153,7 +154,7 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
 
     for base in tree_bases:#Only utilize base if base cluster is large enough
         base_set = center_points[segments ==base]
-        if  len(base_set[:,2])>3:
+        if  len(base_set[:,2])>1:
             filtered_tree_bases.append(base)
 
     if combine_nearby_bases:#Combine bases that are within a certain distance, this helps for trees that have non-trunk segments that dip into base layer
