@@ -694,7 +694,11 @@ def save_model_text(QSM, savename):
         n += 1
     selected_keys = treedata_keys[:n]
     # Build the TreeData vector.
-    
+    treedata["PatchDiam1"] = QSM["PatchDiam1"]
+    treedata["PatchDiam2Min"] = QSM["PatchDiam2Min"]
+    treedata["PatchDiam2Max"] = QSM["PatchDiam2Max"]
+
+    selected_keys.extend(["PatchDiam1", "PatchDiam2Min", "PatchDiam2Max"])
     pmdis = QSM.get('pmdistance', None)
     if pmdis is not None:
         D = [pmdis['TrunkMean'], pmdis['BranchMean'],
@@ -731,6 +735,7 @@ def save_model_text(QSM, savename):
             'AverageSurfaceCoverage_BranchOrder1_%',
             'AverageSurfaceCoverage_BranchOrder2_%'
         ])
+    
 
     TreeData = np.array([treedata[k] for k in selected_keys], dtype=object)
     # Use less decimals (assuming change_precision is available)
