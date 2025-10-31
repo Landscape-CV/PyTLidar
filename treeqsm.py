@@ -327,6 +327,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
 
                         if inputs['Dist']:
                             qsm['pmdistance'] = pmdis
+                            print("added")
                         if inputs['Tria']:
                             qsm['triangulation'] = triangulation
 

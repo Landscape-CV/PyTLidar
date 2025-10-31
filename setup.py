@@ -4,7 +4,7 @@ import setuptools
 
 setuptools.setup(
     name="PyTLidar",
-    version="1.0.1",
+    version="1.0.2",
 
     author="John Hagood",
 
@@ -16,7 +16,7 @@ setuptools.setup(
     ],
     packages=['PyTLidar.Utils', 'PyTLidar.plotting', 'PyTLidar.TreeQSMSteps'],
     py_modules=['PyTLidar.main', 'PyTLidar.treeqsm', 'PyTLidar.treeqsm_batch'],
-    python_requires=">=3.8, <3.12",
+    python_requires=">=3.8, <3.13",
     install_requires=[
         'alphashape',
         'laspy[lazrs,laszip]',

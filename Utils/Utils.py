@@ -694,12 +694,48 @@ def save_model_text(QSM, savename):
         n += 1
     selected_keys = treedata_keys[:n]
     # Build the TreeData vector.
+    
+    pmdis = QSM.get('pmdistance', None)
+    if pmdis is not None:
+        D = [pmdis['TrunkMean'], pmdis['BranchMean'],
+            pmdis['Branch1Mean'], pmdis['Branch2Mean']]
+        D = np.round(10000 * np.array(D)) / 10
+
+        T = cylinder['branch'] == 0
+        B1 = cylinder['BranchOrder'] == 1
+        B2 = cylinder['BranchOrder'] == 2
+        SC = 100 * cylinder['SurfCov']
+        S = [np.mean(SC[T]), np.mean(SC[~T]), np.mean(SC[B1]), np.mean(SC[B2])]
+        S = np.round(10 * np.array(S)) / 10
+
+        # sys.stdout.write('  ----------\n')
+        # sys.stdout.write(f'  Average cylinder-point distance: {D[0]}  {D[1]}  {D[2]}  {D[3]} mm\n')
+        # sys.stdout.write(f'  Average surface coverage: {S[0]}  {S[1]}  {S[2]}  {S[3]} %\n')
+        # sys.stdout.write('  ----------\n')
+        # --------------------
+        treedata['AverageCylinderPointDistance_Trunk_mm'] = D[0]
+        treedata['AverageCylinderPointDistance_Branch_mm'] = D[1]
+        treedata['AverageCylinderPointDistance_BranchOrder1_mm'] = D[2]
+        treedata['AverageCylinderPointDistance_BranchOrder2_mm'] = D[3]
+        treedata['AverageSurfaceCoverage_Trunk_%'] = S[0]
+        treedata['AverageSurfaceCoverage_Branch_%'] = S[1]
+        treedata['AverageSurfaceCoverage_BranchOrder1_%'] = S[2]
+        treedata['AverageSurfaceCoverage_BranchOrder2_%'] = S[3]
+        selected_keys.extend([
+            'AverageCylinderPointDistance_Trunk_mm',
+            'AverageCylinderPointDistance_Branch_mm',
+            'AverageCylinderPointDistance_BranchOrder1_mm',
+            'AverageCylinderPointDistance_BranchOrder2_mm',
+            'AverageSurfaceCoverage_Trunk_%',
+            'AverageSurfaceCoverage_Branch_%',
+            'AverageSurfaceCoverage_BranchOrder1_%',
+            'AverageSurfaceCoverage_BranchOrder2_%'
+        ])
+
     TreeData = np.array([treedata[k] for k in selected_keys], dtype=object)
     # Use less decimals (assuming change_precision is available)
     TreeData = change_precision(TreeData)
     NamesD = [str(k) for k in selected_keys]
-
-    # --------------------
     # Save cylinder data.
     cyl_filename = os.path.join("results", f"cylinder_{savename}.txt")
     with open(cyl_filename, "wt") as fid:
