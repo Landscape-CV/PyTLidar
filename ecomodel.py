@@ -553,14 +553,7 @@ class Ecomodel:
                 # print("Writing File")
                 # print("Writing File")
             # tile.to_xyz(f"clustered_{i}.xyz", True)
-
-    def get_qsm_segments_rgi(self, intensity_threshold=40000):
-        """
-        Same as get_qsm_segments(), but integrates classify_wood_leaf() from SegmentRGI for
-        leaf/wood separation before QSM processing.
-        """
-
-        def classify_wood_leaf_on_array(tree_cloud):
+    def classify_wood_leaf_on_array(self,tree_cloud):
             """
             Run classify_wood_leaf() directly on an in-memory NumPy point cloud array.
             Saves the temporary segment, classifies it, and rebuilds boolean masks.
@@ -573,7 +566,7 @@ class Ecomodel:
                 tmp_results.mkdir(exist_ok=True)
 
                 # Save current segment to temporary PLY
-                vertex_dtype = [('x', 'f4'), ('y', 'f4'), ('z', 'f4'), ('Intensity', 'f4')]
+                vertex_dtype = [('x', 'f8'), ('y', 'f8'), ('z', 'f8'), ('Intensity', 'f4')]
                 structured = np.zeros(tree_cloud.shape[0], dtype=vertex_dtype)
                 structured['x'] = tree_cloud[:, 0]
                 structured['y'] = tree_cloud[:, 1]
@@ -613,6 +606,13 @@ class Ecomodel:
                 wood_mask = build_mask(wood_coords)
                 leaf_mask = build_mask(leaf_coords)
                 return wood_mask, leaf_mask
+    def get_qsm_segments_rgi(self, intensity_threshold=40000):
+        """
+        Same as get_qsm_segments(), but integrates classify_wood_leaf() from SegmentRGI for
+        leaf/wood separation before QSM processing.
+        """
+
+        
 
         max_segment = 0
         
@@ -658,7 +658,7 @@ class Ecomodel:
                 try:
                     np.savetxt(f"tree_{i}_{segment}_with_leaves.xyz",
                             tree_cloud, delimiter=',')
-                    wood_mask, leaf_mask = classify_wood_leaf_on_array(tile.point_data[mask][noise_mask])
+                    wood_mask, leaf_mask = self.classify_wood_leaf_on_array(tile.point_data[mask][noise_mask])
 
                     # Combine classification result with intensity threshold
                     intensity_mask = tile.point_data[mask][noise_mask][:, 3] > intensity_threshold
@@ -702,6 +702,12 @@ class Ecomodel:
                 cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input, segment1)
                 print("Segment 2")
                 segment1 = segments(cover1, Base, Forb)
+                print("Correct 2")
+                segment1 = correct_segments(tree_cloud, cover1, segment1, qsm_input,1,1,0)
+                print("Cylinders")
+                cylinder = cylinders(tree_cloud,cover1,segment1,qsm_input)
+
+
 
                 segs = segment1["SegmentArray"]
                 cover = cover1["sets"]
@@ -709,52 +715,13 @@ class Ecomodel:
                 tree_mask = range_mask[mask][noise_mask][wood_mask]
                 tile.point_data[tree_mask] = tile.point_data[tree_mask][I]
                 tree_cloud = tree_cloud[I]
-
                 neg_mask = cover == -1
                 num_indices = np.bincount(cover[~neg_mask])
                 num_indices = np.concatenate([np.array([np.sum(neg_mask)]), num_indices])
                 segs = np.concatenate([np.array([-2]), segs])
 
                 cloud_segments = np.repeat(segs, num_indices)
-                new_cloud_segments = cloud_segments.copy()
-                cloud_range_mask = np.arange(len(cloud_segments))
-
-                for seg in np.unique(cloud_segments):
-                    seg_mask = cloud_segments == seg
-                    segment_cloud = tree_cloud[seg_mask]
-
-                    if len(segment_cloud) < 30:
-                        continue
-
-                    try:
-                        axis = Utils.get_axis(segment_cloud)
-                    except Exception:
-                        continue
-
-                    lexsort_indices = np.lexsort(
-                        (segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),
-                        axis=0,
-                    )
-                    segment_cloud = segment_cloud[lexsort_indices]
-                    sub_segments = Utils.split_segments(segment_cloud, 6, 15)
-
-                    while np.sum(sub_segments) > len(sub_segments) / 6:
-                        ss_idx = sub_segments.astype(bool)
-                        sub_segments = sub_segments[np.argsort(lexsort_indices)]
-                        I = np.where(sub_segments == 1)[0]
-                        cluster_mask = cloud_range_mask[seg_mask][I]
-                        new_cloud_segments[cluster_mask] = np.max(new_cloud_segments) + 1
-                        segment_cloud = tree_cloud[seg_mask][I]
-                        seg_mask = cluster_mask
-                        lexsort_indices = np.lexsort(
-                            (segment_cloud[:, 2], segment_cloud[:, 1], segment_cloud[:, 0]),
-                            axis=0,
-                        )
-                        segment_cloud = segment_cloud[lexsort_indices]
-                        sub_segments = Utils.split_segments(segment_cloud, 6, 15)
-
-                cloud_segments = new_cloud_segments + max_segment
-                trunk = new_cloud_segments == 0
+                trunk = cloud_segments == 0
                 max_segment = cloud_segments.max() + max_segment
 
                 cluster_mask = range_mask[mask][noise_mask][wood_mask]
@@ -763,6 +730,10 @@ class Ecomodel:
                 tile.cluster_labels[trunk_mask] = -3
                 tile.trunk_points[trunk_mask] = 1
                 tile.cloud[tree_mask] = tree_cloud
+                tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
+                tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
+                tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
+                tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
 
             print(f"Time to create QSMs in tile {i}: {time.time() - start:.2f} seconds")
             tile.to_xyz(f"after_leaf_removal_{i}.xyz", True, True)
@@ -799,6 +770,7 @@ class Ecomodel:
                 if len(cover['sets']) == 0:
                     print("No cover sets found"),
                     continue
+                    
                     
                 if save_leaf_removal_output:
                     np.savetxt("results/before_leaf_removal.xyz", tree_cloud)
