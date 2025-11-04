@@ -681,12 +681,13 @@ class Ecomodel:
         Values:
         start_x, start_y, start_z, radii, axis_x, axis_y, axis_z, length
         """
+        mean_x_y = np.array([self.mean[0], self.mean[1], 0])
         cylinder_data = np.empty((0,8))
         for i,tile in enumerate(self._raw_tiles, start=1):
             if tile == 0:
                 continue
 
-            cylinder_starts =  tile.cylinder_starts
+            cylinder_starts =  tile.cylinder_starts + mean_x_y
             cylinder_radii = tile.cylinder_radii
             cylinder_axes =  tile.cylinder_axes
             cylinder_lengths =  tile.cylinder_lengths
@@ -695,11 +696,7 @@ class Ecomodel:
 
             cylinder_data = np.vstack((cylinder_data, tile_data))
 
-        np.savetxt("tile_cylinder_data.txt", cylinder_data)
-
-            # Denormalize clylinders back to world coordinates. 
-            # self.mean
-        
+        np.savetxt(f"results/ecomodel_cylinder_data.txt", cylinder_data)
 
         
 
