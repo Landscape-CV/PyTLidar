@@ -42,6 +42,12 @@ from robpy.covariance import DetMCD,FastMCD
 from sklearn.covariance import MinCovDet
 import CSF
 
+
+from SegmentRGI.SegmentRGI import classify_wood_leaf
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from plyfile import PlyData, PlyElement
+
 from Utils.RobustCylinderFitting import RobustCylinderFitterEcomodel
 dotenv.load_dotenv()
 
@@ -122,16 +128,40 @@ class Ecomodel:
             ground_mask = np.array(ground)
             tile.ground = tile.cloud[ground_mask]
             if remove_under_ground:
-                #get average z of ground
-                avg_ground_z = np.mean(tile.cloud[ground_mask][:,2])
-                non_ground_mask=non_ground_mask[tile.cloud[non_ground_mask][:,2]>avg_ground_z+offset]
+                new_non_ground_mask = np.array([],dtype=np.int64)
+                # #get average z of ground
+                # avg_ground_z = np.mean(tile.cloud[ground_mask][:,2])
+                # non_ground_mask=non_ground_mask[tile.cloud[non_ground_mask][:,2]>avg_ground_z+offset]
+                # subdivide into sub-tiles and remove points under ground plane
+                grid_size = .5
+                x_bins = np.arange(tile.min_x, tile.max_x + grid_size, grid_size)
+                y_bins = np.arange(tile.min_y, tile.max_y + grid_size, grid_size)
+                for i in range(len(x_bins)-1):
+                    for j in range(len(y_bins)-1):
+                        x_min = x_bins[i]
+                        x_max = x_bins[i+1]
+                        y_min = y_bins[j]
+                        y_max = y_bins[j+1]
+                        sub_tile_mask = (tile.cloud[:,0]>=x_min) & (tile.cloud[:,0]<x_max) & (tile.cloud[:,1]>=y_min) & (tile.cloud[:,1]<y_max)
+                        if np.sum(sub_tile_mask)==0:
+                            continue
+                        sub_tile_ground_mask = np.union1d(sub_tile_mask ,ground_mask)
+                        sub_tile_ground_points = tile.cloud[sub_tile_ground_mask]
+                        ground_z = np.percentile(sub_tile_ground_points[:,2],95)
+                        sub_tile_non_ground_mask = sub_tile_mask & (tile.cloud[:,2]>ground_z+offset)
+                        new_non_ground_mask = np.concatenate((new_non_ground_mask, np.where(sub_tile_non_ground_mask)[0]))
+                non_ground_mask = new_non_ground_mask
+
+
+                
+                
             tile.point_data = tile.point_data[non_ground_mask]
             tile.cloud = tile.cloud[non_ground_mask]
             
-            max_ground_z = tile.ground[:, 2].max()
-            above_ground_mask = tile.cloud[:, 2] > max_ground_z
-            tile.cloud = tile.cloud[above_ground_mask]
-            tile.point_data = tile.point_data[above_ground_mask]
+            # max_ground_z = tile.ground[:, 2].max()
+            # above_ground_mask = tile.cloud[:, 2] > max_ground_z
+            # tile.cloud = tile.cloud[above_ground_mask]
+            # tile.point_data = tile.point_data[above_ground_mask]
 
             new_min_z = min(new_min_z, tile.cloud[:, 2].min())
         self.min_z = new_min_z
@@ -269,7 +299,7 @@ class Ecomodel:
             #settings for Missouri data
             # segment_point_cloud(tile,base_height=.75, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1.2,max_dist=.17,combine_nearby_bases=False,initial_size_limit=100000,min_height =.1)
             
-            segment_point_cloud(tile,min_height=.3,connect_using_midpoint=False,base_height=.5,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False,layer_size=.16,min_Z=float(torch.min(tile.cloud[:,2])))
+            segment_point_cloud(tile,min_height=.3,connect_using_midpoint=False,base_height=.65,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False,layer_size=.16,min_Z=float(torch.min(tile.cloud[:,2])),combine_nearby_bases=True,)
             mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
@@ -523,7 +553,191 @@ class Ecomodel:
                 # print("Writing File")
                 # print("Writing File")
             # tile.to_xyz(f"clustered_{i}.xyz", True)
+    def classify_wood_leaf_on_array(self,tree_cloud):
+            """
+            Run classify_wood_leaf() directly on an in-memory NumPy point cloud array.
+            Saves the temporary segment, classifies it, and rebuilds boolean masks.
+            """
+            
 
+            with TemporaryDirectory() as tmpdir:
+                tmp_ply = Path(tmpdir) / "segment.ply"
+                tmp_results = Path(tmpdir) / "results"
+                tmp_results.mkdir(exist_ok=True)
+
+                # Save current segment to temporary PLY
+                vertex_dtype = [('x', 'f8'), ('y', 'f8'), ('z', 'f8'), ('Intensity', 'f4')]
+                structured = np.zeros(tree_cloud.shape[0], dtype=vertex_dtype)
+                structured['x'] = tree_cloud[:, 0]
+                structured['y'] = tree_cloud[:, 1]
+                structured['z'] = tree_cloud[:, 2]
+                structured['Intensity'] = tree_cloud[:, 3]
+
+                ply_elements = PlyElement.describe(structured, 'vertex')
+        
+                PlyData([ply_elements]).write(str(tmp_ply))
+
+                # pcd = o3d.geometry.PointCloud(o3d.utility.Vector3dVector(tree_cloud[:, :3]))
+                # o3d.io.write_point_cloud(str(tmp_ply), pcd)
+
+
+                # Run existing classification pipeline
+                classify_wood_leaf(str(tmp_ply), save_dir=str(tmp_results), show_plots=False)
+
+                # Read back the classified clouds
+                wood_file = tmp_results / "segment_wood.ply"
+                leaf_file = tmp_results / "segment_leaves.ply"
+                if not wood_file.exists() or not leaf_file.exists():
+                    raise FileNotFoundError("Wood/Leaf outputs not found after classification.")
+
+                wood_pcd = o3d.io.read_point_cloud(str(wood_file))
+                leaf_pcd = o3d.io.read_point_cloud(str(leaf_file))
+                tree_coords = np.asarray(tree_cloud[:, :3])
+                wood_coords = np.asarray(wood_pcd.points)
+                leaf_coords = np.asarray(leaf_pcd.points)
+
+                def build_mask(sub_coords):
+                    mask = np.isin(
+                        tree_coords.view([('', tree_coords.dtype)] * 3),
+                        sub_coords.view([('', sub_coords.dtype)] * 3)
+                    )
+                    return mask.squeeze()
+
+                wood_mask = build_mask(wood_coords)
+                leaf_mask = build_mask(leaf_coords)
+                return wood_mask, leaf_mask
+    def get_qsm_segments_rgi(self, intensity_threshold=40000):
+        """
+        Same as get_qsm_segments(), but integrates classify_wood_leaf() from SegmentRGI for
+        leaf/wood separation before QSM processing.
+        """
+
+        
+
+        max_segment = 0
+        
+        for i, tile in enumerate(self.tiles.flatten()):
+            if tile == 0:
+                continue
+
+            tile.numpy()
+            tile.cluster_labels = np.array([-2] * len(tile.cloud))
+            start = time.time()
+            range_mask = np.arange(len(tile.cluster_labels))
+            tile.to_xyz(f"pre_rgi_tile_{i}.xyz", True)
+            for segment in np.unique(tile.segment_labels)[::-1]:
+                if segment == -1:
+                    continue
+
+                mask = (tile.segment_labels == segment)
+                if len(tile.cloud[mask]) < 100:
+                    print(f"Segment {segment} too small")
+                    tile.cluster_labels[mask] = -2
+                    continue
+
+                tree_cloud = tile.cloud[mask]
+                print("Segment:", segment)
+
+                inputs = {'PatchDiam1': 0.02, 'BallRad1': 0.02, 'nmin1': 5}
+                cover = cover_sets(tree_cloud, inputs, qsm=False,
+                                device=self.device, full_point_data=tile.point_data)
+                if len(cover['sets']) == 0:
+                    print("No cover sets found")
+                    continue
+
+                labels = cover['sets']
+                noise_mask = labels > -1
+                tree_cloud = tree_cloud[noise_mask]
+                if len(tree_cloud) < 100:
+                    print(f"Segment {segment} too small after noise removal")
+                    tile.segment_labels[mask] = -1
+                    continue
+
+                # replace LeafRemover with classify_wood_leaf
+                
+                try:
+                    np.savetxt(f"tree_{i}_{segment}_with_leaves.xyz",
+                            tree_cloud, delimiter=',')
+                    wood_mask, leaf_mask = self.classify_wood_leaf_on_array(tile.point_data[mask][noise_mask])
+
+                    # Combine classification result with intensity threshold
+                    intensity_mask = tile.point_data[mask][noise_mask][:, 3] > intensity_threshold
+                    wood_mask = np.logical_or(wood_mask, intensity_mask)
+                    leaf_mask = np.logical_and(leaf_mask, ~intensity_mask)
+
+                    # Filter tree_cloud to retain only wood
+                    tree_cloud = tree_cloud[wood_mask]
+                    np.savetxt(f"tree_{i}_{segment}_no_leaves.xyz",
+                            tree_cloud, delimiter=',')
+                except Exception as e:
+                    print(f"[WARNING] classify_wood_leaf() failed on segment {segment}: {e}")
+                    continue
+
+                try:
+                    qsm_input = define_input(tree_cloud, 1, 1, 1)[0]
+                except np.linalg.LinAlgError as e:
+                    print(f"Unable to find axis for segment {segment}: {e}")
+                    tile.segment_labels[mask] = -1
+                    continue
+
+                qsm_input['PatchDiam1'] = 0.025
+                qsm_input['PatchDiam2Min'] = 0.05
+                qsm_input['PatchDiam2Max'] = 0.08
+                qsm_input['BallRad1'] = 0.03
+                qsm_input['BallRad2'] = 0.09
+                qsm_input['nmin1'] = 5
+
+                print("Cover sets")
+                cover1 = cover_sets(tree_cloud, qsm_input)
+                print("Tree sets")
+                cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input)
+                print("Segments")
+                segment1 = segments(cover1, Base, Forb, qsm=True)
+                print("Correct")
+                segment1 = correct_segments(tree_cloud, cover1, segment1, qsm_input, 0, 1, 1)
+                RS = relative_size(tree_cloud, cover1, segment1)
+                print("Cover 2")
+                cover1 = cover_sets(tree_cloud, qsm_input, RS)
+                print("Tree Set 2")
+                cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input, segment1)
+                print("Segment 2")
+                segment1 = segments(cover1, Base, Forb)
+                print("Correct 2")
+                segment1 = correct_segments(tree_cloud, cover1, segment1, qsm_input,1,1,0)
+                print("Cylinders")
+                cylinder = cylinders(tree_cloud,cover1,segment1,qsm_input)
+
+
+
+                segs = segment1["SegmentArray"]
+                cover = cover1["sets"]
+                I = np.argsort(cover)
+                tree_mask = range_mask[mask][noise_mask][wood_mask]
+                tile.point_data[tree_mask] = tile.point_data[tree_mask][I]
+                tree_cloud = tree_cloud[I]
+                neg_mask = cover == -1
+                num_indices = np.bincount(cover[~neg_mask])
+                num_indices = np.concatenate([np.array([np.sum(neg_mask)]), num_indices])
+                segs = np.concatenate([np.array([-2]), segs])
+
+                cloud_segments = np.repeat(segs, num_indices)
+                trunk = cloud_segments == 0
+                max_segment = cloud_segments.max() + max_segment
+
+                cluster_mask = range_mask[mask][noise_mask][wood_mask]
+                trunk_mask = range_mask[mask][noise_mask][wood_mask][trunk]
+                tile.cluster_labels[cluster_mask] = cloud_segments
+                tile.cluster_labels[trunk_mask] = -3
+                tile.trunk_points[trunk_mask] = 1
+                tile.cloud[tree_mask] = tree_cloud
+                tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
+                tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
+                tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
+                tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
+
+            print(f"Time to create QSMs in tile {i}: {time.time() - start:.2f} seconds")
+            tile.to_xyz(f"after_leaf_removal_{i}.xyz", True, True)
+        
     def get_qsm_segment_treeqsm(self, save_leaf_removal_output=False):
         """
         QSM Segments from treeqsm call.
@@ -556,6 +770,7 @@ class Ecomodel:
                 if len(cover['sets']) == 0:
                     print("No cover sets found"),
                     continue
+                    
                     
                 if save_leaf_removal_output:
                     np.savetxt("results/before_leaf_removal.xyz", tree_cloud)
@@ -1397,13 +1612,13 @@ if __name__ == "__main__":
     #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
     # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
     # folder = r'G:\Projects\TreeCanopyLidar\Datasets\MVP_tiles'
-    # model = Ecomodel()
-    # combined_cloud = Ecomodel.combine_las_files(folder,model)
+    model = Ecomodel()
+    combined_cloud = Ecomodel.combine_las_files(folder,model)
     # process_entire_pointcloud(Ecomodel())
     # Example usage
     # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-    model = Ecomodel()
-    combined_cloud = Ecomodel.combine_las_files(folder,model)
+    # model = Ecomodel()
+    # combined_cloud = Ecomodel.combine_las_files(folder,model)
 
 
     if combined_cloud is None:
@@ -1415,10 +1630,10 @@ if __name__ == "__main__":
     combined_cloud.recombine_tiles()
     # combined_cloud.filter_below_ground(combined_cloud._raw_tiles,0.5)
     
-    combined_cloud.filter_ground(combined_cloud._raw_tiles)
+    combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
     combined_cloud.pickle("test_model_.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_.pickle")
-    combined_cloud.get_terrain_model(combined_cloud._raw_tiles,1)
+    combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
     combined_cloud.normalize_raw_tiles()
     combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
     
@@ -1439,7 +1654,7 @@ if __name__ == "__main__":
     combined_cloud.reset_terrain()
     combined_cloud.pickle("test_model_trees_segmented.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
-    combined_cloud.get_qsm_segment_treeqsm(save_leaf_removal_output=True)
+    combined_cloud.get_qsm_segments_rgi(42000)
     combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud.recombine_tiles()
