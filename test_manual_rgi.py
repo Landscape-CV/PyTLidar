@@ -56,10 +56,10 @@ class RGI_test:
 
         inputs = {
             # "noise_percentile": [0, 2, 4],
-            "angle_deg": [1,2,3,4,5,6,7,8,9,10],
-            # "curv_thresh": [0.05, 0.1, 0.15] ,
+            # "angle_deg": [1,2,3,4,5,6,7,8,9,10],
+            # "curv_thresh": [0.07] ,
             # "resid_thresh": [0.05, 0.07, 0.1], 
-            # "k": [60,90, 120],
+            "k": [10,20,30,40,50,60, 70,80,90,100],
             # "minClusterSize": [ 3, 6, 9],
             # "maxClusterSize": [200000],
             # "smoothMode": [False],
@@ -67,16 +67,16 @@ class RGI_test:
             # "useCurvatureTest": [False],
         }
 
-        noise_percentile = 5,
+        noise_percentile=5,
         angle_deg=15.0, 
         curv_thresh=0.07, 
         resid_thresh=0.05, 
         k=30,
-        minClusterSize = 3,
-        maxClusterSize = 100000,
-        smoothMode = True,
-        useResidualTest = True,
-        useCurvatureTest = True,
+        minClusterSize=3,
+        maxClusterSize=100000,
+        smoothMode=True,
+        useResidualTest=True,
+        useCurvatureTest=True,
 
         np.savetxt(f"rgi_tuning/{file_name}_with_leaves.xyz",
             point_cloud_intensity[:, 0:4], delimiter=',')
@@ -86,9 +86,24 @@ class RGI_test:
 
                 print(f"####### {file_name}_with_no_leaves__{key}_{value}.xyz")
 
+                kw = {
+                    "noise_percentile": 5,
+                    "angle_deg": 6, 
+                    "curv_thresh": 0.07, 
+                    "resid_thresh": 0.05, 
+                    "k": 30,
+                    "minClusterSize": 150,
+                    "maxClusterSize": 100000,
+                    "smoothMode": True,
+                    "useResidualTest": True,
+                    "useCurvatureTest": True,
+                }
+                kw[key] = value
+
+
                 try:
                 # write as space-separated XYZ (downstream code expects whitespace-delimited files)
-                    wood_mask, leaf_mask = self.classify_wood_leaf_on_array(point_cloud_intensity[:, 0:4], **{key: value})
+                    wood_mask, leaf_mask = self.classify_wood_leaf_on_array(point_cloud_intensity[:, 0:4], **kw)
 
                     # # Combine classification result with intensity threshold
                     # intensity_mask = point_cloud[:, 3] > intensity_threshold
@@ -201,7 +216,7 @@ class RGI_test:
 if __name__ == "__main__":
     args = parser.parse_args()
     # tree_path = args.tree_path
-    tree_path = r"G:\Projects\TreeCanopyLidar\Datasets\segmented_trees\tree_48_49.las"
+    tree_path = r"G:\Projects\TreeCanopyLidar\PyTLidar\testing_rgi\tile_573110_2840090_PLAIN_TREE_Filter.laz"
 
     test = RGI_test()
     point_cloud, point_cloud_intensity = load_point_cloud(tree_path, full_data=True)
@@ -219,12 +234,23 @@ if __name__ == "__main__":
         "useResidualTest": args.useResidualTest,
         "useCurvatureTest": args.useCurvatureTest,
     }
+             
+    kw['angle_deg'] = 7 # The angle is the 
+    kw['noise_percentile'] = 5 # The angle is the 
+    kw['minClusterSize'] = 40
+    kw["smoothMode"]= True
+    kw["k"]= 100
 
-    kw['minClusterSize'] = 10
+
+    # Best values so far: 
+    # angle_deg = 6 deg. 
 
     tree_cloud = point_cloud_intensity[:, 0:4]
+    # test.metric_gatherer(tree_cloud)
+    
     wood_mask, leaf_mask = test.classify_wood_leaf_on_array(tree_cloud, **kw)
 
+    
     branches_cloud = tree_cloud[wood_mask]
     os.makedirs("rgi_tuning", exist_ok=True)
-    np.savetxt("rgi_tuning/branches_cloud.xyz", branches_cloud)
+    np.savetxt("rgi_tuning/branches_cloud4.xyz", branches_cloud)
