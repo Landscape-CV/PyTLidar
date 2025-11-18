@@ -1718,32 +1718,32 @@ def ecomodel_command_line():
         f.write("Total Time taken:", )
 
 if __name__ == "__main__":
-    ecomodel_command_line()
+    # ecomodel_command_line()
 
 
 
 
-    # folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
+    folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
 
-    # # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
-    # #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
-    # # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
-    # # folder = r'G:\Projects\TreeCanopyLidar\Datasets\MVP_tiles'
+    # folder = r"C:\Users\johnh\Documents\LiDAR\tiled_scans"
+    #folder = r'/Users/johnhagood/Documents/LiDAR/tiled_scans'
+    # folder = r'G:\Projects\TreeCanopyLidar\Datasets\tiled_scan_simple_10x10'
+    # folder = r'G:\Projects\TreeCanopyLidar\Datasets\MVP_tiles'
+    model = Ecomodel()
+    combined_cloud = Ecomodel.combine_las_files(folder,model)
+    # process_entire_pointcloud(Ecomodel())
+    # Example usage
+    # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
     # model = Ecomodel()
     # combined_cloud = Ecomodel.combine_las_files(folder,model)
-    # # process_entire_pointcloud(Ecomodel())
-    # # Example usage
-    # # folder = os.environ.get("DATA_FOLDER_FILEPATH") + "tiled_scans"
-    # # model = Ecomodel()
-    # # combined_cloud = Ecomodel.combine_las_files(folder,model)
 
 
-    # if combined_cloud is None:
-    #     print("Exiting: please add LAS/LAZ files and rerun.")
-    #     exit(0)
+    if combined_cloud is None:
+        print("Exiting: please add LAS/LAZ files and rerun.")
+        exit(0)
 
-    # combined_cloud.subdivide_tiles(cube_size = 10)
-    # combined_cloud.remove_duplicate_points()
+    combined_cloud.subdivide_tiles(cube_size = 10)
+    combined_cloud.remove_duplicate_points()
 
     
     combined_cloud.segment_trees()
