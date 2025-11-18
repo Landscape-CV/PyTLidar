@@ -7,6 +7,7 @@ import json
 import pyvista as pv
 import numpy as np
 import matplotlib.pyplot as plt
+from Utils.Utils import load_point_cloud
 # mesh = pv.Sphere()
 # box = mesh.bounds  # returns (xmin, xmax, ymin, ymax, zmin, zmax)
 
@@ -35,7 +36,7 @@ class CylinderPlotter:
         if 0 < radius <= 0.02:
             return ('r', 'Twig (0-2cm)')
         elif 0.02 < radius <= 0.05:
-            return ('g', 'Small Branch (2-5cm)')
+            return ('pink', 'Small Branch (2-5cm)')
         elif 0.05 < radius <= 0.10:
             return( 'b', 'Medium Branch (5-10cm)')
         else:
@@ -57,6 +58,25 @@ class CylinderPlotter:
 
         scene = None
 
+        xyz, data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\Dataset\Tiles\tile_573130_2840100.laz", full_data=True)
+        data = data[:, 3]
+        print(data.shape)
+
+        xyz = xyz - np.array([ 573135.73893138, 2840102.76730762, -24.40])
+
+        pc = pv.PolyData(xyz)
+        scene = pc
+        pc['intensity'] = data
+        plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
+
+        grid = pv.Plane(center= (0,0, 0), i_size=10, j_size=10, i_resolution=10, j_resolution=10)
+        plotter.add_mesh(grid, color='lightgray', style='wireframe')
+        plotter.enable_terrain_style()
+
+        # return
+
+
+
 
         for cylinder_row in range(0, cylinder_data.shape[0]):
             
@@ -69,15 +89,17 @@ class CylinderPlotter:
 
             mesh = self.get_cylinder_mesh(start, radius, axis, length)
             
-            if scene is None:
-                scene = mesh
+            # if scene is None:
+            #     scene = mesh
+            # else:
+            #     scene += mesh
             
 
 
             color, label = self.get_class(radius)
 
             # mesh['branch_class'] = np.repeat(np.array([cyl_class]), mesh.n_cells) 
-            plotter.add_mesh(mesh, color=color)
+            plotter.add_mesh(mesh, color=color, opacity=0.5)
 
         # mesh = get_cylinder_mesh()
 
@@ -92,9 +114,7 @@ class CylinderPlotter:
         # plotter.add_mesh(mesh, color='r', label="label")
         plotter.camera.SetParallelProjection(False)
 
-        grid = pv.Plane(center= (0,0, 0), i_size=10, j_size=10, i_resolution=10, j_resolution=10)
-        plotter.add_mesh(grid, color='lightgray', style='wireframe')
-        plotter.enable_terrain_style()
+        # scene.save("SCENE.obj")
 
         # plotter.add_mesh(mesh, color='lightblue')
         # plotter.add_mesh(bbox, color='red', style='wireframe')
@@ -105,7 +125,7 @@ class CylinderPlotter:
         left = 800
         plotter.add_text("Legend:", position=(left, top), font_size=12)
         plotter.add_text('Twig (r=0-2cm)', color= 'r', position=(left, top-20), font_size=12)
-        plotter.add_text('Small Branch (r=2-5cm)', color= 'g', position=(left, top-40), font_size=12)
+        plotter.add_text('Small Branch (r=2-5cm)', color= 'pink', position=(left, top-40), font_size=12)
         plotter.add_text('Medium Branch (r=5-10cm)', color= 'b', position=(left, top-60), font_size=12)
         plotter.add_text('Large Branch (r=10+cm)', color= 'orange', position=(left, top-80), font_size=12)
 
@@ -120,14 +140,20 @@ class CylinderPlotter:
         plotter.add_axes(interactive=True)
         # plotter.show()
 
+
     def show(self):
         for plotter in self.plotters:
             plotter.show(auto_close=False)
 
 class Datamaker:
-    def __init__(self, data_file):
+    def __init__(self, data_file, mean):
         self.cylinders = np.loadtxt(data_file)
+
+        self.cylinders[:, 0:3] = self.cylinders[:, 0:3] - mean 
+
         self.plotter = CylinderPlotter()
+
+        self.mean = mean
 
     def get_class(self, radius):
         # Group 1: 0-2cm
@@ -171,6 +197,24 @@ class Datamaker:
 
         self.plotter.show()
         self.create_histogram(cylinder_data)
+
+    def plot_point_cloud(self, plotter):
+        """
+        Plots point cloud alongside cylinders.
+        """
+        xyz, data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\Dataset\Tiles\tile_573110_2840090.laz", full_data=True)
+        data = data[:, 3]
+        print(data.shape)
+
+        xyz = xyz - self.mean
+
+        plotter.plot(
+            xyz,
+            scalars=data,
+            render_points_as_spheres=False,
+            point_size=1,
+            show_scalar_bar=True,
+        )
 
     def create_histogram(self, cylinder_data):
         
@@ -216,8 +260,7 @@ if __name__ == "__main__":
     # Line intersecting box code. would need to make some better python version or use that dudes. 
     # https://stackoverflow.com/questions/3235385/given-a-bounding-box-and-a-line-two-points-determine-if-the-line-intersects-t
 
-    datamaker = Datamaker("tile_cylinder_data.txt")
-    # datamaker.evaluate_coordinate((0.442, -1.278, 0.58), 1)
+    datamaker = Datamaker("results/ecomodel_cylinder_data.txt", np.array([ 573135.73893138, 2840102.76730762,0.0]))
+    # # datamaker.evaluate_coordinate((0.442, -1.278, 0.58), 1)
     datamaker.evaluate_coordinate((0.542, -2.278, 1.5), 1)
-
 
