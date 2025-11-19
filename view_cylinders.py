@@ -24,7 +24,7 @@ class CylinderPlotter:
         """
         # Get the center from the start, length and axis. 
         center = cylinder_start + (length/2) * axis
-        mesh = pv.Cylinder(center=center, direction=axis, radius=radius, height=length)
+        mesh = pv.Cylinder(center=center, direction=axis, radius=radius[0], height=length[0])
         return mesh
     
     def get_class(self, radius):
@@ -57,17 +57,24 @@ class CylinderPlotter:
         large_group = []
 
         scene = None
-
-        xyz, data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\Dataset\Tiles\tile_573130_2840100.laz", full_data=True)
+        
+        # xyz, data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\Dataset\Tiles\tile_573150_2840110.laz", full_data=True)
+        xyz, data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\tree_1_0.0_no_leaves_dtm.xyz", full_data=True)
+        xyz2, data2 = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\tree_1_1.0_no_leaves_dtm.xyz", full_data=True)
         data = data[:, 3]
+        data2 = data2[:, 3]
         print(data.shape)
 
-        xyz = xyz - np.array([ 573135.73893138, 2840102.76730762, -24.40])
+        xyz = xyz - np.array([ 573155.38910263, 2840116.02216773,       0.])
+        xyz2 = xyz2 - np.array([ 573155.38910263, 2840116.02216773,       0.])
 
         pc = pv.PolyData(xyz)
+        pc2 = pv.PolyData(xyz2)
         scene = pc
         pc['intensity'] = data
+        pc2['intensity'] = data2
         plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
+        plotter.add_mesh(pc2, scalars="intensity", point_size=2, cmap="viridis")
 
         grid = pv.Plane(center= (0,0, 0), i_size=10, j_size=10, i_resolution=10, j_resolution=10)
         plotter.add_mesh(grid, color='lightgray', style='wireframe')
@@ -76,8 +83,7 @@ class CylinderPlotter:
         # return
 
 
-
-
+        print("Cylinder shape", cylinder_data.shape)
         for cylinder_row in range(0, cylinder_data.shape[0]):
             
             cylinder_raw = cylinder_data[cylinder_row]
@@ -101,6 +107,7 @@ class CylinderPlotter:
             # mesh['branch_class'] = np.repeat(np.array([cyl_class]), mesh.n_cells) 
             plotter.add_mesh(mesh, color=color, opacity=0.5)
 
+            # plotter.show(auto_close=False)
         # mesh = get_cylinder_mesh()
 
         # custom_colors = {
@@ -138,7 +145,7 @@ class CylinderPlotter:
             plotter.add_point_labels([coord_if_interest], ["Lizard"], point_size=5, always_visible=True)
         
         plotter.add_axes(interactive=True)
-        # plotter.show()
+        plotter.show()
 
 
     def show(self):
@@ -148,12 +155,16 @@ class CylinderPlotter:
 class Datamaker:
     def __init__(self, data_file, mean):
         self.cylinders = np.loadtxt(data_file)
-
+        print(mean)
+        print("Before", self.cylinders[0, 0:3])
         self.cylinders[:, 0:3] = self.cylinders[:, 0:3] - mean 
-
+        print("After", self.cylinders[0, 0:3])
+        np.savetxt("mean_adjusted_cylinders.txt", self.cylinders)
         self.plotter = CylinderPlotter()
 
         self.mean = mean
+        print(f"Loaded cylinders shape: {self.cylinders.shape}")
+        print(f"First cylinder: {self.cylinders[0] if len(self.cylinders) > 0 else 'EMPTY'}")
 
     def get_class(self, radius):
         # Group 1: 0-2cm
@@ -188,15 +199,16 @@ class Datamaker:
         # print(self.cylinders.shape)
         cylinder_data = self.cylinders
         self.plotter.plot(cylinder_data, coord_if_interest=np.array(coordinate), box_size=voxel_size)
+        self.plotter.show()
         
         
-        cylinder_data = self.cylinders[mask]
+        # cylinder_data = self.cylinders[mask]
         #print(cylinder_data.shape)
 
-        self.plotter.plot(cylinder_data, coord_if_interest=np.array(coordinate), box_size=voxel_size)
+        # self.plotter.plot(cylinder_data, coord_if_interest=np.array(coordinate), box_size=voxel_size)
 
-        self.plotter.show()
-        self.create_histogram(cylinder_data)
+        # self.plotter.show()
+        # self.create_histogram(cylinder_data)
 
     def plot_point_cloud(self, plotter):
         """
@@ -259,8 +271,8 @@ if __name__ == "__main__":
 
     # Line intersecting box code. would need to make some better python version or use that dudes. 
     # https://stackoverflow.com/questions/3235385/given-a-bounding-box-and-a-line-two-points-determine-if-the-line-intersects-t
-
-    datamaker = Datamaker("results/ecomodel_cylinder_data.txt", np.array([ 573135.73893138, 2840102.76730762,0.0]))
+    # [ 573135.74006211 2840102.76752775       0.        ]
+    datamaker = Datamaker("results/File_first_link_stroud.txt", np.array([ 573155.38910263, 2840116.02216773 ,      24]))
     # # datamaker.evaluate_coordinate((0.442, -1.278, 0.58), 1)
     datamaker.evaluate_coordinate((0.542, -2.278, 1.5), 1)
 

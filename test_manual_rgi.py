@@ -216,7 +216,8 @@ class RGI_test:
 if __name__ == "__main__":
     args = parser.parse_args()
     # tree_path = args.tree_path
-    tree_path = r"G:\Projects\TreeCanopyLidar\PyTLidar\testing_rgi\tile_573110_2840090_PLAIN_TREE_Filter.laz"
+    tree_path = r"G:\Projects\TreeCanopyLidar\PyTLidar\testing_rgi\tile_573130_2840100_7_5_1_x_1.las"
+    basename = os.path.basename(tree_path)
 
     test = RGI_test()
     point_cloud, point_cloud_intensity = load_point_cloud(tree_path, full_data=True)
@@ -253,4 +254,4 @@ if __name__ == "__main__":
     
     branches_cloud = tree_cloud[wood_mask]
     os.makedirs("rgi_tuning", exist_ok=True)
-    np.savetxt("rgi_tuning/branches_cloud4.xyz", branches_cloud)
+    np.savetxt(f"rgi_tuning/wood_{basename}.xyz", branches_cloud)
