@@ -44,10 +44,6 @@ import CSF
 from Utils.plot_tools import ResultsPlotter
 
 
-import argparse
-parser = argparse.ArgumentParser(description="Process LiDAR point cloud data for tree and leaf metrics.")
-parser.add_argument("tile_file_path")
-
 
 
 from SegmentRGI.SegmentRGI import classify_wood_leaf
@@ -1764,14 +1760,12 @@ def process_entire_pointcloud(combined_cloud: Ecomodel):
     base_plot.write_html("results/segment_test_plot_no_continuation.html")
     cylinders_line_plotting(cylinder, scale_factor=1,file_name="test_plot",base_fig=base_plot)
     
-def ecomodel_command_line():
+def ecomodel_tile(tile_file_path, results_folder):
 
-    args = parser.parse_args()
+    combined_cloud = Ecomodel(results_folder)
+    basename = os.path.basename(tile_file_path)
 
-    combined_cloud = Ecomodel()
-    basename = os.path.basename(args.tile_file_path)
-
-    point_cloud, point_data = Utils.load_point_cloud(args.tile_file_path, 0, True)
+    point_cloud, point_data = Utils.load_point_cloud(tile_file_path, 0, True)
     if point_cloud is not None:
         combined_cloud.add_tile(Tile(point_cloud, point_data, True))
     if combined_cloud is None:
@@ -1791,12 +1785,12 @@ def ecomodel_command_line():
     
     combined_cloud.segment_trees()
     combined_cloud.reset_terrain()
-    combined_cloud.get_qsm_segment_treeqsm(True)
+    combined_cloud.get_qsm_segments_rgi(42000, True)
     combined_cloud.recombine_tiles()
-    mean_x_y = combined_cloud.get_all_cylinders(f"{basename}_cylinders.csv")
+    combined_cloud.get_all_cylinders(f"{basename}_cylinders.csv")
 
-    with open(f"{basename}_metrics.txt", 'w') as f:
-        f.write("Mean:", mean_x_y)
+    with open(f"{combined_cloud.results_folder}/{basename}_metrics.txt", 'w') as f:
+        f.write("Mean:", combined_cloud.mean)
         f.write("Total Time taken:", )
 
 if __name__ == "__main__":
