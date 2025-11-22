@@ -152,6 +152,8 @@ class ResultsPlotter:
 class Datamaker:
     """
     Class which can be used to evaluate the number of cylinders in a voxel or create histograms. 
+
+    May not be totally functional. 
     """
     def __init__(self, data_file, mean):
         self.cylinders = np.loadtxt(data_file)
