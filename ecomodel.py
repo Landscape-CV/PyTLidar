@@ -96,6 +96,7 @@ class Ecomodel:
         self.mean = means/N
         for tile in self._raw_tiles:    
             if tile.terrain_model is not None:
+                tile.original_data = tile.point_data.copy()
                 tile.cloud = Utils.subtract_terrain(tile.cloud,tile.terrain_model,grid_size=tile.grid_size)
             
             tile.cloud[:,:2] = tile.cloud[:,:2] - self.mean[:2]
@@ -103,11 +104,12 @@ class Ecomodel:
             tile.point_data[:, 0:3] = tile.cloud
         
     def reset_terrain(self):
-        for tile in self._raw_tiles:
-            tile.cloud = Utils.add_terrain(tile.cloud,tile.terrain_model,grid_size=tile.grid_size)
-        
-            
-            
+        for tile in self.tiles.flatten():
+            if tile.terrain_model is not None:
+                tile.cloud = tile.original_data[:,0:3]
+                tile.point_data = tile.original_data
+            # tile.cloud = Utils.add_terrain(tile.cloud,tile.terrain_model)
+
     def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2,remove_under_ground = True, write_cloth=False): 
         csf = CSF.CSF()
         new_min_z = float('inf')
@@ -282,11 +284,12 @@ class Ecomodel:
             
             labels = cover['sets']
             
-            mask = labels >-1
-            tile.cloud = tile.cloud[mask]
-            tile.point_data = tile.point_data[mask]
-            labels = labels[mask]
+            noise_mask = labels >-1
+            tile.cloud = tile.cloud[noise_mask]
+            tile.point_data = tile.point_data[noise_mask]
+            labels = labels[noise_mask]
             tile.cover_sets=labels
+            I = np.argsort(labels)
             cover_set_adjust=len(tile.cover_sets)
 
             if len(labels) == 0:
@@ -305,6 +308,10 @@ class Ecomodel:
             tile.point_data = tile.point_data[mask]
             tile.segment_labels=tile.segment_labels[mask]
             tile.cover_sets =tile.cover_sets[mask]
+            try:
+                tile.original_data = tile.original_data[intensity_mask.cpu().numpy()][noise_mask][I][mask]
+            except:
+                pass
             print("Time to segment cloud:",time.time()-start)
             
             # tile.cluster_labels = labels
@@ -1030,6 +1037,11 @@ class Ecomodel:
         
         subdivided = np.zeros(shape = (X,Y)).astype(object)
         print(f"Subdividing into {X} x {Y}  prisms with area {cube_size} m")
+        if X*Y ==1:
+            # print("Only one tile, skipping subdivision")
+            self.tiles = np.array([[self._raw_tiles[0]]])
+            self._raw_tiles = []
+            return self.tiles
         for i in range(X):
             
             for j in range(Y):
@@ -1635,7 +1647,6 @@ if __name__ == "__main__":
     combined_cloud = Ecomodel.unpickle("test_model_.pickle")
     combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
     combined_cloud.normalize_raw_tiles()
-    combined_cloud._raw_tiles[0].to_xyz("Actual_tile_removed_ground.xyz", with_intensity = True)
     
     for tile in combined_cloud._raw_tiles:
         tile.to(tile.device)
@@ -1651,9 +1662,12 @@ if __name__ == "__main__":
 
     
     combined_cloud.segment_trees()
-    combined_cloud.reset_terrain()
+    
+    
     combined_cloud.pickle("test_model_trees_segmented.pickle")
+    
     combined_cloud = Ecomodel.unpickle("test_model_trees_segmented.pickle")
+    combined_cloud.reset_terrain()
     combined_cloud.get_qsm_segments_rgi(42000)
     combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
