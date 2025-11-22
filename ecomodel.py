@@ -115,8 +115,9 @@ class Ecomodel:
     def reset_terrain(self):
         for tile in self.tiles.flatten():
             if tile.terrain_model is not None:
-                tile.cloud = tile.original_data[:,0:3]
+                tile.cloud = tile.original_data[:,0:3] - self.mean
                 tile.point_data = tile.original_data
+                tile.point_data[:,0:3] = tile.point_data[:,0:3] - self.mean
             # tile.cloud = Utils.add_terrain(tile.cloud,tile.terrain_model)
 
     def filter_ground(self,tile_list, band_size = 0.1, threshold = 20,offset = 0.2,remove_under_ground = True, write_cloth=False): 
@@ -793,6 +794,7 @@ class Ecomodel:
             tile.numpy()
             
             tile.cluster_labels = np.array([-2]*len(tile.cloud))
+            range_mask = np.arange(len(tile.cluster_labels))
             for segment in np.unique(tile.segment_labels)[::-1]:
                 if segment == -1:
                     continue
@@ -815,12 +817,6 @@ class Ecomodel:
                 if len(cover['sets']) == 0:
                     print("No cover sets found"),
                     continue
-
-                    
-                    
-                # if save_leaf_removal_output:
-                #     np.savetxt(f"tree_{i}_{segment}_with_leaves_dtm.xyz",
-                #             tree_point_data, delimiter=',')
 
                 # LR = LeafRemover()
                 # wood_mask, leaf_mask = LR.process(tree_cloud, return_mask=True)
@@ -892,6 +888,33 @@ class Ecomodel:
                 tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
                 tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
 
+
+                # TODO: Get the same output saving as the other get_qsm_segments functions
+                # segs = qsm['segment']["SegmentArray"]
+                # cover = qsm["cover"]
+                # I = np.argsort(cover)
+                # tree_mask = range_mask[segment_mask][intensity_mask][wood_mask]
+                # tile.point_data[tree_mask] = tile.point_data[tree_mask][I]
+                # tree_cloud = tree_cloud[I]
+                # neg_mask = cover == -1
+                # num_indices = np.bincount(cover[~neg_mask])
+                # num_indices = np.concatenate([np.array([np.sum(neg_mask)]), num_indices])
+                # segs = np.concatenate([np.array([-2]), segs])
+
+                # cloud_segments = np.repeat(segs, num_indices)
+                # trunk = cloud_segments == 0
+                # max_segment = cloud_segments.max() + max_segment
+
+                # cluster_mask = range_mask[segment_mask][intensity_mask][wood_mask]
+                # trunk_mask = range_mask[segment_mask][intensity_mask][wood_mask][trunk]
+                # tile.cluster_labels[cluster_mask] = cloud_segments
+                # tile.cluster_labels[trunk_mask] = -3
+                # tile.trunk_points[trunk_mask] = 1
+                # tile.cloud[tree_mask] = tree_cloud
+                # tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
+                # tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
+                # tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
+                # tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
 
 
     def adjust_location(self):
@@ -975,14 +998,18 @@ class Ecomodel:
         Values:
         start_x, start_y, start_z, radii, axis_x, axis_y, axis_z, length
         """
-        mean_x_y = np.array([self.mean[0], self.mean[1], 0])
+        # mean_x_y = np.array([0, 0, self.mean[2]])
+        mean_x_y = np.array([0, 0, 0])
+        # mean_x_y = np.array([self.mean[0], self.mean[1], self.mean[2]])
         cylinder_data = np.empty((0,8))
         print("Mean X Y (use this in view_cylinders.py):", mean_x_y)
         for i,tile in enumerate(self._raw_tiles, start=1):
             if tile == 0:
                 continue
-
-            cylinder_starts =  tile.cylinder_starts#  + mean_x_y
+            
+            cylinder_starts =  tile.cylinder_starts + mean_x_y # Reset cylinders back to world coordinates before saving. 
+            print("START", cylinder_starts[0])
+            
             cylinder_radii = tile.cylinder_radii
             cylinder_axes =  tile.cylinder_axes
             cylinder_lengths =  tile.cylinder_lengths
@@ -1358,11 +1385,11 @@ class Ecomodel:
         """
         # Try to save the tile if its located in raw tiles. 
         try: 
-            tile = self.tiles.flatten()[0]
-        except:
             tile = self._raw_tiles[0]
-        
-        np.savetxt(f"{self.results_folder}/{name}.xyz", tile)
+        except:
+            tile = self.tiles.flatten()[0]
+    
+            np.savetxt(f"{self.results_folder}/{name}.xyz", tile.point_data)
 
     def save_point_cloud(self, name, pc):
         """
@@ -1373,25 +1400,19 @@ class Ecomodel:
 
     def create_cylinder_plot(self):
         """
-        
+        Creates plots with the new cylinders and the point cloud
         """
-        results = ResultsPlotter()
+        results = ResultsPlotter(self.mean)
+        
+        mean = np.array([0, 0, 0])
+        for filepath in os.listdir(self.results_folder):
+            print(filepath)
+            if "_leaves_removed" in os.path.basename(filepath):
+                results.add_point_cloud_file(f"{self.results_folder}/{filepath}", mean)
 
-        for i,tile in enumerate(self._raw_tiles, start = 1):
-            tile: Tile
-            if tile == 0:
-                continue            
-            tile.numpy()
-            for segment in np.unique(tile.segment_labels)[::-1]:
-                if segment == -1:
-                    continue
-                
-                segment_mask = (tile.segment_labels == segment)
-                tree_cloud = tile.point_data[segment_mask]
-                print(tree_cloud.shape)
-                results.add_point_cloud_np(tree_cloud, self.mean)
-
-        results.add_cylinders(f"{self.results_folder}/ecomodel_cylinder_data.txt", self.mean)
+        # mean = np.array([self.mean[0], self.mean[1], self.mean[2]])
+        mean = np.array([0, 0, 0])
+        results.add_cylinders(f"{self.results_folder}/ecomodel_cylinder_data.txt", mean)
         results.show()
 
 class Tile:
@@ -1776,7 +1797,6 @@ def ecomodel_command_line():
 
 if __name__ == "__main__":
     # folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
-    # save_intermediate_steps = True
 
     # model = Ecomodel()
     # combined_cloud = Ecomodel.combine_las_files(folder,model)
@@ -1801,8 +1821,8 @@ if __name__ == "__main__":
     # combined_cloud.pickle("test_model_ground_removed.pickle")
     # combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
     # combined_cloud.subdivide_tiles(cube_size = 10)
-    # # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
-    # # combined_cloud.remove_duplicate_points()
+    # # # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
+    # # # combined_cloud.remove_duplicate_points()
     # combined_cloud.segment_trees()
     # combined_cloud.reset_terrain()
     # combined_cloud.pickle("test_model_trees_segmented.pickle")
@@ -1810,7 +1830,6 @@ if __name__ == "__main__":
     # combined_cloud.get_qsm_segment_treeqsm(True)
     # combined_cloud.pickle("test_model_post_qsm_correct_segments.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_post_qsm_correct_segments.pickle")
-    combined_cloud.results_folder = "results/old"
     combined_cloud.recombine_tiles()
     combined_cloud.get_all_cylinders()
     combined_cloud.create_cylinder_plot()
