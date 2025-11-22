@@ -1230,18 +1230,6 @@ class Ecomodel:
         self.max_x = float(base_tile.cloud[:,0].max())+self.mean[0]
         self.max_y = float(base_tile.cloud[:,1].max())+self.mean[1]
         self.max_z = float(base_tile.cloud[:,2].max())+self.mean[2]
-
-    
-    def load_single_tile(self, ecomodel,  tile_file_path) -> 'Ecomodel':
-        """
-        Loads a single laz tile scan.
-        """
-        self.tile_file_path = tile_file_path
-        point_cloud, point_data = Utils.load_point_cloud(tile_file_path, 0, True)
-        if point_cloud is not None:
-            self.add_tile(Tile(point_cloud, point_data, True))
-        print("Finished loading LAS/LAZ file.")
-
     
     @staticmethod 
     def combine_las_files(folder,ecomodel, intensity_threshold = 0) -> 'Ecomodel':
