@@ -16,12 +16,12 @@ class ResultsPlotter:
     >>> results.add_cylinders(r"results/File_first_link_stroud.txt", mean)
     >>> results.show() 
     """
-    def __init__(self, mean, grid=True, terrain_style=True, parallel_projection=True, legend=True):
+    def __init__(self, grid_center, grid=True, terrain_style=True, parallel_projection=True, legend=True):
         self.plotter = pv.Plotter()
 
         # Create grid for reference to ground plane.
         if grid:
-            grid = pv.Plane(center= (0,0, 0), i_size=10, j_size=10, i_resolution=10, j_resolution=10)
+            grid = pv.Plane(center= grid_center, i_size=10, j_size=10, i_resolution=10, j_resolution=10)
             self.plotter.add_mesh(grid, color='lightgray', style='wireframe')
 
         # Camera settings:
