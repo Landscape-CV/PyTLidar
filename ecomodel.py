@@ -619,10 +619,6 @@ class Ecomodel:
                 wood_mask = build_mask(wood_coords)
                 leaf_mask = build_mask(leaf_coords)
 
-                print("WOOD MASK SIZE", wood_mask)
-                print("LEAF MASK SIZE", leaf_mask)
-
-
                 return wood_mask, leaf_mask
     def get_qsm_segments_rgi(self, intensity_threshold=40000,save_leaf_removal_output=False):
         """
@@ -641,7 +637,7 @@ class Ecomodel:
             start = time.time()
             range_mask = np.arange(len(tile.cluster_labels))
             tile.to_xyz(f"pre_rgi_tile_{i}.xyz", True)
-            for segment in np.unique(tile.segment_labels):
+            for segment in np.unique(tile.segment_labels)[::-1]:
                 if segment == -1:
                     continue
 
@@ -791,7 +787,6 @@ class Ecomodel:
             tile.numpy()
             
             tile.cluster_labels = np.array([-2]*len(tile.cloud))
-            range_mask = np.arange(len(tile.cluster_labels))
             for segment in np.unique(tile.segment_labels)[::-1]:
                 if segment == -1:
                     continue
