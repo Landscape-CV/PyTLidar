@@ -30,7 +30,17 @@ def load_point_cloud(input_path):
     else:
         raise ValueError(f"Unsupported format {ext}. Only .pcd and .ply are supported.")
 
-def classify_wood_leaf(input_path, save_dir="", show_plots=False):
+def classify_wood_leaf(input_path, save_dir="", show_plots=False,
+                        noise_percentile = 5,
+                        angle_deg=15.0, 
+                        curv_thresh=0.07, 
+                        resid_thresh=0.05, 
+                        k=30,
+                        minClusterSize = 3,
+                        maxClusterSize = 100000,
+                        smoothMode = True,
+                        useResidualTest = True,
+                        useCurvatureTest = True,):
     base_name = os.path.splitext(os.path.basename(input_path))[0]
     if save_dir != "":
         os.makedirs(save_dir, exist_ok=True)
@@ -41,7 +51,7 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False):
     full_intensity = pcd_t.point[intensity_key].numpy().flatten()
 
     # --- Adaptive Noise Filter ---
-    noise_percentile = 5
+    # noise_percentile = noise_percentile
     threshold_noise = np.percentile(full_intensity, noise_percentile)
     print(f"[FILTER] Removing intensity < {threshold_noise:.2f} (bottom {noise_percentile}%)")
 
@@ -55,12 +65,12 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False):
     # --- Region Growing Clustering ---
     start_rg = time.time()
     RGKNN = RG.RegionGrowing()
-    RGKNN.SetDataThresholds(pcd, angle_deg=15.0, curv_thresh=0.07, resid_thresh=0.05, k=30)
-    RGKNN.minClusterSize = 3
-    RGKNN.maxClusterSize = 100000
-    RGKNN.smoothMode = True
-    RGKNN.useResidualTest = True
-    RGKNN.useCurvatureTest = True
+    RGKNN.SetDataThresholds(pcd, angle_deg, curv_thresh, resid_thresh, k)
+    RGKNN.minClusterSize = minClusterSize
+    RGKNN.maxClusterSize = maxClusterSize
+    RGKNN.smoothMode = smoothMode
+    RGKNN.useResidualTest = useResidualTest
+    RGKNN.useCurvatureTest = useCurvatureTest
     RGKNN.RGKnn()
     end_rg = time.time()
     print(f"[TIMING] Region Growing took {end_rg - start_rg:.2f} seconds")
@@ -151,7 +161,6 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False):
         plt.grid(True)
         plt.tight_layout()
         plt.show()
-
 
 # Main to use
 if __name__ == "__main__":

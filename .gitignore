@@ -18,3 +18,4 @@ Dataset/*
 .idea/
 test.py
 cloth_nodes.txt
+/local_testing
