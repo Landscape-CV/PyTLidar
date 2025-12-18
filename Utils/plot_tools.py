@@ -37,7 +37,7 @@ class ResultsPlotter:
             left = 800
             self.plotter.add_text("Legend:", position=(left, top), font_size=12)
             self.plotter.add_text('Twig (r=0-2cm)', color= 'r', position=(left, top-20), font_size=12)
-            self.plotter.add_text('Small Branch (r=2-5cm)', color= 'purple', position=(left, top-40), font_size=12)
+            self.plotter.add_text('Small Branch (r=2-5cm)', color= 'g', position=(left, top-40), font_size=12)
             self.plotter.add_text('Medium Branch (r=5-10cm)', color= 'b', position=(left, top-60), font_size=12)
             self.plotter.add_text('Large Branch (r=10+cm)', color= 'orange', position=(left, top-80), font_size=12)
 
@@ -66,7 +66,7 @@ class ResultsPlotter:
         if 0 < radius <= 0.02:
             return ('r', 'Twig (0-2cm)')
         elif 0.02 < radius <= 0.05:
-            return ('purple', 'Small Branch (2-5cm)')
+            return ('g', 'Small Branch (2-5cm)')
         elif 0.05 < radius <= 0.10:
             return( 'b', 'Medium Branch (5-10cm)')
         else:
@@ -87,7 +87,7 @@ class ResultsPlotter:
         pc['intensity'] = data
         self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
 
-    def add_point_cloud_np(self, point_cloud_with_intensity, mean):
+    def add_point_cloud_np_intensity(self, point_cloud_with_intensity, mean):
         """
         Adds a point cloud to the scene
         """
@@ -96,6 +96,16 @@ class ResultsPlotter:
         pc = pv.PolyData(xyz)
         pc['intensity'] = point_cloud_with_intensity[:, 3]
         self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
+
+    def add_point_cloud_np(self, point_cloud, mean):
+        """
+        Adds a point cloud to the scene
+        """
+        xyz = point_cloud
+        xyz = xyz - mean
+        print(xyz[0])
+        pc = pv.PolyData(xyz)
+        self.plotter.add_mesh(pc, point_size=2, cmap="viridis")
 
 
 

@@ -1773,8 +1773,8 @@ def ecomodel_tile(tile_file_path, results_folder):
     combined_cloud.get_all_cylinders(f"{basename}_cylinders.csv")
 
     with open(f"{combined_cloud.results_folder}/{basename}_metrics.txt", 'w') as f:
-        f.write("Mean:", combined_cloud.mean)
-        f.write("Total Time taken:", )
+        f.write(f"Mean: {combined_cloud.mean}")
+        f.write("Total Time taken:")
 
 if __name__ == "__main__":
     folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
