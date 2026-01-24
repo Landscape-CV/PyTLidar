@@ -102,8 +102,8 @@ class ResultsPlotter:
         Adds a point cloud to the scene
         """
         xyz = point_cloud
-        xyz = xyz - mean
-        print(xyz[0])
+        # xyz = xyz - mean
+        # print(xyz[0])
         pc = pv.PolyData(xyz)
         self.plotter.add_mesh(pc, point_size=2, cmap="viridis")
 

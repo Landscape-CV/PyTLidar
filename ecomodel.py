@@ -665,11 +665,11 @@ class Ecomodel:
                     tile.segment_labels[mask] = -1
                     continue
 
+                self.save_point_cloud(f"segment_{segment}_post_cover_set_noise_removal", tree_cloud)
+
                 try:
                     # Combine classification result with intensity threshold
                     intensity_mask = tile.point_data[mask][noise_mask][:, 3] > intensity_threshold
-
-                    
 
                     tree = tile.point_data[mask][noise_mask][intensity_mask]
                     tree_cloud = tree_cloud[intensity_mask]  # Keep tree_cloud in sync with intensity filtering
@@ -1369,7 +1369,7 @@ class Ecomodel:
         except:
             tile = self.tiles.flatten()[0]
     
-            np.savetxt(f"{self.results_folder}/{name}.xyz", tile.point_data)
+        np.savetxt(f"{self.results_folder}/{name}.xyz", tile.point_data)
 
     def save_point_cloud(self, name, pc):
         """
@@ -1759,15 +1759,18 @@ def ecomodel_tile(tile_file_path, results_folder):
     combined_cloud.remove_duplicate_points()
     combined_cloud.recombine_tiles()    
     combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
-    combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
-    combined_cloud.normalize_raw_tiles()
+    combined_cloud.save_current_tile("post_filter_ground")
     
+    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
+    # combined_cloud.normalize_raw_tiles()
+    combined_cloud.save_current_tile("post_normalize")
+
     for tile in combined_cloud._raw_tiles:
         tile.to(tile.device)
     combined_cloud.subdivide_tiles(cube_size = 10)
     
     combined_cloud.segment_trees()
-    combined_cloud.reset_terrain()
+    # combined_cloud.reset_terrain()
     combined_cloud.get_qsm_segments_rgi(42000, True)
     combined_cloud.recombine_tiles()
     combined_cloud.get_all_cylinders(f"{basename}_cylinders.csv")
@@ -1786,7 +1789,7 @@ if __name__ == "__main__":
         print("Exiting: please add LAS/LAZ files and rerun.")
         exit(0)
 
-    combined_cloud.subdivide_tiles(cube_size = 10)
+    combined_cloud.subdivide_tiles(cube_size = 20)
     combined_cloud.remove_duplicate_points()
     combined_cloud.recombine_tiles()    
     combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
@@ -1801,7 +1804,7 @@ if __name__ == "__main__":
 
     combined_cloud.pickle("test_model_ground_removed.pickle")
     combined_cloud = Ecomodel.unpickle("test_model_ground_removed.pickle")
-    combined_cloud.subdivide_tiles(cube_size = 10)
+    combined_cloud.subdivide_tiles(cube_size = 20)
     # # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
     # # combined_cloud.remove_duplicate_points()
     combined_cloud.segment_trees()
