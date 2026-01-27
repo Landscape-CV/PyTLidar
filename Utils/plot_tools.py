@@ -4,6 +4,41 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .Utils import load_point_cloud
 
+
+class SimplePlotter:
+    def __init__(self, terrain_style=True, parallel_projection=False):
+        self.plotter = pv.Plotter()
+        if terrain_style:
+            self.plotter.enable_terrain_style()
+        if parallel_projection:
+            self.plotter.camera.SetParallelProjection(True)
+        
+    def add_point_cloud(self, point_cloud_with_intensity):
+        """
+        Adds a point cloud to the scene
+        """
+        xyz = point_cloud_with_intensity[:, :3]
+
+        # Compute mean for global shift and scale.
+        mean = np.mean(xyz, axis=0)
+        xyz = xyz - mean
+        pc = pv.PolyData(xyz)
+
+        if point_cloud_with_intensity.shape[1] > 3:
+            pc['intensity'] = point_cloud_with_intensity[:, 3]
+            self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
+        else:
+            self.plotter.add_mesh(pc, point_size=2, cmap="viridis")
+
+
+
+    def show(self):
+        """
+        Shows the plot
+        """
+        self.plotter.show()
+
+
 class ResultsPlotter:
     """
     Class contains methods to plot cylinder results using pyvista
@@ -16,7 +51,7 @@ class ResultsPlotter:
     >>> results.add_cylinders(r"results/File_first_link_stroud.txt", mean)
     >>> results.show() 
     """
-    def __init__(self, grid_center, grid=True, terrain_style=True, parallel_projection=True, legend=True):
+    def __init__(self, grid_center, grid=True, terrain_style=True, parallel_projection=False, legend=True):
         self.plotter = pv.Plotter()
 
         # Create grid for reference to ground plane.
@@ -29,7 +64,7 @@ class ResultsPlotter:
             self.plotter.enable_terrain_style()
         
         if parallel_projection:
-            self.plotter.camera.SetParallelProjection(False)
+            self.plotter.camera.SetParallelProjection(True)
 
         # Create Legend:
         if legend:
@@ -157,6 +192,10 @@ class ResultsPlotter:
         Shows the plot
         """
         self.plotter.show()
+
+
+
+
 
 
 class Datamaker:
