@@ -45,6 +45,7 @@ from Utils.plot_tools import ResultsPlotter
 import logging
 import argparse
 import traceback
+from datetime import datetime
 
 # parser = argparse.ArgumentParser(
 #                     prog='Ecomodel',
@@ -684,7 +685,7 @@ class Ecomodel:
                     tile.segment_labels[mask] = -1
                     continue
 
-                self.save_point_cloud(f"segment_{segment}_post_cover_set_noise_removal", tree_cloud)
+                # self.save_point_cloud(f"segment_{segment}_post_cover_set_noise_removal", tree_cloud)
 
                 try:
                     # Combine classification result with intensity threshold
@@ -1777,11 +1778,11 @@ def ecomodel_tile(tile_file_path, results_folder):
     combined_cloud.remove_duplicate_points()
     combined_cloud.recombine_tiles()    
     combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
-    combined_cloud.save_current_tile("post_filter_ground")
+    # combined_cloud.save_current_tile("post_filter_ground")
     
     combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
     combined_cloud.normalize_raw_tiles()
-    combined_cloud.save_current_tile("post_normalize")
+    # combined_cloud.save_current_tile("post_normalize")
 
     for tile in combined_cloud._raw_tiles:
         tile.to(tile.device)
@@ -1789,7 +1790,7 @@ def ecomodel_tile(tile_file_path, results_folder):
     
     combined_cloud.segment_trees()
     combined_cloud.reset_terrain()
-    combined_cloud.get_qsm_segments_rgi(42000, True)
+    combined_cloud.get_qsm_segments_rgi(42000, False)
     combined_cloud.recombine_tiles()
     combined_cloud.get_all_cylinders(f"{basename}_cylinders.csv")
 
@@ -1804,13 +1805,13 @@ def ecomodel_all_tiles(folder, results_path):
     """
     files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
     for tile in files:
+
+        logger.info("------------- Processing Tile %s -------------", tile)
         full_tile_path = os.path.join(folder, tile)
         # print(full_tile_path)
 
         try:
-
-            assert 1==2
-            # ecomodel_tile(full_tile_path, results_path)
+            ecomodel_tile(full_tile_path, results_path)
         except Exception:
             print("Test")
             logger.error("Exception while handling tile: %s", full_tile_path)
@@ -1818,12 +1819,28 @@ def ecomodel_all_tiles(folder, results_path):
 
 
 if __name__ == "__main__":
+    now = datetime.now()
+    timestamp = now.strftime("%Y-%m-%d_%H-%M-%S")
+    
     # args = parser.parse_args()
-    # ecomodel_all_tiles(args.tiles_path, args.results_path)
-    
-    
-    
-    ecomodel_all_tiles(r"G:\Projects\TreeCanopyLidar\PyTLidar\Dataset\Tiles", "results")
+    # tiles_path = args.tiles_path
+    # results_path = args.results_path
+
+    tiles_path = r"G:\Projects\TreeCanopyLidar\PyTLidar\Dataset\Tiles"
+    results_path = f"results/results_{timestamp}"
+
+    os.makedirs(results_path, exist_ok=True)
+
+    f_handler = logging.FileHandler(f'{results_path}/ecomodel.log')
+    c_handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    f_handler.setFormatter(formatter)
+    c_handler.setFormatter(formatter)
+    logger.addHandler(f_handler)
+    logger.addHandler(c_handler)
+
+
+    ecomodel_all_tiles(tiles_path,results_path)
 
 def current_main():
     folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
