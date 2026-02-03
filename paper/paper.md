@@ -70,27 +70,26 @@ While [SimpleForest](https://www.simpleforest.org/) [@Hackenberg2021] (available
 [AdQSM](https://github.com/GuangpengFan/AdQSM) [@Fan2020] is extremely fast and simple but lacks many of the statistics and visualizations other tools have and has not been officially released by the authors. 
 While TreeQSM is used in many applications, its reliance on MATLAB makes it less accessible for users, and its lack of graphical interface makes the tool less user-friendly and its parameter tuning less efficient.
 
-PyTLidar addresses these issues by providing a native Python implementation of TreeQSM’s core algorithms, 
+
+
+# Research Impact Statement
+PyTLidar addresses the above issues by providing a native Python implementation of TreeQSM’s core algorithms, 
 wrapped in a streamlined graphical user interface that allows researchers to visualize and evaluate models. 
 It promotes reproducible and exploratory research by offering transparent parameter control, open-source licensing, and seamless integration into Python-based analysis workflows. 
 This work lowers the barrier for adoption of QSM modeling by removing the MATLAB dependency, enhancing accessibility for the broader open-source geospatial and ecological modeling community. PyTLidar is currently being used for ongoing projects in ecological monitoring and evolutionary field research. While this is an initial release of just the QSM creation functionality, the intended goal for this package is to provide a single source for any user processing terrestrial lidar to perform every step of their analysis.
 
-
-
-
-# Software Description
-
+# Software Design 
 PyTLidar is organized into several key modules: core QSM algorithms (treeqsm.py), batch processing utilities (treeqsm_batch.py), GUI components built with [PyQt6](https://pypi.org/project/PyQt6/) (Python bindings for the Qt 6 framework), 
 and visualization tools using Plotly. The software follows a modular design that allows researchers to either use the complete GUI application or integrate individual components into their own Python or command-line-based workflows. 
+
+# Software Description
 
 ![PyTLidar creates a QSM from an input point cloud and a set of parameters representing the size of the initial building blocks of the model. Structural measurements derived from the model and the model itself can then be viewed and evaluated within the tool. \label{fig:flowchart}](figs/flowchart.png){ width=100% }
 
 When using the GUI, users can input or automatically generate values for key modeling parameters and may choose between batch processing of an entire directory of point cloud files or processing a single file.
-After parameter and file selection, the software opens a new interface displaying data processing progress. 
 Once the QSM reconstruction process is complete, PyTLidar provides interactive 3D visualization of the generated QSM using [plotly](https://plotly.com/) (Figure 3). 
 Users can inspect the structural fidelity of the reconstructed model, including trunk and branch geometry, and compare different parameter configurations for best fit. 
 This combination of visual feedback and customizable processing offers an efficient path toward accurate and transparent tree structure analysis. 
-If running in batch mode, users may also set the number of parallel cores to utilize to run simultaneous processes.
 
 ![Point cloud and fitted cylinder of a sample pine. The graphical interface allows a user to compare the produced model (blue lines) directly to the point cloud (points colored by height) to visually evaluate fit. \label{fig:qsm}](figs/cylinders_2.png)
 
@@ -105,6 +104,9 @@ Users can also review the morphological summaries of the QSM, including distribu
 The latest development version of PyTLidar as well as usage instructions are available at this [GitHub repository](https://github.com/Landscape-CV/PyTLidar). The package requires Python 3.8-3.11 and a few key dependencies listed in the requirements. 
 Installation instructions and example datasets are provided in the repository documentation. The latest release version is available on PyPi and can be installed using ```pip install PyTLidar.```
 
+# AI Usage Disclosure
+
+The PyTLidar team imposes no rules on usage of AI assistance in generation of code or documentation. Various LLM chat services were utilized in the initial process of translating TreeQSM from Matlab to Python, with extensive manual intervention required. All pull requests are reviewed manually as a rule and thoroughly tested for accuracy. All design decisions are made by the design team itself. 
 
 # Acknowledgements
 
