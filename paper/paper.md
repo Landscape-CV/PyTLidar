@@ -65,6 +65,9 @@ To realize the potential of TLS for use in forestry and ecological applications,
 
 The use of QSM software on point cloud data permits estimation of detailed components of branch architecture such as branch diameter, volume, and stem taper [@Lau2018],
 providing detailed information for fine-scale estimates of AGB, canopy architecture, and more.
+
+# State of the Field
+
 TreeQSM is a software that has been widely used in forestry and ecology for modeling tree structures from TLS point clouds [@TERRYN2020170]. 
 While [SimpleForest](https://www.simpleforest.org/) [@Hackenberg2021] (available within Computree) seems to be similarly capable to TreeQSM, but is only available through Computree, which has been undergoing an extended upgrade process and lacks up-to-date documentation. 
 [AdQSM](https://github.com/GuangpengFan/AdQSM) [@Fan2020] is extremely fast and simple but lacks many of the statistics and visualizations other tools have and has not been officially released by the authors. 
