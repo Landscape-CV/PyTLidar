@@ -80,7 +80,7 @@ This work lowers the barrier for adoption of QSM modeling by removing the MATLAB
 
 # Software Design 
 PyTLidar is organized into several key modules: core QSM algorithms (treeqsm.py), batch processing utilities (treeqsm_batch.py), GUI components built with [PyQt6](https://pypi.org/project/PyQt6/) (Python bindings for the Qt 6 framework), 
-and visualization tools using Plotly. The software follows a modular design that allows researchers to either use the complete GUI application or integrate individual components into their own Python or command-line-based workflows. 
+and visualization tools using Plotly. The software follows a modular design that allows researchers to either use the complete GUI application or integrate individual components into their own Python or command-line-based workflows. This modular design also allows new features to be added and implemented without needing to revisit existing code. For example, current work is focused on expanding PyTLidar to do ecosystem level analysis, and this is able to be done by adding high level modules that contain only the relevant code. 
 
 # Software Description
 
