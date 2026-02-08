@@ -1795,9 +1795,7 @@ def ecomodel_tile(tile_file_path, results_folder):
     combined_cloud.get_all_cylinders(f"{basename}_cylinders.csv")
 
     with open(f"{combined_cloud.results_folder}/{basename}_metrics.txt", 'w') as f:
-        f.write(f"Mean: {combined_cloud.mean}")
-        f.write("Total Time taken:")
-
+        f.write(f"Tile Mean: {combined_cloud.mean}")
 
 def ecomodel_all_tiles(folder, results_path):
     """
@@ -1816,6 +1814,7 @@ def ecomodel_all_tiles(folder, results_path):
             print("Test")
             logger.error("Exception while handling tile: %s", full_tile_path)
             logger.info("Exception %s", traceback.format_exc())
+
 
 
 if __name__ == "__main__":
@@ -1841,6 +1840,8 @@ if __name__ == "__main__":
 
 
     ecomodel_all_tiles(tiles_path,results_path)
+
+
 
 def current_main():
     folder = os.path.join(os.path.dirname(__file__), "Dataset", "Tiles")
