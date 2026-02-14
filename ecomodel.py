@@ -345,34 +345,9 @@ class Ecomodel:
             # self.save_point_cloud("leaves_removed", tile.point_data)
             
             # tile.to_xyz(f"{self.results_folder}/pre_segmentation.xyz")
-            """
-            tile (np.Array): point cloud tile
-            max_dist (float, optional): distance between neighboring points. Defaults to .16.
-            base_height (float, optional): height of lowest layer determining base locations. Defaults to .3.
-            layer_size (float, optional): size of non-base layers. Defaults to .3.
-            min_base_dist (float, optional): minimum distance between bases (Only used with combine_nearby_bases). Defaults to .2.
-            connect_ambiguous_points (bool, optional): If True, connect points that aren't clearly in a cluster to nearest segment. Defaults to True.
-            fix_overlapping_segments (bool, optional): If True, separates segments that are overlapping. Defaults to True.
-            combine_nearby_bases (bool, optional): If True, combines bases that are withing min_base_dist. Defaults to True.
-            base_dist_multiplier (int, optional): optional multiplier for max_dist to be used on base layer. Defaults to 2.
-            initial_size_limit (int, optional): Size limit of clusters grown on each layer. Defaults to 1000.
-            min_height (int, optional): minimum height of found segments. Defaults to 0.
-            connect_using_midpoint (bool, optional): If True, connects segments using the midpoint of the segment during a second shortest path pass. Defaults to False.
-            min_Z (float, optional): Minimum Z value of point cloud to be used in determining base layer. Defaults to 0.
 
-            """
-
-            # arguments = {             segment_point_cloud(tile,
-            # min_height=.3,
-            # connect_using_midpoint=False,
-            # base_height=.65,
-            # \base_dist_multiplier=2.5,
-            # connect_ambiguous_points=True,
-            # fix_overlapping_segments=False,
-            # layer_size=.16,
-            # min_Z=float(torch.min(tile.cloud[:,2])),
-            # combine_nearby_bases=True,)
-            og_arguments = {
+            # Default parameters for the tree instance segmentation.
+            default_arguments = {
                 "max_dist": 0.16,
                 "min_height" :.3,  
                 "connect_using_midpoint" :False, 
@@ -384,38 +359,18 @@ class Ecomodel:
                 "min_Z" :float(torch.min(tile.cloud[:,2])),
                 "combine_nearby_bases" :True ,
             }
-            max_dist = .16
-            base_height = .3
-            layer_size =.3
-            connect_ambiguous_points = True
-            fix_overlapping_segments = True
-            combine_nearby_bases =True
-            base_dist_multiplier=2
-            initial_size_limit =1000
-            min_height = 0
-            connect_using_midpoint = False
-            min_Z = 0
 
-
-
-            arguments = {
+            # New tuned parameters. 
+            tuned_arguments = {
                 "max_dist": 0.3,
                 "base_height" : 2, 
                 "layer_size" :0.15, 
-                # "connect_ambiguous_points" :True, 
-                # "fix_overlapping_segments" :False, 
                 "combine_nearby_bases" :False,
-                # "base_dist_multiplier" :1.2, 
-                # "initial_size_limit":1000,
-                # "min_height" :.1,  
-                # "connect_using_midpoint" :True, 
-                # "min_Z" :-0.3,
             }
-            print("MIN Z", float(torch.min(tile.cloud[:,2])))
 
-            og_arguments.update(arguments)
 
-            segment_point_cloud(tile,**og_arguments)
+            default_arguments.update(tuned_arguments)
+            segment_point_cloud(tile,**default_arguments)
             # tile.to_xyz(f"{self.results_folder}/post_segmentation.xyz", True)
             mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             print("UNIQUE LABELS", np.unique(tile.segment_labels))
@@ -437,10 +392,10 @@ class Ecomodel:
             logger.info("Time to segment cloud: %s",time.time()-start)
             
             # tile.cluster_labels = labels
-            args_formatted = str(arguments).replace(" ", "_").replace(",", "_").replace(":","_").replace("'", "") 
-            out_path = os.path.join(self.results_folder, f"data_{args_formatted}.xyz")
-            tile.to_xyz(out_path, True)
-            logger.info(f"Clustered tile written to {out_path}")
+            # args_formatted = str(arguments).replace(" ", "_").replace(",", "_").replace(":","_").replace("'", "") 
+            # out_path = os.path.join(self.results_folder, f"data_{args_formatted}.xyz")
+            # tile.to_xyz(out_path, True)
+            # logger.info(f"Clustered tile written to {out_path}")
 
         # self.save_point_cloud(f"data_{arguments}", )
         logger.info("Tree segmentation finished.")
