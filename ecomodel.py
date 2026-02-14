@@ -130,6 +130,8 @@ class Ecomodel:
         
     def reset_terrain(self):
         for tile in self.tiles.flatten():
+            if tile == 0:
+                continue
             if tile.terrain_model is not None:
                 tile.cloud = tile.original_data[:,0:3] - self.mean
                 tile.point_data = tile.original_data
@@ -290,9 +292,10 @@ class Ecomodel:
         for i,tile in enumerate(self.tiles.flatten(), start =1):
             if tile == 0:
                 continue
-            
+            tile: 'Tile'
             logger.info("Segmenting tile: %s",i)
 
+            # tile.to_xyz(f"{self.results_folder}/pre_segmentation.xyz")
             intensity_mask = tile.point_data[:,3]>intensity_threshold
             tile.point_data = tile.point_data[intensity_mask]
             tile.cloud = tile.cloud[intensity_mask]
@@ -328,8 +331,101 @@ class Ecomodel:
             #settings for Missouri data
             # segment_point_cloud(tile,base_height=.75, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1.2,max_dist=.17,combine_nearby_bases=False,initial_size_limit=100000,min_height =.1)
             
-            segment_point_cloud(tile,min_height=.3,connect_using_midpoint=False,base_height=.65,base_dist_multiplier=2.5,connect_ambiguous_points=True,fix_overlapping_segments=False,layer_size=.16,min_Z=float(torch.min(tile.cloud[:,2])),combine_nearby_bases=True,)
+
+            # Leaf Removal Step
+            # intensity_threshold = 42000
+            # intensity_mask = tile.point_data[:, 3] > intensity_threshold
+            # tile.cloud = tile.cloud[intensity_mask]
+            # tile.point_data = tile.point_data[intensity_mask]
+            # tile.cover_sets = tile.cover_sets[intensity_mask]
+            # wood_mask, leaf_mask = self.remove_leaves_rgi(tile.point_data)
+            # tile.cloud = tile.cloud[wood_mask]
+            # tile.point_data = tile.point_data[wood_mask]
+            # tile.cover_sets = tile.cover_sets[wood_mask]
+            # self.save_point_cloud("leaves_removed", tile.point_data)
+            
+            # tile.to_xyz(f"{self.results_folder}/pre_segmentation.xyz")
+            """
+            tile (np.Array): point cloud tile
+            max_dist (float, optional): distance between neighboring points. Defaults to .16.
+            base_height (float, optional): height of lowest layer determining base locations. Defaults to .3.
+            layer_size (float, optional): size of non-base layers. Defaults to .3.
+            min_base_dist (float, optional): minimum distance between bases (Only used with combine_nearby_bases). Defaults to .2.
+            connect_ambiguous_points (bool, optional): If True, connect points that aren't clearly in a cluster to nearest segment. Defaults to True.
+            fix_overlapping_segments (bool, optional): If True, separates segments that are overlapping. Defaults to True.
+            combine_nearby_bases (bool, optional): If True, combines bases that are withing min_base_dist. Defaults to True.
+            base_dist_multiplier (int, optional): optional multiplier for max_dist to be used on base layer. Defaults to 2.
+            initial_size_limit (int, optional): Size limit of clusters grown on each layer. Defaults to 1000.
+            min_height (int, optional): minimum height of found segments. Defaults to 0.
+            connect_using_midpoint (bool, optional): If True, connects segments using the midpoint of the segment during a second shortest path pass. Defaults to False.
+            min_Z (float, optional): Minimum Z value of point cloud to be used in determining base layer. Defaults to 0.
+
+            """
+
+            # arguments = {             segment_point_cloud(tile,
+            # min_height=.3,
+            # connect_using_midpoint=False,
+            # base_height=.65,
+            # \base_dist_multiplier=2.5,
+            # connect_ambiguous_points=True,
+            # fix_overlapping_segments=False,
+            # layer_size=.16,
+            # min_Z=float(torch.min(tile.cloud[:,2])),
+            # combine_nearby_bases=True,)
+            og_arguments = {
+                "max_dist": 0.16,
+                "min_height" :.3,  
+                "connect_using_midpoint" :False, 
+                "base_height" :.65, 
+                "base_dist_multiplier" :2.5, 
+                "connect_ambiguous_points" :True, 
+                "fix_overlapping_segments" :False, 
+                "layer_size" :.16, 
+                "min_Z" :float(torch.min(tile.cloud[:,2])),
+                "combine_nearby_bases" :True ,
+            }
+            max_dist = .16
+            base_height = .3
+            layer_size =.3
+            connect_ambiguous_points = True
+            fix_overlapping_segments = True
+            combine_nearby_bases =True
+            base_dist_multiplier=2
+            initial_size_limit =1000
+            min_height = 0
+            connect_using_midpoint = False
+            min_Z = 0
+
+
+
+            arguments = {
+                "max_dist": 0.3,
+                "base_height" : 2, 
+                "layer_size" :0.15, 
+                # "connect_ambiguous_points" :True, 
+                # "fix_overlapping_segments" :False, 
+                "combine_nearby_bases" :False,
+                # "base_dist_multiplier" :1.2, 
+                # "initial_size_limit":1000,
+                # "min_height" :.1,  
+                # "connect_using_midpoint" :True, 
+                # "min_Z" :-0.3,
+            }
+            print("MIN Z", float(torch.min(tile.cloud[:,2])))
+
+            og_arguments.update(arguments)
+
+            segment_point_cloud(tile,**og_arguments)
+            # tile.to_xyz(f"{self.results_folder}/post_segmentation.xyz", True)
             mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
+            print("UNIQUE LABELS", np.unique(tile.segment_labels))
+            # for label in np.unique(tile.segment_labels):
+            #     # if label < 0:
+            #     #     continue
+            #     save_mask = tile.segment_labels == label
+            #     self.save_point_cloud(f"segment_label_{label}", tile.cloud[save_mask])
+
+
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
             tile.segment_labels=tile.segment_labels[mask]
@@ -341,14 +437,12 @@ class Ecomodel:
             logger.info("Time to segment cloud: %s",time.time()-start)
             
             # tile.cluster_labels = labels
+            args_formatted = str(arguments).replace(" ", "_").replace(",", "_").replace(":","_").replace("'", "") 
+            out_path = os.path.join(self.results_folder, f"data_{args_formatted}.xyz")
+            tile.to_xyz(out_path, True)
+            logger.info(f"Clustered tile written to {out_path}")
 
-            if save_clusters:
-                results_folder = "results"
-                os.makedirs(results_folder, exist_ok=True)
-                out_path = os.path.join(results_folder, f"clustered_{i}.xyz")
-                tile.to_xyz(out_path, True)
-                logger.info(f"Clustered tile written to {out_path}")
-
+        # self.save_point_cloud(f"data_{arguments}", )
         logger.info("Tree segmentation finished.")
 
     def get_qsm_segments(self,intensity_threshold = 40000):
@@ -640,6 +734,54 @@ class Ecomodel:
                 leaf_mask = build_mask(leaf_coords)
 
                 return wood_mask, leaf_mask
+            
+
+    def remove_leaves_rgi(self, point_cloud, save_leaf_removal_output = True):
+        """
+        Returns a wood and leaf mask. 
+        """
+
+        if save_leaf_removal_output:
+            self.save_point_cloud(f"tile_before_leaf_removal", point_cloud)
+
+        input_params = {
+            "noise_percentile": 0,
+            "angle_deg":7, 
+            "curv_thresh":0.07, 
+            "resid_thresh":0.05, 
+            "k":100,
+            "minClusterSize" : 40,
+            "maxClusterSize" : 100000,
+            "smoothMode" : True,
+            "useResidualTest" : True,
+            "useCurvatureTest" : True,
+        }
+        wood_mask, leaf_mask = self.classify_wood_leaf_on_array(point_cloud, input_params)
+
+        new_cloud = point_cloud[wood_mask]
+
+        if save_leaf_removal_output:
+            self.save_point_cloud(f"tile_after_leaf_removal", new_cloud)
+
+        return wood_mask, leaf_mask
+
+
+    # def remove_leaves_tile(self):
+    #     for i, tile in enumerate(self.tiles.flatten()):
+    #         tile: 'Tile'
+    #         if tile == 0:
+    #             continue
+
+
+    #         wood_mask, leaf_mask = self.remove_leaves_rgi(tile.cloud)
+
+    #         tile.cloud = tile.cloud[wood_mask]
+
+
+
+
+
+            
     def get_qsm_segments_rgi(self, intensity_threshold=40000,save_leaf_removal_output=False):
         """
         Same as get_qsm_segments(), but integrates classify_wood_leaf() from SegmentRGI for
@@ -649,6 +791,7 @@ class Ecomodel:
         max_segment = 0
         
         for i, tile in enumerate(self.tiles.flatten()):
+            tile: 'Tile'
             if tile == 0:
                 continue
 
@@ -656,9 +799,9 @@ class Ecomodel:
             tile.cluster_labels = np.array([-2] * len(tile.cloud))
             start = time.time()
             range_mask = np.arange(len(tile.cluster_labels))
-            tile.to_xyz(f"pre_rgi_tile_{i}.xyz", True)
+            tile.to_xyz(f"{self.results_folder}/pre_rgi_tile_{i}.xyz", True) 
             for segment in np.unique(tile.segment_labels)[::-1]:
-                if segment == -1:
+                if segment == -1: # This means skip the uncategorized ones. 
                     continue
 
                 mask = (tile.segment_labels == segment)
@@ -790,7 +933,7 @@ class Ecomodel:
                 tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
 
             logger.info(f"Time to create QSMs in tile {i}: {time.time() - start:.2f} seconds")
-            tile.to_xyz(f"after_leaf_removal_{i}.xyz", True, True)
+            # tile.to_xyz(f"{self.results_folder}/after_leaf_removal_{i}.xyz", True, True)
         
     def get_qsm_segment_treeqsm(self, save_leaf_removal_output=False):
         """
@@ -1025,6 +1168,8 @@ class Ecomodel:
             cylinder_radii = tile.cylinder_radii
             cylinder_axes =  tile.cylinder_axes
             cylinder_lengths =  tile.cylinder_lengths
+
+            logger.info("Total Number of cylinders in tile")
 
             tile_data = np.concatenate((cylinder_starts, cylinder_radii.reshape(-1, 1), cylinder_axes, cylinder_lengths.reshape(-1, 1)), axis=1)
 
@@ -1398,7 +1543,7 @@ class Ecomodel:
         np.savetxt(f"{self.results_folder}/{name}.xyz", pc)
 
 
-    def create_cylinder_plot(self):
+    def create_cylinder_plot(self, filename):
         """
         Creates plots with the new cylinders and the point cloud
         Only plots a single tile. 
@@ -1415,7 +1560,7 @@ class Ecomodel:
 
         # mean = np.array([self.mean[0], self.mean[1], self.mean[2]])
         mean = np.array([0, 0, 0])
-        results.add_cylinders(f"{self.results_folder}/ecomodel_cylinder_data.txt", mean)
+        results.add_cylinders(f"{self.results_folder}/{filename}.txt", mean)
         results.show()
 
 class Tile:
@@ -1774,25 +1919,28 @@ def ecomodel_tile(tile_file_path, results_folder):
     if combined_cloud is None:
         raise FileNotFoundError("Exiting: please add LAS/LAZ files and rerun.")
 
-    combined_cloud.subdivide_tiles(cube_size = 10)
-    combined_cloud.remove_duplicate_points()
-    combined_cloud.recombine_tiles()    
-    combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
+    # combined_cloud.subdivide_tiles(cube_size = 20)
+    # combined_cloud.remove_duplicate_points()
+    # combined_cloud.recombine_tiles()    
+    # combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
     # combined_cloud.save_current_tile("post_filter_ground")
     
     combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
     combined_cloud.normalize_raw_tiles()
-    # combined_cloud.save_current_tile("post_normalize")
+    combined_cloud.save_current_tile("post_normalize")
 
     for tile in combined_cloud._raw_tiles:
         tile.to(tile.device)
-    combined_cloud.subdivide_tiles(cube_size = 10)
+    combined_cloud.subdivide_tiles(cube_size =20)
     
     combined_cloud.segment_trees()
+    combined_cloud.tiles[0, 0].to_xyz(f"{results_folder}/segmented_{basename}.xyz", with_clusters=True)
+    return 
+
     combined_cloud.reset_terrain()
-    combined_cloud.get_qsm_segments_rgi(42000, False)
+    combined_cloud.get_qsm_segments_rgi(42000, True)
     combined_cloud.recombine_tiles()
-    combined_cloud.get_all_cylinders(f"{basename}_cylinders.csv")
+    combined_cloud.get_all_cylinders(f"{basename}_cylinders")
 
     with open(f"{combined_cloud.results_folder}/{basename}_metrics.txt", 'w') as f:
         f.write(f"Tile Mean: {combined_cloud.mean}")
@@ -1870,6 +2018,7 @@ def current_main():
     combined_cloud.subdivide_tiles(cube_size = 20)
     # # combined_cloud.denoise(grid_size =3,min_points=10,resolution=.1)
     # # combined_cloud.remove_duplicate_points()
+    
     combined_cloud.segment_trees()
     combined_cloud.reset_terrain()
     # combined_cloud.pickle("test_model_trees_segmented.pickle")
@@ -1892,3 +2041,6 @@ def current_main():
     # combined_cloud.calc_volumes()
     # subdivided_cloud = combined_cloud.subdivide_tiles(cube_size = 10)
     # logger.info(subdivided_cloud)
+
+
+
