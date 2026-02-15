@@ -363,7 +363,7 @@ class Ecomodel:
             # New tuned parameters. 
             tuned_arguments = {
                 "max_dist": 0.3,
-                "base_height" : 2, 
+                "base_height" : 1, 
                 "layer_size" :0.15, 
                 "combine_nearby_bases" :False,
             }
@@ -392,7 +392,7 @@ class Ecomodel:
             logger.info("Time to segment cloud: %s",time.time()-start)
             
             # tile.cluster_labels = labels
-            # args_formatted = str(arguments).replace(" ", "_").replace(",", "_").replace(":","_").replace("'", "") 
+            # args_formatted = str(tuned_arguments).replace(" ", "_").replace(",", "_").replace(":","_").replace("'", "") 
             # out_path = os.path.join(self.results_folder, f"data_{args_formatted}.xyz")
             # tile.to_xyz(out_path, True)
             # logger.info(f"Clustered tile written to {out_path}")
@@ -878,6 +878,145 @@ class Ecomodel:
 
                 cluster_mask = range_mask[mask][noise_mask][intensity_mask][wood_mask]
                 trunk_mask = range_mask[mask][noise_mask][intensity_mask][wood_mask][trunk]
+                tile.cluster_labels[cluster_mask] = cloud_segments
+                tile.cluster_labels[trunk_mask] = -3
+                tile.trunk_points[trunk_mask] = 1
+                tile.cloud[tree_mask] = tree_cloud
+                tile.cylinder_starts = np.concatenate([tile.cylinder_starts,cylinder["start"]])
+                tile.cylinder_radii = np.append(tile.cylinder_radii,cylinder["radius"])
+                tile.cylinder_axes = np.concatenate([tile.cylinder_axes,cylinder["axis"]])
+                tile.cylinder_lengths = np.append(tile.cylinder_lengths,cylinder["length"])
+
+            logger.info(f"Time to create QSMs in tile {i}: {time.time() - start:.2f} seconds")
+            # tile.to_xyz(f"{self.results_folder}/after_leaf_removal_{i}.xyz", True, True)
+
+
+    def get_qsm_segments_rgi_no_leaf_removal(self, intensity_threshold=40000,save_leaf_removal_output=False):
+        """
+        Same as get_qsm_segments(), but integrates classify_wood_leaf() from SegmentRGI for
+        leaf/wood separation before QSM processing.
+        """
+
+        max_segment = 0
+        
+        for i, tile in enumerate(self.tiles.flatten()):
+            tile: 'Tile'
+            if tile == 0:
+                continue
+
+            tile.numpy()
+            tile.cluster_labels = np.array([-2] * len(tile.cloud))
+            start = time.time()
+            range_mask = np.arange(len(tile.cluster_labels))
+            tile.to_xyz(f"{self.results_folder}/pre_rgi_tile_{i}.xyz", True) 
+            for segment in np.unique(tile.segment_labels)[::-1]:
+                if segment == -1: # This means skip the uncategorized ones. 
+                    continue
+
+                mask = (tile.segment_labels == segment)
+                if len(tile.cloud[mask]) < 100:
+                    logger.info(f"Segment {segment} too small")
+                    tile.cluster_labels[mask] = -2
+                    continue
+
+                tree_cloud = tile.cloud[mask]
+                logger.info("Segment: %s", segment)
+
+                inputs = {'PatchDiam1': 0.02, 'BallRad1': 0.02, 'nmin1': 5}
+                cover = cover_sets(tree_cloud, inputs, qsm=False,
+                                device=self.device, full_point_data=tile.point_data)
+                if len(cover['sets']) == 0:
+                    logger.info("No cover sets found")
+                    continue
+
+                labels = cover['sets']
+                noise_mask = labels > -1
+                tree_cloud = tree_cloud[noise_mask]
+                if len(tree_cloud) < 100:
+                    logger.info(f"Segment {segment} too small after noise removal")
+                    tile.segment_labels[mask] = -1
+                    continue
+
+                # self.save_point_cloud(f"segment_{segment}_post_cover_set_noise_removal", tree_cloud)
+
+                try:
+                    # Combine classification result with intensity threshold
+                    intensity_mask = tile.point_data[mask][noise_mask][:, 3] > intensity_threshold
+
+                    tree = tile.point_data[mask][noise_mask][intensity_mask]
+                    tree_cloud = tree_cloud[intensity_mask]  # Keep tree_cloud in sync with intensity filtering
+
+                    # if save_leaf_removal_output:
+                    #     self.save_point_cloud(f"segment_{segment}_filtered_intensity", tree)
+
+                    tree_cloud = tree_cloud
+                    tree_no_leaves = tree
+                    self.save_point_cloud(f"segment_{segment}_before_treeqsm", tree_no_leaves)
+
+                    # if save_leaf_removal_output:
+
+                    continue
+
+                except Exception as e:
+                    logger.warning(f"[WARNING] classify_wood_leaf() failed on segment {segment}: {e}")
+                    continue
+
+                try:
+                    qsm_input = define_input(tree_cloud, 1, 1, 1)[0]
+                except np.linalg.LinAlgError as e:
+                    logger.warning(f"Unable to find axis for segment {segment}: {e}")
+                    tile.segment_labels[mask] = -1
+                    continue
+
+                qsm_input['PatchDiam1'] = 0.025
+                qsm_input['PatchDiam2Min'] = 0.05
+                qsm_input['PatchDiam2Max'] = 0.08
+                qsm_input['BallRad1'] = 0.03
+                qsm_input['BallRad2'] = 0.09
+                qsm_input['nmin1'] = 5
+
+                try: 
+                    logger.info("Cover sets")
+                    cover1 = cover_sets(tree_cloud, qsm_input)
+                    logger.info("Tree sets")
+                    cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input)
+                    logger.info("Segments")
+                    segment1 = segments(cover1, Base, Forb, qsm=True)
+                    logger.info("Correct")
+                    segment1 = correct_segments(tree_cloud, cover1, segment1, qsm_input, 0, 1, 1)
+                    RS = relative_size(tree_cloud, cover1, segment1)
+                    logger.info("Cover 2")
+                    cover1 = cover_sets(tree_cloud, qsm_input, RS)
+                    logger.info("Tree Set 2")
+                    cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input, segment1)
+                    logger.info("Segment 2")
+                    segment1 = segments(cover1, Base, Forb)
+                    logger.info("Correct 2")
+                    segment1 = correct_segments(tree_cloud, cover1, segment1, qsm_input,1,1,0)
+                    logger.info("Cylinders")
+                    cylinder = cylinders(tree_cloud,cover1,segment1,qsm_input)
+                except: 
+                    logger.warning(f"Failed to obtain cylinders from segment {segment}")
+                    continue
+
+
+                segs = segment1["SegmentArray"]
+                cover = cover1["sets"]
+                I = np.argsort(cover)
+                tree_mask = range_mask[mask][noise_mask][intensity_mask]
+                tile.point_data[tree_mask] = tile.point_data[tree_mask][I]
+                tree_cloud = tree_cloud[I]
+                neg_mask = cover == -1
+                num_indices = np.bincount(cover[~neg_mask])
+                num_indices = np.concatenate([np.array([np.sum(neg_mask)]), num_indices])
+                segs = np.concatenate([np.array([-2]), segs])
+
+                cloud_segments = np.repeat(segs, num_indices)
+                trunk = cloud_segments == 0
+                max_segment = cloud_segments.max() + max_segment
+
+                cluster_mask = range_mask[mask][noise_mask][intensity_mask]
+                trunk_mask = range_mask[mask][noise_mask][intensity_mask][trunk]
                 tile.cluster_labels[cluster_mask] = cloud_segments
                 tile.cluster_labels[trunk_mask] = -3
                 tile.trunk_points[trunk_mask] = 1
@@ -1880,9 +2019,9 @@ def ecomodel_tile(tile_file_path, results_folder):
     # combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
     # combined_cloud.save_current_tile("post_filter_ground")
     
-    combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
-    combined_cloud.normalize_raw_tiles()
-    combined_cloud.save_current_tile("post_normalize")
+    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
+    # combined_cloud.normalize_raw_tiles()
+    # combined_cloud.save_current_tile("post_normalize")
 
     for tile in combined_cloud._raw_tiles:
         tile.to(tile.device)
@@ -1890,10 +2029,10 @@ def ecomodel_tile(tile_file_path, results_folder):
     
     combined_cloud.segment_trees()
     combined_cloud.tiles[0, 0].to_xyz(f"{results_folder}/segmented_{basename}.xyz", with_clusters=True)
-    return 
+    # return 
 
-    combined_cloud.reset_terrain()
-    combined_cloud.get_qsm_segments_rgi(42000, True)
+    # combined_cloud.reset_terrain()
+    combined_cloud.get_qsm_segments_rgi_no_leaf_removal(42000, True)
     combined_cloud.recombine_tiles()
     combined_cloud.get_all_cylinders(f"{basename}_cylinders")
 

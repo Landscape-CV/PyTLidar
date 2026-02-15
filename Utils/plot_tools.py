@@ -26,16 +26,18 @@ class SimplePlotter:
 
         if point_cloud_with_intensity.shape[1] > 3:
             pc['intensity'] = point_cloud_with_intensity[:, 3]
-            self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
+            self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="rainbow")
+            self.plotter.set_background(color='black')
         else:
-            self.plotter.add_mesh(pc, point_size=2, cmap="viridis")
+            self.plotter.add_mesh(pc, point_size=2, cmap="hsv")
 
 
 
-    def show(self):
+    def show(self, title=""):
         """
         Shows the plot
         """
+        # self.plotter.add_title(title)
         self.plotter.show()
 
 
