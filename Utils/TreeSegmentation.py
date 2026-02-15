@@ -1,3 +1,45 @@
+"""
+As promised, here's an outline of how the tree segmentation algorithm works: 
+
+In Ecomodel.segment_trees(): takes Tile and identifies large (.15 meter radius) cover sets the same way that TreeQSM does this. This is effectively the same as voxelization, but has built-in noise reducing properties and only creates sets where there are already sufficient points.
+In segment_point_cloud(); (See doc string for definition of all of the inputs): Creates a set of all minimum (lowest height) points from each set -- these are the points that will be used for actually making connections.
+Starting from lowest point, build connections layer-by-layer (height of layer based on input parameter). Base points are found first, and later connections will be assigned to bases. 
+
+-Each layer connects each point to all the points within a defined radius on that layer, these clusters will be used to build the full trees later
+    -While these layers are created independently, a full kdTree is being created with the connections between layers to be used later
+Base points are filtered to avoid creating bases from noise
+-If "combine nearby bases" is on, bases that have overlap above a certain distance will be combined
+ 
+Connect_segments():
+    -First pass iterates through all identified sets starting from the lowest point:
+        -If any set assigned to a base is within max_dist of the current set;
+            -If only one, assign this set to the base, growing the region of points assigned to this base
+            -If more than one, shortest path to each base is determined and measured, and the set is assigned to the base with the shortest distance
+        -If no base sets are within max_dist, set stays unassigned (FOR NOW)
+
+    -Second pass (optional -- if connect_using_midpoint = true):
+        -Same as first pass, but defines set location by center point and not lowest point
+        -Provides better results in some situations, but not all
+    
+    -Third pass (optional -- if connect_ambiguous_points = true):
+        -Same as first except if no base sets are within max_dist, will attempt to connect to nearest base anyway
+        -Checks two closest bases by Euclidean distance; finds the shortest path to these two bases
+            -If there is a valid path, the shortest distance base is assigned
+            -If there is no valid path, the set remains unassigned
+        -This pretty much always provides better results, as it assigns the sets that were previously unassignable due to occlusion, etc. 
+
+if fix_overlapping_segments, call fix_overlap() (Optional):
+occasionally if the crowns of two trees are very intertwined the resulting segmentation is not "clean"
+This function trades points between overlapping trees until a clean delineation exists between the two
+Occasionally provides better results, usually fine to not use this
+Resets order of assignments to be used directly in Ecomodel
+
+
+
+
+"""
+
+
 
 import numpy as np
 # from main_steps.segments import segments
@@ -116,7 +158,9 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
     #"Scan-Line" Method: Add to graph one layer at a time
     #Graph 1: Used to cluster points on each layer
     #Graph 2: (Full PCD) Actual full graph to connect clusters and perform shortest-path calculations
-   
+    print("base_height", base_height)
+    print("min_Z", min_Z)
+    # print("base_height", base_height)
     while base_height+min_Z-1<torch.max(tile.cloud[:,2]):
         
         I = ((cloud[:,2]-min_Z)<base_height) & (prev_base_height<(cloud[:,2]-min_Z))
@@ -174,6 +218,8 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
         return
     print("Connect Segments")
     segments,not_explored = connect_segments(pcd_tree,pcd,segments,full_not_explored,filtered_tree_bases,max_dist*2,network,False,True)#Shortest Path to lowest point of tree
+    
+    
     if connect_using_midpoint:
         print("Connect More Segments")
         segments,not_explored = connect_segments(pcd_tree,pcd,segments,not_explored,filtered_tree_bases,max_dist,network,False,False)#Shortest path to average point of tree
@@ -184,6 +230,8 @@ def segment_point_cloud(tile, max_dist = .16, base_height = .3, layer_size =.3, 
     if fix_overlapping_segments:
         print("Fix Overlap")
         segments = fix_overlap(segments,center_points,network)
+    
+    
     print(len(segments))
     unassigned_sets = np.where(~np.isin(segments,filtered_tree_bases))
     segments[unassigned_sets]=-1

@@ -2472,6 +2472,12 @@ def subtract_terrain(point_cloud,terrain_raster,grid_size=0.1):
     
     num_bins = terrain_raster.shape[0]
 
+    # print("Subtract Terrain", x_min, x_max)
+    # print("Subtract Terrain", y_min, y_max)
+    # print("Subtract Terrain", x_bins_num, y_bins_num)
+    print("Subtract Terrain", terrain_raster.shape)
+
+
     x_bins = np.linspace(x_min, x_max, num_bins-1)
     y_bins = np.linspace(y_min, y_max, num_bins-1)
 
@@ -2480,6 +2486,7 @@ def subtract_terrain(point_cloud,terrain_raster,grid_size=0.1):
     
     normalized_heights = point_cloud[:, 2].copy()
 
+    # For each point, subtract the height found in the bin 
     for i in range(len(point_cloud)):
         normalized_heights[i] -= terrain_raster[x_indices[i], y_indices[i]]
 
