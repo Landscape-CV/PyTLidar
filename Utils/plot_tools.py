@@ -40,6 +40,22 @@ class SimplePlotter:
         # self.plotter.add_title(title)
         self.plotter.show()
 
+    def _get_cylinder_mesh(self, cylinder_start, radius, axis, length):
+        """
+        returns mesh from ecomodel data
+        
+        Get the center from the start, length and axis. 
+        """
+        center = cylinder_start + (length/2) * axis
+        mesh = pv.Cylinder(center=center, direction=axis, radius=radius, height=length)
+        return mesh
+
+    def add_cylinder(self, start, axis, radius, length):
+        """
+        Adds cylinder
+        """
+        mesh = self._get_cylinder_mesh(start, radius, axis, length)
+        self.plotter.add_mesh(mesh, color='red', opacity=0.5)
 
 class ResultsPlotter:
     """

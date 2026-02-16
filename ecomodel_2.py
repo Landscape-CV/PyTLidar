@@ -13,6 +13,23 @@ import open3d as o3d
 import networkx as nx
 import cc3d
 import matplotlib.pyplot as plt
+import os
+from pc_skeletor import LBC, SLBC
+from pc_skeletor.utility import simplify_graph
+
+import networkx as nx
+import matplotlib.pyplot as plt
+from copy import deepcopy
+import mistree as mist
+from Utils.Utils import load_point_cloud
+from Utils.plot_tools import  ResultsPlotter
+import numpy as np
+from sklearn.neighbors import NearestNeighbors
+from Utils.RobustCylinderFitting import RobustCylinderFitter
+from scipy.spatial.distance import pdist
+from sklearn.cluster import DBSCAN
+
+
 class Tile:
     """
     Simpler tile for storing point cloud.
@@ -220,12 +237,284 @@ class Segmenter(PlotterBase):
 
 
         return labels
+    
 
 
 class Segmenter2(PlotterBase):
     def __init__(self):
         super().__init__()
         self.occupied_voxels = []
+
+    def cylinders_from_graph(self, point_cloud, graph):
+        """
+        Gets the cylinders diameters and lengths from the graph.
+        """
+
+
+    def create_skeleton(self, point_cloud):
+
+        # pc = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\test_output\CC#20.las")
+
+        point_cloud = point_cloud[:,:3]
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(point_cloud)
+
+        lbc = LBC(point_cloud=pcd,
+                down_sample=0.008, init_contraction = 10,max_contraction=2048)
+        lbc.extract_skeleton()
+        # points_np = np.asarray(lbc.contracted_point_cloud)   # Shape: (N, 3)
+        branch_graph = self.get_graph(point_cloud, lbc.contracted_point_cloud)
+
+
+
+        # topology = self.extract_topology(pcd, lbc.contracted_point_cloud)
+        # lbc.topology = topology
+        # Debug/Visualization
+        # lbc.visualize()
+        # lbc.export_results('./output')
+        # lbc.animate(init_rot=np.asarray([[1, 0, 0], [0, 0, 1], [0, 1, 0]]),
+        #             steps=300,
+        #             output='./output')
+
+    def clean_graph(self, graph):
+        """
+        Cleans the graph by doing some operations on it. 
+        """
+        # Combine nodes that are in a straight line.
+
+
+        return graph
+
+    def get_graph(self, other_pc, skeleton_pc):
+
+        skeleton_pc = skeleton_pc.voxel_down_sample(voxel_size=0.1)
+
+        # self.simple_plotter.add_point_cloud(skeleton_pc)
+
+        numpy_points = np.asarray(skeleton_pc.points)
+        points = numpy_points
+
+        # self.view_point_cloud(numpy_points)
+
+        k = 6  # typical for skeletons
+
+        nbrs = NearestNeighbors(n_neighbors=k).fit(points)
+        distances, indices = nbrs.kneighbors(points)
+
+        G = nx.Graph()
+
+        # add nodes
+        for i in range(len(points)):
+            G.add_node(i)
+
+        # add weighted edges
+        for i in range(len(points)):
+            for j, d in zip(indices[i], distances[i]):
+                if i != j:
+                    G.add_edge(i, j, weight=d)
+
+        T = nx.minimum_spanning_tree(G, weight='weight')
+
+    
+        T = self.clean_graph(T)
+
+        # points = T.nodes(data=True)
+
+        edges = np.array([[u, v] for u, v in T.edges()])
+        lines = o3d.geometry.LineSet(
+            points=o3d.utility.Vector3dVector(points),
+            lines=o3d.utility.Vector2iVector(edges)
+        )
+
+        points = np.asarray(lines.points)   # shape (N, 3)
+        lines  = np.asarray(lines.lines)    # shape (M, 2)
+
+        visualize = False
+        if visualize:
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(points)
+
+            pcd2 = o3d.geometry.PointCloud()
+            pcd2.points = o3d.utility.Vector3dVector(other_pc)
+
+            # convert edges to LineSet
+            edges = np.array([[u, v] for u, v in T.edges()])
+            lines = o3d.geometry.LineSet(
+                points=o3d.utility.Vector3dVector(points),
+                lines=o3d.utility.Vector2iVector(edges)
+            )
+
+            o3d.visualization.draw_geometries([pcd, lines, pcd2])
+
+
+        # For each line process the points to get the cylinders
+        for u, v in lines:
+            p1 = points[u]
+            p2 = points[v]
+            print("edge:", u, v, "coords:", p1, p2)
+
+            line_points = self.get_points_within_line(p1, p2, other_pc, T)
+
+            
+            # self.get_cylinder_from_branch_segment(line_points)
+
+            # break 
+            # # We slice the space to grab the points
+            # from scipy.spatial import cKDTree
+
+            # tree = cKDTree(points)
+        self.simple_plotter.add_point_cloud(other_pc)
+        
+
+
+
+
+
+        # Then we convert the points 
+
+        return T
+
+        # Visualize
+
+
+
+
+
+        # pcd = o3d.geometry.PointCloud()
+        # pcd.points = o3d.utility.Vector3dVector(slice_pos)
+        
+        # # convert edges to LineSet
+        # edges = np.array([[u, v] for u, v in T.edges()])
+        # lines = o3d.geometry.LineSet(
+        #     points=o3d.utility.Vector3dVector(points),
+        #     lines=o3d.utility.Vector2iVector(edges)
+        # )
+
+        # o3d.visualization.draw_geometries([pcd, lines, pcd2])
+
+
+
+        # self.simple_plotter.plotter.add_points(points, color='blue', point_size=5)
+
+        # # add edges
+        # for u, v in G.edges():
+        #     line = np.vstack([points[u], points[v]])
+        #     self.simple_plotter.plotter.add_lines(line, color='black', width=2)
+
+        # self.simple_plotter.plotter.show()
+
+    def get_points_within_line(self, pt1, pt2, point_cloud, T):
+        
+        # Side 1
+        normal_vector = (pt1 - pt2) / np.linalg.norm(pt1 - pt2)
+
+        d = np.dot(point_cloud - pt2, normal_vector)
+
+        # slice: keep points on positive side
+        slice_pos = point_cloud[d > 0]
+
+        # # Side 2:
+        normal_vector = (pt2 - pt1) / np.linalg.norm(pt2 - pt1)
+
+        d = np.dot(slice_pos - pt1, normal_vector)
+
+        # slice: keep points on positive side
+        line_points = slice_pos[d > 0]
+
+    
+
+
+        # Keep points within a certian radius of the two other points. 
+
+        # Get cylinder information while we are at it. 
+        # Project points onto plane
+        # fitter = RobustCylinderFitter()
+        # on that plane, get the max distance between two points. 
+        normal_vector = (pt1 - pt2) / np.linalg.norm(pt1 - pt2)
+
+
+        pc1, pc2, pc3 = self.orthonormal_basis_from_vector(normal_vector)
+        
+        projection1 = np.dot(line_points, pc2)
+        projection2 = np.dot(line_points, pc3)
+        circle_projection = np.column_stack([projection1, projection2])
+        # self.circle_projection = np.transpose(circle_projection)
+
+        # plt.scatter(circle_projection[:, 0], circle_projection[:, 1])
+        # plt.axis('equal')
+        # plt.show()
+
+        db = DBSCAN(eps=0.1, min_samples=5).fit(circle_projection)
+        labels = db.labels_
+
+        # Pick the label that is closes to 0,0
+        min_distance = 1000
+        for label in labels:
+            label_mask = labels == label
+            test_point = circle_projection[label_mask][0]
+            distance = np.linalg.norm(test_point - np.array((0,0)))
+            if distance < min_distance:
+                candidate_label = label
+
+            continue
+
+        label_mask = labels == candidate_label
+        cluster_circle = circle_projection[label_mask]
+
+        # max_distance = np.max(pdist(cluster_circle))
+        fitter = RobustCylinderFitter()
+        self.circle_projection = np.transpose(circle_projection)
+        circle_params = fitter._WRLTS(self.circle_projection) # For Me WRLTS had better results on tree branches.
+        x, y, r, s = circle_params
+        l = np.linalg.norm(pt1 - pt2)
+
+        center = fitter.get_cylinder_center(pc2, pc3, x, y)
+        axis = fitter.get_cylinder_axis(pc1)
+        start = fitter.get_cylinder_start(pc2, pc3, center, axis, l)
+
+        # print("max distance",max_distance)
+        # start = pt2
+        # axis = normal_vector
+        # r = max_distance/2
+
+        self.simple_plotter.add_cylinder(start, axis, r, l)
+        
+        # self.simple_plotter.show()
+
+        return line_points
+
+
+    def orthonormal_basis_from_vector(self, v):
+        v = v / np.linalg.norm(v)
+
+        # pick a helper vector not parallel to v
+        if abs(v[0]) < 0.9:
+            tmp = np.array([1.0, 0.0, 0.0])
+        else:
+            tmp = np.array([0.0, 1.0, 0.0])
+
+        u = np.cross(v, tmp)
+        u /= np.linalg.norm(u)
+
+        w = np.cross(v, u)
+        w /= np.linalg.norm(w)
+
+        return v, u, w
+
+
+    def get_cylinder_from_branch_segment(self, points):
+        fitter = RobustCylinderFitter()
+        start, axis, r, length = fitter.fit(points)
+
+        # Project points onto plane
+        # on that plane, get the max distance between two points. 
+        normal_vector = (pt1 - pt2) / np.linalg.norm(pt1 - pt2)
+
+
+
+        self.simple_plotter.add_cylinder(start, axis, r, length)
+        
+
 
 
     def process(self, point_cloud):
@@ -511,7 +800,17 @@ if __name__ == "__main__":
 
 
 
-    tile_data, full_data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\_experimentation\testing_my_method\leaves_intensity_removed.xyz", full_data=True)
-    # tile_data, full_data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\_experimentation\testing_my_method\two_trees.las", full_data=True)
-    model.normalize_point_cloud(full_data)
-    model.perform_instance_segmentation(full_data)
+    # tile_data, full_data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\_experimentation\testing_my_method\leaves_intensity_removed.xyz", full_data=True)
+    # # tile_data, full_data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\_experimentation\testing_my_method\two_trees.las", full_data=True)
+    # model.normalize_point_cloud(full_data)
+    # model.perform_instance_segmentation(full_data)
+
+    # Connected components test:
+    folder_path = r"G:\Projects\TreeCanopyLidar\PyTLidar\_experimentation\testing_my_method\components_cc"
+    for file in os.listdir(folder_path):
+        pc, pcdata = load_point_cloud(f"{folder_path}\\{file}", full_data=True)
+        pcdata = model.normalize_point_cloud(pcdata)
+        model.segmenter.create_skeleton(pcdata)
+        model.segmenter.simple_plotter.plotter.show()
+        # self.simple_plotter.show()
+        break

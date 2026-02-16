@@ -2013,15 +2013,15 @@ def ecomodel_tile(tile_file_path, results_folder):
     if combined_cloud is None:
         raise FileNotFoundError("Exiting: please add LAS/LAZ files and rerun.")
 
-    # combined_cloud.subdivide_tiles(cube_size = 20)
-    # combined_cloud.remove_duplicate_points()
-    # combined_cloud.recombine_tiles()    
-    # combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
-    # combined_cloud.save_current_tile("post_filter_ground")
+    combined_cloud.subdivide_tiles(cube_size = 20)
+    combined_cloud.remove_duplicate_points()
+    combined_cloud.recombine_tiles()    
+    combined_cloud.filter_ground(combined_cloud._raw_tiles,offset =.1)
+    combined_cloud.save_current_tile("post_filter_ground")
     
-    # combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
-    # combined_cloud.normalize_raw_tiles()
-    # combined_cloud.save_current_tile("post_normalize")
+    combined_cloud.get_terrain_model(combined_cloud._raw_tiles)
+    combined_cloud.normalize_raw_tiles()
+    combined_cloud.save_current_tile("post_normalize")
 
     for tile in combined_cloud._raw_tiles:
         tile.to(tile.device)
