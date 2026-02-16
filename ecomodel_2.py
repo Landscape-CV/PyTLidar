@@ -11,8 +11,8 @@ from plyfile import PlyData, PlyElement
 from Utils.plot_tools import SimplePlotter
 import open3d as o3d
 import networkx as nx
-
-
+import cc3d
+import matplotlib.pyplot as plt
 class Tile:
     """
     Simpler tile for storing point cloud.
@@ -222,11 +222,137 @@ class Segmenter(PlotterBase):
         return labels
 
 
+class Segmenter2(PlotterBase):
+    def __init__(self):
+        super().__init__()
+        self.occupied_voxels = []
+
+
+    def process(self, point_cloud):
+        """"""
+        data_xyz = point_cloud[:, :3]
+        self.save_point_cloud("Debug.txt", data_xyz)
+
+        
+        # data_xyz = data_xyz - np.mean(data_xyz, axis=1)[:,np.newaxis]
+        # self.view_point_cloud(point_cloud)
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(data_xyz)
+        octree = o3d.geometry.Octree(max_depth=8)  # tweak depth as needed
+        octree.convert_from_point_cloud(pcd, size_expand=0.01)
+        # o3d.visualization.draw_geometries([pcd])        # raw point cloud
+        # o3d.visualization.draw_geometries([octree])     # octree cells
+        octree.traverse(self.traverse_callback)
+        self.octree = octree
+
+        voxel_grid = self.create_voxel_grid()
+        self.classify_connected_components(voxel_grid)
+
+        # Then we turn those voxels back into the worldspace. 
+
+
+    def traverse_callback(self, node, node_info):
+        if isinstance(node, o3d.geometry.OctreeLeafNode):
+            self.occupied_voxels.append(node_info)
+
+
+    def create_voxel_grid(self):
+
+        points = np.zeros((len(self.occupied_voxels), 3))
+        for index, voxel in enumerate(self.occupied_voxels):
+            points[index, :] = voxel.origin
+
+        # self.view_point_cloud(points)
+
+        print("Total num voxels", len(self.occupied_voxels))
+
+        voxel_size = self.occupied_voxels[0].size
+        min_corner = self.octree.origin
+        max_corner = self.octree.origin + self.octree.size
+
+        grid_shape = np.ceil((max_corner - min_corner) / voxel_size).astype(int)
+        voxel_grid = np.zeros(grid_shape, dtype=np.uint8)
+
+        for info in self.occupied_voxels:
+            idx = ((info.origin - min_corner) / voxel_size).astype(int)
+            voxel_grid[idx[0], idx[1], idx[2]] = 1
+
+        return voxel_grid
+
+
+        # fig = plt.figure()
+        # ax = fig.add_subplot(projection='3d')
+
+        # # voxel_grid is a 3D numpy array of 0/1
+        # ax.voxels(voxel_grid.astype(bool), facecolors='blue', edgecolor='k')
+
+        # plt.show()
+
+
+
+
+
+
+        # voxels = []
+        # for info in self.occupied_voxels:
+        #     center = info.origin + info.size * 0.5
+        #     voxels.append(o3d.geometry.Voxel(center, voxel_size))
+
+        # vg = o3d.geometry.VoxelGrid()
+        # vg.voxels = o3d.utility.Vector3iVector(voxels)
+        # vg.voxel_size = voxel_size
+
+        # o3d.visualization.draw_geometries([vg])
+
+
+
+
+
+
+
+        # early_stop = False
+
+        # if isinstance(node, o3d.geometry.OctreeInternalNode):
+        #     if isinstance(node, o3d.geometry.OctreeInternalPointNode):
+        #         n = 0
+        #         for child in node.children:
+        #             if child is not None:
+        #                 n += 1
+        #         print(
+        #             "{}{}: Internal node at depth {} has {} children and {} points ({})"
+        #             .format('    ' * node_info.depth,
+        #                     node_info.child_index, node_info.depth, n,
+        #                     len(node.indices), node_info.origin))
+
+        #         # we only want to process nodes / spatial regions with enough points
+        #         early_stop = len(node.indices) < 250
+        # elif isinstance(node, o3d.geometry.OctreeLeafNode):
+        #     if isinstance(node, o3d.geometry.OctreePointColorLeafNode):
+        #         print("{}{}: Leaf node at depth {} has {} points with origin {}".
+        #             format('    ' * node_info.depth, node_info.child_index,
+        #                     node_info.depth, len(node.indices), node_info.origin))
+        # else:
+        #     raise NotImplementedError('Node type not recognized!')
+
+        # # early stopping: if True, traversal of children of the current node will be skipped
+        # return early_stop
+
+    # octree.traverse(collect)
+
+
+    def classify_connected_components(self, voxel_grid):
+        labels_out = cc3d.connected_components(voxel_grid) # 26-connected
+        print(np.unique(labels_out))
+        return labels_out
+
+
+
+
 class Ecomodel2(PlotterBase):
     def __init__(self):
         super().__init__()
         self.results_folder = ""
-        self.segmenter = Segmenter()
+        self.segmenter = Segmenter2()
 
 
     def run(self):
@@ -366,6 +492,13 @@ class Ecomodel2(PlotterBase):
         """"""
         self.segmenter.process(point_cloud)
 
+    def normalize_point_cloud(self, point_cloud):
+        self.mean = np.mean(point_cloud[:,0:3], axis=0)
+
+        point_cloud[:, :3] = point_cloud[:, :3] - self.mean
+
+        return point_cloud
+
 if __name__ == "__main__":
     model = Ecomodel2()
 
@@ -380,4 +513,5 @@ if __name__ == "__main__":
 
     tile_data, full_data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\_experimentation\testing_my_method\leaves_intensity_removed.xyz", full_data=True)
     # tile_data, full_data = load_point_cloud(r"G:\Projects\TreeCanopyLidar\PyTLidar\_experimentation\testing_my_method\two_trees.las", full_data=True)
+    model.normalize_point_cloud(full_data)
     model.perform_instance_segmentation(full_data)
