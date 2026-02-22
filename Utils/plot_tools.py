@@ -20,8 +20,8 @@ class SimplePlotter:
         xyz = point_cloud_with_intensity[:, :3]
 
         # Compute mean for global shift and scale.
-        mean = np.mean(xyz, axis=0)
-        xyz = xyz - mean
+        # mean = np.mean(xyz, axis=0)
+        # xyz = xyz - mean
         pc = pv.PolyData(xyz)
 
         if point_cloud_with_intensity.shape[1] > 3:
