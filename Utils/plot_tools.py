@@ -27,7 +27,7 @@ class SimplePlotter:
         if point_cloud_with_intensity.shape[1] > 3:
             pc['intensity'] = point_cloud_with_intensity[:, 3]
             self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="rainbow")
-            self.plotter.set_background(color='black')
+            # self.plotter.set_background(color='black')
         else:
             self.plotter.add_mesh(pc, point_size=2, cmap="hsv")
 
@@ -69,8 +69,8 @@ class ResultsPlotter:
     >>> results.add_cylinders(r"results/File_first_link_stroud.txt", mean)
     >>> results.show() 
     """
-    def __init__(self, grid_center, grid=True, terrain_style=True, parallel_projection=False, legend=True):
-        self.plotter = pv.Plotter()
+    def __init__(self, grid_center, grid=True, terrain_style=True, parallel_projection=False, legend=True, off_screen = False):
+        self.plotter = pv.Plotter(off_screen=off_screen)
 
         # Create grid for reference to ground plane.
         if grid:
@@ -95,6 +95,12 @@ class ResultsPlotter:
             self.plotter.add_text('Large Branch (r=10+cm)', color= 'orange', position=(left, top-80), font_size=12)
 
             self.plotter.add_axes(interactive=True)
+
+        # self.plotter.camera_position = 'iso'
+        self.plotter.camera.position = np.array([21.220488085053102, 17.745813665473612, 10.826663849739447])
+
+        self.plotter.camera.focal_point = (0, 0, -1)
+
 
     def _get_cylinder_mesh(self, cylinder_start, radius, axis, length):
         """
@@ -140,12 +146,11 @@ class ResultsPlotter:
         pc['intensity'] = data
         self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
 
-    def add_point_cloud_np_intensity(self, point_cloud_with_intensity, mean):
+    def add_point_cloud_np_intensity(self, point_cloud_with_intensity):
         """
         Adds a point cloud to the scene
         """
         xyz = point_cloud_with_intensity[:, :3]
-        xyz = xyz - mean
         pc = pv.PolyData(xyz)
         pc['intensity'] = point_cloud_with_intensity[:, 3]
         self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
@@ -160,9 +165,21 @@ class ResultsPlotter:
         pc = pv.PolyData(xyz)
         self.plotter.add_mesh(pc, point_size=2, cmap="viridis")
 
+    def normalize_point_cloud(self, point_cloud):
+        self.mean = np.mean(point_cloud[:,0:3], axis=0)
 
+        point_cloud[:, :3] = point_cloud[:, :3] - self.mean
 
-    def add_cylinders(self, path_to_cylinder_data_file, mean):
+        return point_cloud
+
+    def get_image(self, filename):
+        filepath = f"images/{filename}"
+        self.plotter.show()
+        self.plotter.screenshot(filepath)
+
+        return filepath
+
+    def add_cylinders(self, cylinders):
         """
         Plots cylinders from ecomodel results
 
@@ -170,13 +187,14 @@ class ResultsPlotter:
             path_to_cylinder_data_file (str): path to cylinder data file
             mean (np.array): Mean from ecomodel results to adjust cylinders
         """
-        cylinders = np.loadtxt(path_to_cylinder_data_file)
-        cylinders[:, 0:3] = cylinders[:, 0:3] - mean 
+        # cylinders = np.loadtxt(path_to_cylinder_data_file)
+        cylinders_copy = np.copy(cylinders)
+        # cylinders_copy[:, 0:3] = cylinders[:, 0:3] - mean 
 
-        print("Total Number of Cylinders:", cylinders.shape[0])
+        print("Total Number of Cylinders:", cylinders_copy.shape[0])
         
-        for cylinder_row in range(0, cylinders.shape[0]):
-            cylinder_data = cylinders[cylinder_row]
+        for cylinder_row in range(0, cylinders_copy.shape[0]):
+            cylinder_data = cylinders_copy[cylinder_row]
 
             start = cylinder_data[0:3]
             radius = cylinder_data[3:4]

@@ -1,6 +1,8 @@
 """
 This module includes a class which streamlines the current ecomodel.
 """
+
+import random
 import CSF
 import numpy as np
 from Utils.Utils import load_point_cloud
@@ -37,14 +39,6 @@ import time
 from TreeQSMSteps.cover_sets import cover_sets
 from Utils.TreeSegmentation import segment_point_cloud
 from ecomodel import Tile
-
-
-class Tile:
-    """
-    Simpler tile for storing point cloud.
-    """
-    def __init__(self):
-        """"""
         
 
 class PlotterBase:
@@ -504,6 +498,10 @@ class SegmenterScanline:
 
         return point_cloud, labels
 
+        # print(point_cloud[point_mask].shape)
+
+
+
 class Segmenter2():
     def __init__(self):
         super().__init__()
@@ -557,7 +555,7 @@ class Segmenter2():
         Cleans the graph by doing some operations on it. 
         """
         # Combine nodes that are in a straight line.
-        print("Before", graph.number_of_nodes())
+        # print("Before", graph.number_of_nodes())
         
         
         # Remove nodes with a single edge. 
@@ -574,7 +572,7 @@ class Segmenter2():
         for n in list(graph.nodes()):
             if graph.degree(n) == 0:
                 graph.remove_node(n)
-        print("After", graph.number_of_nodes())
+        # print("After", graph.number_of_nodes())
 
         return graph
 
@@ -858,6 +856,8 @@ class Segmenter2():
         # Then we turn those voxels back into the worldspace. 
 
 
+
+
     def traverse_callback(self, node, node_info):
         if isinstance(node, o3d.geometry.OctreeLeafNode):
             self.occupied_nodes.append(node)
@@ -1049,3 +1049,12 @@ class Segmenter2():
 
 
 
+if __name__ == "__main__":
+    classifier = DistanceBasedNoiseRemoval()
+
+    path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\2025_1cm\tile_00005_2_0_leaves_removed.xyz")
+    folder_path = path.parent
+    basename = path.stem
+    tile_data, full_data = load_point_cloud(str(path), full_data=True)
+
+    classifier.remove_distant_small_clusters(full_data)
