@@ -487,7 +487,7 @@ if __name__ == "__main__":
         logger.info("------------- Processing Tile %s -------------", tile)
         full_tile_path = os.path.join(folder, tile)
         model.process_tile(full_tile_path, save_data=True, show_plots=False)
-        break
+        # break
 
 
     # Testing: 
