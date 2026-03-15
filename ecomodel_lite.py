@@ -138,7 +138,7 @@ class DistanceBasedNoiseRemoval:
 
 class EcomodelLite:
     """
-    Obtains cylinders from 
+    Obtains cylinders from a dense forest tile. 
     """
     def __init__(self, results_folder="results", intensity_threshold=0):
         super().__init__()
