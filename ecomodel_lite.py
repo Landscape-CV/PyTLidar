@@ -41,6 +41,18 @@ logger.addHandler(f_handler)
 logger.addHandler(c_handler)
 
 class DistanceBasedNoiseRemoval:
+    """
+    This class removes small and distant clusters to improve the TreeQSM results. 
+
+    It achieves this by:
+    1. Voxelizing the point cloud to create a 3D grid representation.
+    2. Performing connected component analysis on the voxel grid to identify clusters.
+    3. Creating a mask for each cluster in the connected components, applying to the original point cloud and labeling appropriately. 
+    4. Using the amount of points in clusters (which are seperated by voxel_size spaces in the voxel grid) and removing the smaller clusters. 
+    
+    Note: 
+        Main function is 'remove_distant_small_clusters' 
+    """
     def __init__(self, voxel_size=1, min_points=100):
         self.voxel_size = voxel_size
         self.min_points = min_points
@@ -50,14 +62,14 @@ class DistanceBasedNoiseRemoval:
         """
         Remove small clusters.
 
-        Step . 
+        Args: 
+            point_cloud (array): Represents size of cluster. 
         """
         data_xyz = point_cloud[:, :3]
 
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(data_xyz)
 
-        # print("Voxel Grid")
         # Create a Voxel Grid for the point cloud. Obtain the grid shape 
         voxel_grid = o3d.geometry.VoxelGrid.create_from_point_cloud(pcd, voxel_size=self.voxel_size)
         voxels = voxel_grid.get_voxels()
@@ -70,34 +82,32 @@ class DistanceBasedNoiseRemoval:
         grid[coordinates[:,0], coordinates[:,1], coordinates[:,2]] = 1
 
         # Perform classification. 
-        # print("Classification")
         classified = cc3d.connected_components(grid)
 
         # 1. Determine the indices at for each voxel grid. 
         # 2. Determine the points that are within the voxel coordinates (point_mask)
         # 3. Remove the points using the mask.  
         point_cloud_with_classification = np.concatenate((point_cloud[:,:3], np.zeros((point_cloud.shape[0], 1))), axis=1)
-        # print("Iterations")
         for classification in np.unique(classified):
             mask = classified == classification
-            # print(mask.shape)
             x_idx, y_idx, z_idx = np.where(mask)
             indices = np.concatenate((x_idx[:, np.newaxis], y_idx[:, np.newaxis], z_idx[:, np.newaxis]), axis=1)
-            # print("Amount of indices", indices.shape)
 
             for index in indices:
                 point_mask = self.get_mask_for_voxel(point_cloud, index, voxel_grid.origin, self.voxel_size)
                 point_cloud_with_classification[point_mask, 3] = classification
 
         point_cloud_cleaned = self.remove_points(point_cloud_with_classification)
-        # print("Done")
         return point_cloud_cleaned[:, :3]
 
     def get_mask_for_voxel(self, point_cloud, voxel_indices, origin, voxel_size):
+        """
+        Uses the point cloud, voxel indices, and location of voxel to 
+        obtain the mask within the normal point cloud space. 
+        """
         voxel_min = origin + voxel_indices * voxel_size
         voxel_max = voxel_min + voxel_size
         
-        # print(voxel_min, voxel_max)
         mask = np.all(
             (point_cloud[:, :3] >= voxel_min) &
             (point_cloud[:, :3] <  voxel_max),   # strict upper bound
@@ -116,7 +126,6 @@ class DistanceBasedNoiseRemoval:
             if np.count_nonzero(classified_point_cloud[:, 3] == classification) < min_points:
                 mask = classification_copy[:, 3] != classification
                 classification_copy = classification_copy[mask]
-                # print("REMOVED", classification)
         
         return classification_copy
 
@@ -128,11 +137,15 @@ class DistanceBasedNoiseRemoval:
 
 
 class EcomodelLite:
-    def __init__(self, results_folder="results"):
+    """
+    Obtains cylinders from 
+    """
+    def __init__(self, results_folder="results", intensity_threshold=0):
         super().__init__()
         if not os.path.isdir(results_folder):
             os.mkdir(results_folder)
         self.results_folder = results_folder
+        self.intensity_threshold = intensity_threshold
         self.segmenter = SegmenterScanline()
         self.plotter = SimplePlotter()
         self.noise_remover = DistanceBasedNoiseRemoval(0.25, 100)
@@ -181,11 +194,30 @@ class EcomodelLite:
         return point_cloud
 
     def normalize_point_cloud(self, point_cloud):
+        """
+        Subtracts mean from point cloud
+
+        Args: 
+            point_cloud (Nx3 Array): Point cloud representing tile.
+
+        Returns:
+            point_cloud (Nx3 Array): Point cloud representing tile after normalization.
+        """
         self.mean = np.mean(point_cloud[:,0:3], axis=0)
         point_cloud[:, :3] = point_cloud[:, :3] - self.mean
         return point_cloud
 
     def unnormalize_point_cloud(self, point_cloud):
+        """
+        Adds mean to point cloud
+
+        Args: 
+            point_cloud (Nx3 Array): Point cloud representing tile.
+
+        Returns:
+            point_cloud (Nx3 Array): Point cloud representing tile before normalization.
+
+        """
         point_cloud[:, :3] = point_cloud[:, :3] + self.mean
         return point_cloud
 
@@ -381,6 +413,10 @@ class EcomodelLite:
     def view_cylinders(self, point_cloud, cylinder_data):
         """
         View cylinders in PyVista.
+
+        Args:
+            point_cloud (Nx4): point cloud representing a tile with trees.
+            cylinder_data (Cx8): Cx8 numpy array representing the cylinders found in the tile.
         """
         print(cylinder_data.shape)
         for cylinder_row in range(0, cylinder_data.shape[0]):
@@ -400,6 +436,11 @@ class EcomodelLite:
     def process_tile(self, tile_path, save_data=False, show_plots=False):
         """
         Process a point cloud tile. 
+
+        Args:
+            tile_path (str): Path to the point cloud tile.
+            save_data (bool): Whether to save the results or not. 
+            show_plots (bool): Whether to show the plots or not.
         """
         path = Path(tile_path)
         os.makedirs(f"{self.results_folder}/{path.stem}",exist_ok=True )
@@ -411,7 +452,7 @@ class EcomodelLite:
             print("Low data tile after removing ground.")
             return
 
-        full_data = model.filter_intensity(full_data, 42000)
+        full_data = model.filter_intensity(full_data, self.intensity_threshold)
         if full_data.size < 100: 
             print("Empty array after filtering intensity.")
             return
@@ -448,6 +489,11 @@ class EcomodelLite:
     def process_tile_no_leaf_removal(self, tile_path, save_data=False, show_plots=False):
         """
         Perform only the instance segmentation and TreeQSM on the tile. Assumes leaf removal already complete. 
+
+        Args:
+            tile_path (str): Path to the point cloud tile.
+            save_data (bool): Whether to save the results or not. 
+            show_plots (bool): Whether to show the plots or not.
         """
         path = Path(tile_path)
         os.makedirs(f"{self.results_folder}/{path.stem}",exist_ok=True )
@@ -478,10 +524,10 @@ class EcomodelLite:
 
 
 if __name__ == "__main__":
-    model = EcomodelLite(results_folder="results_lite")
+    model = EcomodelLite(results_folder="results_lite_rush", intensity_threshold=10)
     # model.process_tile_no_leaf_removal(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10")
 
-    folder = r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10"
+    folder = r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better"
     files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
     for tile in files:
         logger.info("------------- Processing Tile %s -------------", tile)
