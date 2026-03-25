@@ -97,7 +97,8 @@ class ResultsPlotter:
             self.plotter.add_axes(interactive=True)
 
         # self.plotter.camera_position = 'iso'
-        self.plotter.camera.position = np.array([21.220488085053102, 17.745813665473612, 10.826663849739447])
+        # self.plotter.camera.position = np.array([21.220488085053102, 17.745813665473612, 10.826663849739447]) # This is for the ecomodel 10x10 tiles. 
+        self.plotter.camera.position = np.array([40.220488085053102, 35.745813665473612, 25.826663849739447]) # This is for the ecomodel 10x10 tiles. 
 
         self.plotter.camera.focal_point = (0, 0, -1)
 
