@@ -19,7 +19,7 @@ import numpy as np
 from pathlib import Path
 import time
 from TreeQSMSteps.cover_sets import cover_sets
-from e_segmenters import SegmenterScanline
+from ecomodel_segmenters import SegmenterScanline
 from Utils.define_input import define_input
 from treeqsm import treeqsm
 from TreeQSMSteps.cover_sets import cover_sets
