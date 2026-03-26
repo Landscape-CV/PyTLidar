@@ -40,9 +40,9 @@ class ReportMaker:
         self.canvas.save()
 
 if __name__ == "__main__":
-    results_folder = "results_lite"
-    original_folder = r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10"
-    report = ReportMaker("Ecomodel_Results.pdf")
+    results_folder = "results_lite_rush"
+    original_folder = r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better"
+    report = ReportMaker("Ecomodel_Results_Rush2.pdf")
         
     for file in os.listdir(original_folder):
         laz_file = Path(original_folder, file)
@@ -60,8 +60,11 @@ if __name__ == "__main__":
         
         tile_name = laz_file.stem
 
+        print(folder_path)
         if data_present:
+            print(os.listdir(str(folder_path)))
             for data_file in os.listdir(str(folder_path)):
+                print(data_file)
                 data_path = f"{folder_path}/{data_file}"
                 if "cylinders" in data_file:
                     cylinders_data = np.loadtxt(data_path)
@@ -74,34 +77,41 @@ if __name__ == "__main__":
 
                 if "leavesremoved" in data_file.split("_")[-1]:
                     # print(data_path)
-                    _, leaves_removed = load_point_cloud(data_path, full_data=True)
-                    
+                    try:
+                        _, leaves_removed = load_point_cloud(data_path, full_data=True)
+                    except Exception as e:
+                        print(f"Error loading leaves removed data from {data_path}: {e}")
+                        leaves_removed = np.array([])  # Set to empty array if loading fails
                     print("loaded removed.")
 
             
             
             # Normalize data for plotting. 
-            leaves_removed[:, :3] = leaves_removed[:, :3] - actual_mean
-            cylinders_data[:,:3] = cylinders_data[:,:3] - actual_mean   
+            if cylinders_data.size == 0  or leaves_removed.size == 0:
+                ground_z = 0
+                pc, pcdata = load_point_cloud(str(laz_file), full_data=True)
+                actual_mean = np.mean(pcdata[:, :3], axis=0)
+            else: 
+                leaves_removed[:, :3] = leaves_removed[:, :3] - actual_mean
+                cylinders_data[:,:3] = cylinders_data[:,:3] - actual_mean   
+                # Only Leaves Removed
+                plotter = ResultsPlotter(np.array([0,0,ground_z]), legend=False, off_screen=True)
+                plotter.add_point_cloud_np_intensity(leaves_removed)
+                path = plotter.get_image(f"{tile_name}_wood.jpg")
+                report.add_point_cloud_leaves_removed(path)
 
-            # Only Leaves Removed
-            plotter = ResultsPlotter(np.array([0,0,ground_z]), legend=False, off_screen=True)
-            plotter.add_point_cloud_np_intensity(leaves_removed)
-            path = plotter.get_image(f"{tile_name}_wood.jpg")
-            report.add_point_cloud_leaves_removed(path)
+                # Leaves Removed with Cylinders:
+                plotter = ResultsPlotter(np.array([0,0,ground_z]), legend=False, off_screen=True)
+                plotter.add_point_cloud_np_intensity(leaves_removed)
+                plotter.add_cylinders(cylinders_data)
+                path = plotter.get_image(f"{laz_file.stem}_brances_cylinders.jpg")
+                report.add_point_cloud_leaves_removed_cylinders(path)
 
-            # Leaves Removed with Cylinders:
-            plotter = ResultsPlotter(np.array([0,0,ground_z]), legend=False, off_screen=True)
-            plotter.add_point_cloud_np_intensity(leaves_removed)
-            plotter.add_cylinders(cylinders_data)
-            path = plotter.get_image(f"{laz_file.stem}_brances_cylinders.jpg")
-            report.add_point_cloud_leaves_removed_cylinders(path)
-
-            # Just Cylinders
-            plotter = ResultsPlotter(np.array([0,0,ground_z]), legend=False, off_screen=True)
-            plotter.add_cylinders(cylinders_data)
-            path = plotter.get_image(f"{laz_file.stem}_cylinders.jpg")
-            report.add_just_cylinders(path)
+                # Just Cylinders
+                plotter = ResultsPlotter(np.array([0,0,ground_z]), legend=False, off_screen=True)
+                plotter.add_cylinders(cylinders_data)
+                path = plotter.get_image(f"{laz_file.stem}_cylinders.jpg")
+                report.add_just_cylinders(path)
 
         else:
             ground_z = 0
@@ -122,6 +132,8 @@ if __name__ == "__main__":
         report.canvas.drawString(5 * inch, 8 * inch, f"Tile: {tile_name}")
 
         report.canvas.showPage()
+
+        # break
 
 
         
