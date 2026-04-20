@@ -182,6 +182,7 @@ class QueryPage(QWidget):
         self._tabs = QTabWidget()
         self._tabs.addTab(self._build_single_point_tab(), "Single Point")
         self._tabs.addTab(self._build_batch_tab(), "Batch CSV")
+        self._tabs.currentChanged.connect(self._on_tab_changed)
         root.addWidget(self._tabs, stretch=1)
 
     def _build_single_point_tab(self) -> QWidget:
@@ -444,6 +445,14 @@ class QueryPage(QWidget):
         w.setLayout(layout)
         return w
 
+    # ── Tab switching ─────────────────────────────────────────────────────────
+
+    def _on_tab_changed(self, index: int) -> None:
+        """Load the cloud background when the user first visits Single Point tab."""
+        if index == 0 and self._engine is not None and self._engine.is_loaded:
+            if self._cloud_cache is None and self._bg_meshes is None:
+                self._show_cloud()
+
     # ── Public API ────────────────────────────────────────────────────────────
 
     def set_results_folder(self, folder: str) -> None:
@@ -494,6 +503,17 @@ class QueryPage(QWidget):
         if index < 0 or index >= len(self._run_dirs):
             return
         from gui.worker import BgTask
+
+        # Stop any in-flight batch before swapping the engine — the batch
+        # worker holds a reference to self._engine and must not touch it
+        # after we clear it below.
+        if self._batch_worker is not None:
+            self._batch_worker.request_stop()
+        if self._batch_thread is not None and self._batch_thread.isRunning():
+            self._batch_thread.quit()
+            self._batch_thread.wait(3000)
+        self._batch_run_btn.setEnabled(True)
+        self._batch_stop_btn.setEnabled(False)
 
         run_dir = self._run_dirs[index]
         self._engine = None
@@ -576,9 +596,12 @@ class QueryPage(QWidget):
         )
         self.status_message.emit(f"Query ready: {run_dir.name}")
 
-        # Auto-load the point cloud as background so it's ready before the
-        # first query runs.
-        self._show_cloud()
+        # Auto-load the point cloud only when the Single Point tab is visible.
+        # Rendering into a hidden VTK/OpenGL widget (inside an inactive tab)
+        # can crash the GPU driver on Windows.  If the user is on Batch tab,
+        # the cloud will be loaded lazily when they switch to Single Point.
+        if self._tabs.currentIndex() == 0:
+            self._show_cloud()
 
     def _on_engine_error(self, seq: int, tb: str) -> None:
         if seq != self._load_seq:
