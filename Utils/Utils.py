@@ -23,10 +23,6 @@ import sys
 from numba import jit
 from numba.experimental import jitclass
 import laspy
-try:
-    from plotting.qsm_plotting import qsm_plotting
-except ImportError:
-    from ..plotting.qsm_plotting import qsm_plotting
 import open3d as o3d
 from robpy.covariance import DetMCD,FastMCD
 from scipy.spatial.transform import Rotation 
@@ -37,6 +33,22 @@ from scipy.interpolate import griddata
 
     
     
+
+# Module-level record of scalar field names available in the most recently
+# loaded LAS/LAZ file.  Kept as a mutable list so pipeline.py closures can
+# read it without a nonlocal declaration.
+# Currently always ["Intensity"] — point_data is kept at (N, 4) so the
+# ecomodel pipeline (torch subdivide_tiles etc.) is not affected.
+_las_scalar_fields: list = ["Intensity"]
+
+
+def get_last_las_field_names() -> list:
+    """
+    Return the scalar field names (columns 3 onward of point_data) from the
+    most recently loaded LAS/LAZ file.
+    """
+    return list(_las_scalar_fields)
+
 
 def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
     """
@@ -49,6 +61,14 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
     Returns:
     point_cloud : ndarray
         Nx3 matrix of point coordinates (x, y, z).
+    point_data : ndarray (when full_data=True)
+        Nx4 matrix — columns 0-2 are x,y,z, column 3 is intensity.
+
+    NOTE: point_data is intentionally kept at exactly 4 columns so that
+    ecomodel's torch-based subdivide_tiles (which concatenates point_data
+    into a fixed-width tensor) continues to work regardless of LAS format.
+    Extra LAS scalar fields are saved at snapshot time via a separate read
+    of the file rather than by widening the pipeline arrays.
     """
     if ".xyz" in file_path or ".txt" in file_path:
         # Load point cloud from an XYZ file
@@ -61,13 +81,24 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
         else:
             raise ValueError("Unsupported format in .xyz or .txt file.")
         return point_cloud if not full_data else (point_cloud, point_data)
+
     with laspy.open(file_path) as las:
-        point_data = las.read()
-        point_data = np.vstack((point_data.x, point_data.y, point_data.z,point_data.intensity)).T.astype('float64')
-        I = point_data[:,3]>=intensity_threshold
-        point_data = point_data[I]
-        point_cloud = point_data[:,0:3]
-    return point_cloud if not full_data else (point_cloud,point_data)
+        _las_pts = las.read()
+        # Pre-allocate a single (N, 4) float64 array and fill each column
+        # in-place — avoids the vstack + astype double-allocation that peaks
+        # at ~3 GB for large scans.
+        _n = len(_las_pts.x)
+        point_data = np.empty((_n, 4), dtype=np.float64)
+        point_data[:, 0] = _las_pts.x
+        point_data[:, 1] = _las_pts.y
+        point_data[:, 2] = _las_pts.z
+        point_data[:, 3] = _las_pts.intensity
+        del _las_pts          # free laspy arrays before the intensity filter
+        mask = point_data[:, 3] >= intensity_threshold
+        point_data = point_data[mask]
+        point_cloud = point_data[:, 0:3]
+
+    return point_cloud if not full_data else (point_cloud, point_data)
 
 
 
@@ -442,9 +473,11 @@ def optimal_parallel_vector(V):
         sigmah (float): The standard deviation of these absolute dot products.
         residual (numpy.ndarray): 1D array containing the absolute dot products for each row.
     """
+    if len(V) == 0:
+        raise ValueError("optimal_parallel_vector: input array V is empty.")
     _, _, vh = np.linalg.svd(V, full_matrices=False)
-
-
+    if len(vh) == 0:
+        raise ValueError("optimal_parallel_vector: SVD returned empty vh.")
     return vh[0]
 
 
@@ -2126,7 +2159,12 @@ def split_segments(segment_cloud, num_test_regions = 5, angle_threshold = 60):
         new_vec1 = (next_seg[-1]-next_seg[0])#/(np.linalg.vector_norm(c-b))
         
         
-        angle = np.rad2deg(np.arccos(np.dot(last_vec, new_vec1)/(np.linalg.norm(last_vec)*np.linalg.norm(new_vec1))))
+        denom = np.linalg.norm(last_vec) * np.linalg.norm(new_vec1)
+        if denom < 1e-9:
+            last_vec = new_vec1
+            last_seg = next_seg
+            continue
+        angle = np.rad2deg(np.arccos(np.clip(np.dot(last_vec, new_vec1) / denom, -1.0, 1.0)))
         if angle > angle_threshold:
             segs[i*segsize:] = 1
             return segs
@@ -2358,8 +2396,8 @@ def get_surface_points(ground_points, grid_size):
     y_bins = np.linspace(y_min, y_max, grid_cells + 1)
     
     # Digitize the points into the grid
-    x_indices = np.digitize(ground_points[:, 0], x_bins) - 1
-    y_indices = np.digitize(ground_points[:, 1], y_bins) - 1
+    x_indices = np.clip(np.digitize(ground_points[:, 0], x_bins) - 1, 0, grid_cells - 1)
+    y_indices = np.clip(np.digitize(ground_points[:, 1], y_bins) - 1, 0, grid_cells - 1)
     
     # Create a grid to hold the highest points
     highest_points = []
@@ -2455,40 +2493,38 @@ def get_notable_features(cloud_raster,threshold =.01,y_min = 0,x_min=0, resoluti
     
     return notable_features
 
-def subtract_terrain(point_cloud,terrain_raster,grid_size=0.1):
+def subtract_terrain(point_cloud, terrain_raster, grid_size=0.1):
     """
     Subtract terrain height from point cloud to get normalized heights.
-    
+
     Args:
-        point_cloud: Point cloud data as a numpy array of shape (N, 3).
-        terrain_raster: 2D numpy array representing the terrain height.
-        grid_size: float representing the 
-        
+        point_cloud:    Point cloud as (N, 3) numpy array.
+        terrain_raster: 2-D numpy array of terrain heights, shape (nx, ny).
+        grid_size:      float representing the
+
     Returns:
-        Point cloud with normalized heights.
+        (N, 3) array with the same XY coordinates and terrain-subtracted Z.
     """
     x_min, x_max = np.min(point_cloud[:, 0]), np.max(point_cloud[:, 0])
     y_min, y_max = np.min(point_cloud[:, 1]), np.max(point_cloud[:, 1])
-    
-    num_bins = terrain_raster.shape[0]
 
-    # print("Subtract Terrain", x_min, x_max)
-    # print("Subtract Terrain", y_min, y_max)
-    # print("Subtract Terrain", x_bins_num, y_bins_num)
-    print("Subtract Terrain", terrain_raster.shape)
+    nx, ny = terrain_raster.shape
 
-
-    x_bins = np.linspace(x_min, x_max, num_bins-1)
-    y_bins = np.linspace(y_min, y_max, num_bins-1)
+    # Build one set of bin edges per axis using that axis's raster dimension.
+    # np.digitize returns values in [0, len(bins)], so the maximum possible
+    # index equals len(bins) = nx-1 (or ny-1), which is always a valid index.
+    x_bins = np.linspace(x_min, x_max, nx - 1)
+    y_bins = np.linspace(y_min, y_max, ny - 1)
 
     x_indices = np.digitize(point_cloud[:, 0], x_bins)
     y_indices = np.digitize(point_cloud[:, 1], y_bins)
-    
-    normalized_heights = point_cloud[:, 2].copy()
 
-    # For each point, subtract the height found in the bin 
-    for i in range(len(point_cloud)):
-        normalized_heights[i] -= terrain_raster[x_indices[i], y_indices[i]]
+    # Clip to valid range — floating-point edge cases can push a boundary
+    # point one index beyond the raster extent.
+    x_indices = np.clip(x_indices, 0, nx - 1)
+    y_indices = np.clip(y_indices, 0, ny - 1)
+
+    normalized_heights = point_cloud[:, 2] - terrain_raster[x_indices, y_indices]
 
     return np.column_stack((point_cloud[:, :2], normalized_heights))
 
@@ -2509,15 +2545,12 @@ def add_terrain(point_cloud, terrain_raster):
     x_bins = np.arange(x_min, x_max + 0.1, 0.1)
     y_bins = np.arange(y_min, y_max + 0.1, 0.1)
     
-    x_indices = np.digitize(point_cloud[:, 0], x_bins) - 1
-    y_indices = np.digitize(point_cloud[:, 1], y_bins) - 1
-    
-    absolute_heights = point_cloud[:, 2].copy()
-    
-    for i in range(len(point_cloud)):
-        if 0 <= x_indices[i] < terrain_raster.shape[0] and 0 <= y_indices[i] < terrain_raster.shape[1]:
-            absolute_heights[i] += terrain_raster[x_indices[i], y_indices[i]]
-    
+    nx, ny = terrain_raster.shape
+    x_indices = np.clip(np.digitize(point_cloud[:, 0], x_bins) - 1, 0, nx - 1)
+    y_indices = np.clip(np.digitize(point_cloud[:, 1], y_bins) - 1, 0, ny - 1)
+
+    absolute_heights = point_cloud[:, 2] + terrain_raster[x_indices, y_indices]
+
     return np.column_stack((point_cloud[:, :2], absolute_heights))
 
 

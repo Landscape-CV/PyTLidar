@@ -36,10 +36,6 @@ try:
     from plotting.cylinders_plotting import cylinders_plotting
 except ImportError:
     from .cylinders_plotting import cylinders_plotting
-try:
-    from ..Utils import Utils
-except ImportError:
-    import Utils.Utils as Utils
 
 def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=1,return_html = True,subset=False,fidelity = .1, leaf_filter = False):
     """

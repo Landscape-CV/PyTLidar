@@ -25,6 +25,7 @@ setuptools.setup(
         'numpy>=2.0',
         'pandas>=2.0',
         'plotly',
+        'pyvistaqt>=0.11.0',
         'PySide6==6.8.3',
         'python-dotenv',
         'igraph',

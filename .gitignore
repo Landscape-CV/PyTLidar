@@ -3,6 +3,7 @@
 *.npz
 /results
 results*
+!results*.py
 *.html
 /build
 /dist

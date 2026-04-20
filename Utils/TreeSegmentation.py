@@ -285,12 +285,17 @@ def add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist,network:Gr
     edges = []
     weights = []
 
-    while any(not_explored):
-        
-        # print(f"segment: {segment_num}, remaining: {sum(not_explored)}")
-        base = np.min(np.where(not_explored))
-        not_explored[base]=False
-        
+    # Fix: replace O(N^2) np.min(np.where(not_explored)) with a monotonic pointer.
+    _ptr = 0
+    _n = len(not_explored)
+    while _ptr < _n:
+        if not not_explored[_ptr]:
+            _ptr += 1
+            continue
+        base = _ptr
+        not_explored[base] = False
+        _ptr += 1
+
         k,points,dist = pcd_tree.search_hybrid_vector_3d(pcd.points[base],max_dist,K)
         k,graph_points,dist =full_pcd_tree.search_hybrid_vector_3d(full_pcd.points[included_sets[base]],max_dist*graph_multiplier,K)
         edges.extend(make_edges(included_sets[base],list(graph_points)))
@@ -317,7 +322,9 @@ def add_layer(pcd_tree,pcd,segments,not_explored,segment_num,max_dist,network:Gr
                 
                 
 
-                new_points = np.setdiff1d(new_points,points)
+                # np.setdiff1d removed: not_explored check above prevents reprocessing duplicates.
+                # Convert IntVector → numpy array (setdiff1d used to do this implicitly).
+                new_points = np.array(new_points)
                 I = not_explored[new_points]
                 new_points = new_points[I]
                 points.extend(new_points)
@@ -381,17 +388,38 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
     tree_bases=np.array(tree_bases,dtype = int)
     
 
-    while any(not_explored):
-        
-        # print(f"segment: {segment_num}, remaining: {sum(not_explored)}")
-        base = np.min(np.where(not_explored))
-        not_explored[base]=False
-        if segments[base] in tree_bases:
+    # Fix: replace O(N^2) np.min(np.where(not_explored)) with a monotonic pointer.
+    _ptr = 0
+    _n = len(not_explored)
+
+    # Union-Find for O(1) label merges instead of O(N) global reassignment.
+    _max_lbl = int(max(int(segments.max()), int(max(tree_bases)))) + 1
+    _parent  = np.arange(_max_lbl, dtype=np.int64)
+
+    def _find(x):
+        x = int(x)
+        while _parent[x] != x:
+            _parent[x] = _parent[_parent[x]]  # path halving
+            x = _parent[x]
+        return x
+
+    def _union(a, b):
+        ra, rb = _find(a), _find(b)
+        if ra != rb:
+            _parent[ra] = rb
+
+    while _ptr < _n:
+        if not not_explored[_ptr]:
+            _ptr += 1
+            continue
+        base = _ptr
+        not_explored[base] = False
+        _ptr += 1
+        if _find(int(segments[base])) in tree_bases:
             continue
         k,points,_ = pcd_tree.search_radius_vector_3d(pcd.points[base],max_dist)
-        
-        
-        segs = np.unique(segments[points])
+
+        segs = np.unique(np.fromiter((_find(int(segments[p])) for p in points), dtype=np.int64, count=len(points)))
         
         if len(segs)==1:
             not_expanded[base]=True
@@ -400,7 +428,7 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
 
         else:
             
-            base_seg = segments[base]
+            base_seg = _find(int(segments[base]))
             tree_base_seg =np.intersect1d(segs,tree_bases).astype(int)
             if len(tree_base_seg)==1:
                 base_seg = tree_base_seg[0]
@@ -429,13 +457,19 @@ def connect_segments(pcd_tree,pcd,segments,not_explored,tree_bases,max_dist,netw
             #     if seg not in tree_bases:
             if segments[base]==-1:
                 continue
-            segments[segments==segments[base] ] = base_seg
+            # Union-Find merge: O(1) instead of O(N) global scan.
+            _union(int(segments[base]), int(base_seg))
+            segments[base] = base_seg
         
 
                 
             
         
         
+    # Resolve all lazy union-find merges into the segments array.
+    for i in range(len(segments)):
+        if segments[i] >= 0:
+            segments[i] = _find(int(segments[i]))
     return segments,not_expanded
 
 def combine_close_bases(segments,center_points,bases):
