@@ -52,21 +52,6 @@ from gui.results_widgets import EmbeddedPlotWidget
 
 # ── Background worker free functions ─────────────────────────────────────────
 
-def _bg_build_cloud_meshes(cloud) -> list:
-    """Build point-cloud mesh_list from a numpy array (no disk I/O)."""
-    from plotting.pv_rendering import build_point_cloud_meshes
-    mesh_list, _ = build_point_cloud_meshes(cloud, None, "Height (Z)")
-    return mesh_list
-
-
-def _bg_build_cyl_meshes(cyls: dict) -> dict:
-    """Build cylinder mesh_list from an already-loaded cyls dict (no disk I/O)."""
-    from plotting.pv_rendering import build_cylinder_meshes
-    mesh_list, starts, ends, radii, lengths = build_cylinder_meshes(cyls)
-    return {"mesh_list": mesh_list, "starts": starts, "ends": ends,
-            "radii": radii, "lengths": lengths}
-
-
 def _bg_scan_runs(results_folder: str) -> list:
     """Re-use the same scanner as ResultsPage (returns list of (label, Path))."""
     from gui.results_io import find_run_dirs, load_run_metadata
@@ -87,17 +72,14 @@ def _bg_engine_load(run_dir: Path) -> tuple:
     return engine, err
 
 
-def _bg_query(engine, wx, wy, wz, voxel_size,
-              coloring="segment", cover_sets=None) -> tuple:
-    """Run query_voxel and build voxel meshes on the background thread."""
-    result = engine.query_voxel(wx, wy, wz, voxel_size)
-    from plotting.pv_rendering import build_voxel_query_meshes
-    mesh_list = build_voxel_query_meshes(
-        engine.cloud, engine.labels, result, wx, wy, wz,
-        cover_sets=cover_sets,
-        coloring=coloring,
-    )
-    return result, mesh_list
+def _bg_query(engine, wx, wy, wz, voxel_size) -> object:
+    """
+    Run query_voxel on the background thread — numpy computation only.
+
+    PyVista mesh construction is deliberately NOT done here; it happens on
+    the main thread in _on_query_done() to avoid VTK thread-safety issues.
+    """
+    return engine.query_voxel(wx, wy, wz, voxel_size)
 
 
 # ── QueryPage ─────────────────────────────────────────────────────────────────
@@ -178,27 +160,61 @@ class QueryPage(QWidget):
         self._load_status_label.setStyleSheet("color: #888; font-size: 11px;")
         root.addWidget(self._load_status_label)
 
-        # ── Tabs: Single Point / Batch CSV ────────────────────────────────────
+        # ── Main splitter: left = control tabs, right = 3D plotter ───────────
+        # IMPORTANT: EmbeddedPlotWidget (VTK/OpenGL) must live directly in the
+        # splitter — never inside a QTabWidget page.  On Windows, hiding a VTK
+        # render window inside an inactive tab corrupts the HWND and causes
+        # GPU driver crashes (BSOD) when the user interacts or we update meshes.
+        splitter = QSplitter(Qt.Horizontal)
+        root.addWidget(splitter, stretch=1)
+
+        # ── Left pane: tab widget (controls only, no plotter) ─────────────────
         self._tabs = QTabWidget()
-        self._tabs.addTab(self._build_single_point_tab(), "Single Point")
+        self._tabs.setMinimumWidth(230)
+        self._tabs.setMaximumWidth(360)
+        self._tabs.addTab(self._build_single_point_controls(), "Single Point")
         self._tabs.addTab(self._build_batch_tab(), "Batch CSV")
         self._tabs.currentChanged.connect(self._on_tab_changed)
-        root.addWidget(self._tabs, stretch=1)
+        splitter.addWidget(self._tabs)
 
-    def _build_single_point_tab(self) -> QWidget:
+        # ── Right pane: 3D viewer (always present, never hidden) ──────────────
+        right = QWidget()
+        rv = QVBoxLayout(right)
+        rv.setContentsMargins(4, 0, 0, 0)
+
+        view_btn_row = QHBoxLayout()
+        view_btn_row.addWidget(QLabel("Background:"))
+        self._btn_cloud = QPushButton("Point Cloud")
+        self._btn_cloud.setToolTip("Show point cloud as background (query overlays on top)")
+        self._btn_cyls  = QPushButton("Cylinders")
+        self._btn_cyls.setToolTip("Show QSM cylinders as background (query overlays on top)")
+        for _b in (self._btn_cloud, self._btn_cyls):
+            _b.setEnabled(False)
+            view_btn_row.addWidget(_b)
+        view_btn_row.addStretch()
+        rv.addLayout(view_btn_row)
+
+        self._plot = EmbeddedPlotWidget()
+        self._plot._placeholder.setText(
+            "Select a run, enter a coordinate, and click 'Query Voxel'."
+        )
+        rv.addWidget(self._plot, stretch=1)
+
+        self._info_label = QLabel("")
+        self._info_label.setStyleSheet("color: #666; font-size: 11px;")
+        rv.addWidget(self._info_label)
+
+        splitter.addWidget(right)
+        splitter.setSizes([270, 830])
+
+        self._btn_cloud.clicked.connect(self._show_cloud)
+        self._btn_cyls.clicked.connect(self._show_cylinders)
+
+    def _build_single_point_controls(self) -> QWidget:
+        """Left-pane controls for the Single Point tab (no plotter inside)."""
         page = QWidget()
-        page_layout = QHBoxLayout(page)
-        page_layout.setContentsMargins(0, 4, 0, 0)
-
-        splitter = QSplitter(Qt.Horizontal)
-        page_layout.addWidget(splitter)
-
-        # ── Left pane ─────────────────────────────────────────────────────────
-        left = QWidget()
-        left.setMinimumWidth(230)
-        left.setMaximumWidth(320)
-        lv = QVBoxLayout(left)
-        lv.setContentsMargins(0, 0, 4, 0)
+        lv = QVBoxLayout(page)
+        lv.setContentsMargins(4, 4, 4, 4)
 
         coord_box = QGroupBox("Query Region")
         coord_form = QFormLayout(coord_box)
@@ -230,7 +246,7 @@ class QueryPage(QWidget):
         self._lat_row_label = QLabel("Lat (°N):")
         coord_form.addRow(self._lon_row_label, self._spin_lon)
         coord_form.addRow(self._lat_row_label, self._spin_lat)
-        # Hide lon/lat rows until toggled
+        # Hidden until toggled on
         self._lon_row_label.setVisible(False)
         self._spin_lon.setVisible(False)
         self._lat_row_label.setVisible(False)
@@ -253,11 +269,10 @@ class QueryPage(QWidget):
             "Enter geographic coordinates instead of projected X/Y.\n"
             "Requires the source LAS files to contain an embedded CRS."
         )
-        self._lonlat_toggle.setEnabled(False)   # enabled once CRS is confirmed
+        self._lonlat_toggle.setEnabled(False)
         self._lonlat_toggle.toggled.connect(self._on_lonlat_toggled)
         coord_form.addRow("", self._lonlat_toggle)
 
-        # CRS status line
         self._crs_label = QLabel("")
         self._crs_label.setStyleSheet("color: #888; font-size: 10px;")
         self._crs_label.setWordWrap(True)
@@ -279,7 +294,6 @@ class QueryPage(QWidget):
         self._result_label.setAlignment(Qt.AlignTop)
         lv.addWidget(self._result_label, stretch=1)
 
-        # ── Point Coloring group ──────────────────────────────────────────
         coloring_box = QGroupBox("Point Coloring")
         coloring_layout = QVBoxLayout(coloring_box)
 
@@ -293,42 +307,6 @@ class QueryPage(QWidget):
         coloring_layout.addWidget(self._chk_cover_sets)
 
         lv.addWidget(coloring_box)
-
-        splitter.addWidget(left)
-
-        # ── Right pane ────────────────────────────────────────────────────────
-        right = QWidget()
-        rv = QVBoxLayout(right)
-        rv.setContentsMargins(4, 0, 0, 0)
-
-        # ── Background layer buttons ──────────────────────────────────────
-        view_btn_row = QHBoxLayout()
-        view_btn_row.addWidget(QLabel("Background:"))
-        self._btn_cloud = QPushButton("Point Cloud")
-        self._btn_cloud.setToolTip("Show point cloud as background (query overlays on top)")
-        self._btn_cyls  = QPushButton("Cylinders")
-        self._btn_cyls.setToolTip("Show QSM cylinders as background (query overlays on top)")
-        for _b in (self._btn_cloud, self._btn_cyls):
-            _b.setEnabled(False)
-            view_btn_row.addWidget(_b)
-        view_btn_row.addStretch()
-        rv.addLayout(view_btn_row)
-
-        self._plot = EmbeddedPlotWidget()
-        self._plot._placeholder.setText(
-            "Select a run, enter a coordinate, and click 'Query Voxel'."
-        )
-        rv.addWidget(self._plot, stretch=1)
-
-        self._info_label = QLabel("")
-        self._info_label.setStyleSheet("color: #666; font-size: 11px;")
-        rv.addWidget(self._info_label)
-
-        splitter.addWidget(right)
-        splitter.setSizes([270, 830])
-
-        self._btn_cloud.clicked.connect(self._show_cloud)
-        self._btn_cyls.clicked.connect(self._show_cylinders)
 
         return page
 
@@ -448,10 +426,8 @@ class QueryPage(QWidget):
     # ── Tab switching ─────────────────────────────────────────────────────────
 
     def _on_tab_changed(self, index: int) -> None:
-        """Load the cloud background when the user first visits Single Point tab."""
-        if index == 0 and self._engine is not None and self._engine.is_loaded:
-            if self._cloud_cache is None and self._bg_meshes is None:
-                self._show_cloud()
+        """No-op — the plotter lives outside the tabs so no re-init needed."""
+        pass
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -596,12 +572,10 @@ class QueryPage(QWidget):
         )
         self.status_message.emit(f"Query ready: {run_dir.name}")
 
-        # Auto-load the point cloud only when the Single Point tab is visible.
-        # Rendering into a hidden VTK/OpenGL widget (inside an inactive tab)
-        # can crash the GPU driver on Windows.  If the user is on Batch tab,
-        # the cloud will be loaded lazily when they switch to Single Point.
-        if self._tabs.currentIndex() == 0:
-            self._show_cloud()
+        # Auto-load the point cloud — the plotter lives outside the tab widget
+        # so it is always visible and safe to render to regardless of which
+        # tab is active.
+        self._show_cloud()
 
     def _on_engine_error(self, seq: int, tb: str) -> None:
         if seq != self._load_seq:
@@ -661,24 +635,32 @@ class QueryPage(QWidget):
         seq = self._render_seq
         engine = self._engine
 
-        cover_sets = engine.cover_sets if self._coloring == "cover_set" else None
-
-        task = BgTask(_bg_query, engine, wx, wy, wz, voxel_size,
-                      self._coloring, cover_sets)
+        task = BgTask(_bg_query, engine, wx, wy, wz, voxel_size)
         task.result.connect(
-            lambda r: self._on_query_done(seq, r[0], r[1], wx, wy, wz)
+            lambda r: self._on_query_done(seq, r, wx, wy, wz)
         )
         task.error.connect(lambda tb: self._on_query_error(seq, tb))
         task.start()
         self._render_task = task
 
     def _on_query_done(
-        self, seq: int, result, mesh_list: list,
+        self, seq: int, result,
         wx: float, wy: float, wz: "float | None",
     ) -> None:
         if seq != self._render_seq:
             return
-        self._query_meshes = mesh_list
+        # Build PyVista meshes on the main thread — VTK must not be touched
+        # from background threads while the interactive render loop is active.
+        from plotting.pv_rendering import build_voxel_query_meshes
+        engine = self._engine
+        if engine is None:
+            return
+        cover_sets = engine.cover_sets if self._coloring == "cover_set" else None
+        self._query_meshes = build_voxel_query_meshes(
+            engine.cloud, engine.labels, result, wx, wy, wz,
+            cover_sets=cover_sets,
+            coloring=self._coloring,
+        )
         self._query_btn.setEnabled(True)
         self._show_result(result, wx, wy, wz)
         self._render_combined()
@@ -709,10 +691,33 @@ class QueryPage(QWidget):
             self._bg_meshes = self._cloud_cache
             self._render_combined()
             return
+        # build_point_cloud_meshes is documented as thread-safe (pv.PolyData only,
+        # no OpenGL).  Run it on a background thread to avoid blocking the main
+        # thread and the VTK render window.  apply_meshes_to_plotter (called
+        # inside show_pyvista_meshes) stays on the main thread.
         from gui.worker import BgTask
+
+        # Cap point count handed to VTK.  On Windows, giving the GPU driver
+        # tens of millions of points at once is the #1 cause of TDR/BSOD.
+        # 2 M points is plenty for navigation; biologists do precise work in
+        # the query cube, not on the full cloud.
+        _MAX_VIEW_POINTS = 2_000_000
+        cloud_full = self._engine.cloud
+        if cloud_full is not None and len(cloud_full) > _MAX_VIEW_POINTS:
+            rng = np.random.default_rng(0)
+            idx = rng.choice(len(cloud_full), _MAX_VIEW_POINTS, replace=False)
+            cloud_view = cloud_full[idx]
+        else:
+            cloud_view = cloud_full
+
+        def _build(cloud):
+            from plotting.pv_rendering import build_point_cloud_meshes
+            mesh_list, _ = build_point_cloud_meshes(cloud, None, "Height (Z)")
+            return mesh_list
+
         self._render_seq += 1
         seq = self._render_seq
-        task = BgTask(_bg_build_cloud_meshes, self._engine.cloud)
+        task = BgTask(_build, cloud_view)
         task.result.connect(lambda ml: self._on_cloud_ready(seq, ml))
         task.error.connect(lambda _tb: None)
         task.start()
@@ -733,19 +738,23 @@ class QueryPage(QWidget):
             self._bg_meshes = self._cyls_cache["mesh_list"]
             self._render_combined()
             return
+        # Same thread-safe pattern as _show_cloud.
+        # Subtract cloud_mean to convert cylinder starts from world→normalised space.
         from gui.worker import BgTask
-        self._render_seq += 1
-        seq = self._render_seq
-
-        # Cylinder starts are stored in world space in the .txt file.
-        # The point cloud snapshot and voxel-query bounds are in normalised
-        # space (world - cloud_mean), so we subtract the mean here to align.
-        raw = self._engine.cyls
+        raw  = self._engine.cyls
         mean = np.array(self._engine.mean, dtype=np.float64)
         cyls_norm = dict(raw)
         cyls_norm["start"] = raw["start"] - mean
 
-        task = BgTask(_bg_build_cyl_meshes, cyls_norm)
+        def _build(cyls):
+            from plotting.pv_rendering import build_cylinder_meshes
+            mesh_list, starts, ends, radii, lengths = build_cylinder_meshes(cyls)
+            return {"mesh_list": mesh_list, "starts": starts, "ends": ends,
+                    "radii": radii, "lengths": lengths}
+
+        self._render_seq += 1
+        seq = self._render_seq
+        task = BgTask(_build, cyls_norm)
         task.result.connect(lambda r: self._on_cyls_ready(seq, r))
         task.error.connect(lambda _tb: None)
         task.start()

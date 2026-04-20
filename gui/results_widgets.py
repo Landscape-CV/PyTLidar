@@ -376,19 +376,37 @@ class EmbeddedPlotWidget(QWidget):
     # ── Public API ────────────────────────────────────────────────────────
 
     def _ensure_plotter(self) -> None:
-        """Lazy-init the QtInteractor with interrupt-friendly render rates."""
+        """Lazy-init the QtInteractor with conservative render rates."""
         if self._plotter is not None:
             return
         self._plotter = QtInteractor(self)
         self._plotter.enable_terrain_style()
-        # Only render when the user is actively interacting; do NOT render
-        # continuously when idle.  Default StillUpdateRate fires at ~0.0001 fps
-        # which is fine, but some VTK builds default much higher and hammer the
-        # GPU driver, causing Windows "System Interrupts" to spike.
+        # Keep render rates low — high rates hammer the GPU driver on Windows
+        # and can cause TDR (Timeout Detection and Recovery) → BSOD for large
+        # point clouds.  5 fps during interaction is smooth enough to navigate
+        # and gentle enough not to trigger a driver timeout.
         try:
             iren = self._plotter.iren
-            iren.SetDesiredUpdateRate(30.0)   # max fps during mouse interaction
-            iren.SetStillUpdateRate(0.0)      # 0 = no idle renders at all
+            iren.SetDesiredUpdateRate(5.0)    # fps during mouse interaction
+            iren.SetStillUpdateRate(0.0)      # no idle renders
+        except Exception:
+            pass
+        # Disable advanced rendering passes that are common BSOD vectors on
+        # Windows GPUs (FXAA, depth peeling, shadows).  We only need plain
+        # forward rendering for point clouds and cylinders.
+        try:
+            ren = self._plotter.renderer
+            ren.SetUseFXAA(False)
+            ren.SetUseDepthPeeling(False)
+            ren.SetUseShadows(False)
+        except Exception:
+            pass
+        try:
+            rw = self._plotter.render_window
+            rw.SetMultiSamples(0)             # no MSAA
+            rw.SetPointSmoothing(False)
+            rw.SetLineSmoothing(False)
+            rw.SetPolygonSmoothing(False)
         except Exception:
             pass
         self._layout.addWidget(self._plotter)
