@@ -1063,7 +1063,11 @@ def segment_direction(Ce, Seg, nl):
         Bot = np.mean(Ce[Seg[int(bot)].astype(int), :],axis=0)
         Top = np.mean(Ce[Seg[int(top)].astype(int), :],axis=0)
         V = Top - Bot
-        D = V / np.linalg.norm(V)
+        norm_V = np.linalg.norm(V)
+        if norm_V > 0:
+            D = V / norm_V
+        else:
+            D = np.zeros(3)  # or try to find non-zero direction
     else:
         D = np.zeros(3)
 
