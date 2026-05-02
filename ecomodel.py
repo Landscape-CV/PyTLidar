@@ -54,15 +54,15 @@ from datetime import datetime
 # parser.add_argument("results_path", "Where cylinder outputs are stored.")
 
 
-logger = logging.getLogger("Ecomodel")
-logger.setLevel(logging.INFO)
-f_handler = logging.FileHandler('results/ecomodel_log.log')
-c_handler = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-f_handler.setFormatter(formatter)
-c_handler.setFormatter(formatter)
-logger.addHandler(f_handler)
-logger.addHandler(c_handler)
+# logger = logging.getLogger("Ecomodel")
+# logger.setLevel(logging.INFO)
+# f_handler = logging.FileHandler('results/ecomodel_log.log')
+# c_handler = logging.StreamHandler()
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# f_handler.setFormatter(formatter)
+# c_handler.setFormatter(formatter)
+# logger.addHandler(f_handler)
+# logger.addHandler(c_handler)
 
 
 
