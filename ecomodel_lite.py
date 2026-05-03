@@ -6,7 +6,7 @@ import shutil
 import CSF
 import numpy as np
 from Utils.Utils import load_point_cloud
-from SegmentRGI.SegmentRGI import classify_wood_leaf
+from SegmentRGI.SegmentRGI import classify_wood_leaf, classify_wood_leaf_point_cloud
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from plyfile import PlyData, PlyElement
@@ -29,6 +29,7 @@ from TreeQSMSteps.tree_sets import tree_sets
 from TreeQSMSteps.relative_size import relative_size
 from TreeQSMSteps.cylinders import cylinders
 import logging
+from GBSeparation.remove_leaves import GBSeperationWoodLeafClassifier
 
 logger = logging.getLogger("Ecomodel")
 logger.setLevel(logging.INFO)
@@ -280,6 +281,7 @@ class TreeQSMFull:
         return cylinder_data
 
 
+
 class CSFGroundRemoval:
     def __init__(self):
         pass
@@ -328,6 +330,11 @@ class CSFGroundRemoval:
         return point_cloud, ground_z
 
 
+class GBSeperation:
+    def __init__(self):
+        pass
+    
+
 class RGIWoodLeafClassifier:
     def __init__(self, noise_percentile=0, angle_deg=7, curv_thresh=0.07, 
                  resid_thresh=0.05, k=100, minClusterSize=40, maxClusterSize=100000,
@@ -344,74 +351,6 @@ class RGIWoodLeafClassifier:
             "useResidualTest": useResidualTest,
             "useCurvatureTest": useCurvatureTest,
         }
-
-    def classify_wood_leaf_on_array(self, tree_cloud, input_params=None):
-        """
-        Helper method
-
-        Run classify_wood_leaf() directly on an in-memory NumPy point cloud array.
-        Saves the temporary segment, classifies it, and rebuilds boolean masks.
-        """
-        if input_params is None:
-            input_params = self.input_params
-            
-        with TemporaryDirectory() as tmpdir:
-            tmp_ply = Path(tmpdir) / "segment.ply"
-            tmp_results = Path(tmpdir) / "results"
-            tmp_results.mkdir(exist_ok=True)
-
-            # Save current segment to temporary PLY
-            vertex_dtype = [('x', 'f8'), ('y', 'f8'), ('z', 'f8'), ('Intensity', 'f4')]
-            structured = np.zeros(tree_cloud.shape[0], dtype=vertex_dtype)
-            structured['x'] = tree_cloud[:, 0]
-            structured['y'] = tree_cloud[:, 1]
-            structured['z'] = tree_cloud[:, 2]
-            structured['Intensity'] = tree_cloud[:, 3]
-
-            ply_elements = PlyElement.describe(structured, 'vertex')
-    
-            PlyData([ply_elements]).write(str(tmp_ply))
-
-            # If tile is too small, skip tile. 
-            if tree_cloud.shape[0] < 100:
-                return None, None
-
-            tree_coords = np.asarray(tree_cloud[:, :3])
-
-            print("Number of points for classification:", tree_cloud.shape[0])
-            # Run existing classification pipeline
-            classify_wood_leaf(str(tmp_ply), save_dir=str(tmp_results), show_plots=False, **input_params)
-
-            # Read back the classified clouds
-            wood_file = tmp_results / "segment_wood.ply"
-            leaf_file = tmp_results / "segment_leaves.ply"
-            
-            # If there appears to be no wood in the file, skip tile. 
-            if not wood_file.exists():
-                return None, None
-            
-            def build_mask(sub_coords):
-                # Ensure arrays are C-contiguous before viewing as structured array
-                tree_coords_c = np.ascontiguousarray(tree_coords)
-                sub_coords_c = np.ascontiguousarray(sub_coords)
-                
-                tree_view = tree_coords_c.view(np.void)
-                sub_view = sub_coords_c.view(np.void)
-                
-                mask = np.isin(tree_view, sub_view)
-                return mask.squeeze()
-            if not leaf_file.exists():
-                leaf_mask = np.zeros(tree_cloud.shape[0], dtype=bool)
-            else:
-                leaf_pcd = o3d.io.read_point_cloud(str(leaf_file))
-                leaf_coords = np.asarray(leaf_pcd.points)
-                leaf_mask = build_mask(leaf_coords)
-
-            wood_pcd = o3d.io.read_point_cloud(str(wood_file))
-            wood_coords = np.asarray(wood_pcd.points)
-            wood_mask = build_mask(wood_coords)
-
-            return wood_mask, leaf_mask
         
     def classify(self, point_cloud):
         """
@@ -426,20 +365,22 @@ class RGIWoodLeafClassifier:
         if point_cloud.shape[0] < 100:
             return None
 
-        wood_mask, leaf_mask = self.classify_wood_leaf_on_array(point_cloud)
-
+        wood_mask, leaf_mask = classify_wood_leaf_point_cloud(point_cloud, **self.input_params)
+        print(wood_mask, leaf_mask)
+        if wood_mask is None or leaf_mask is None:
+            return None
         if wood_mask is None or leaf_mask is None:
             return None
 
-        only_wood = point_cloud[wood_mask]
-        only_leaves = point_cloud[leaf_mask]
+        # only_wood = point_cloud[wood_mask]
+        # only_leaves = point_cloud[leaf_mask]
 
         return wood_mask, leaf_mask
 
 
 class EcomodelFunctions:
     """
-    Obtains cylinders from a dense forest tile. 
+    Contains useful generic function used in ecomodel pipeline.
     """
     def __init__(self, results_folder="results", intensity_threshold=0):
         super().__init__()
@@ -447,13 +388,11 @@ class EcomodelFunctions:
             os.mkdir(results_folder)
         self.results_folder = results_folder
         self.intensity_threshold = intensity_threshold
-        # self.segmenter = SegmenterScanline()
-        self.segmenter = SegmenterTreeX()
         self.plotter = SimplePlotter()
-        self.noise_remover = DistanceBasedNoiseRemoval(0.25, 100)
         self.ground_z = 0
 
-    def filter_intensity(self, point_cloud, intensity):
+    @staticmethod
+    def filter_intensity(point_cloud, intensity):
         """
         Filters points based on intensity.
 
@@ -462,10 +401,10 @@ class EcomodelFunctions:
             intensity (float): Removes points below this intensity threshold.
         """
         intensity_mask = point_cloud[:,3] > intensity
-        return point_cloud[intensity_mask]
+        return point_cloud[intensity_mask], intensity_mask
 
-
-    def normalize_point_cloud(self, point_cloud):
+    @staticmethod
+    def normalize_point_cloud(point_cloud):
         """
         Subtracts mean from point cloud
 
@@ -479,7 +418,8 @@ class EcomodelFunctions:
         point_cloud[:, :3] = point_cloud[:, :3] - mean
         return point_cloud, mean
 
-    def unnormalize_point_cloud(self, point_cloud, mean):
+    @staticmethod
+    def unnormalize_point_cloud(point_cloud, mean):
         """
         Adds mean to point cloud
 
@@ -518,108 +458,25 @@ class EcomodelFunctions:
 
         self.plotter.show()
 
-    def process_tile_old(self, tile_path, save_data=False, show_plots=False):
+    def save_data(self, path, full_data, instance_labels, cylinder_data, mean, ground_z):
         """
-        Process a point cloud tile. 
+        Saves the data
 
         Args:
-            tile_path (str): Path to the point cloud tile.
-            save_data (bool): Whether to save the results or not. 
-            show_plots (bool): Whether to show the plots or not.
+            path: Path object representing original tile.
+
         """
-        path = Path(tile_path)
-        os.makedirs(f"{self.results_folder}/{path.stem}",exist_ok=True )
-        _, full_data = load_point_cloud(str(path), full_data=True)
-        full_data = model.normalize_point_cloud(full_data)
-        full_data = model.remove_ground(full_data)
+        cylinder_data = self.unnormalize_point_cloud(cylinder_data, mean)
+        np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_cylinders.txt", cylinder_data)
 
-        if full_data is None: 
-            print("Low data tile after removing ground.")
-            return
-
-        full_data = model.filter_intensity(full_data, self.intensity_threshold)
-        if full_data.size < 100: 
-            print("Empty array after filtering intensity.")
-            return
+        unnormalized = self.unnormalize_point_cloud(full_data, mean)
+        with_labels = np.concatenate((unnormalized[:,:3], instance_labels[:,np.newaxis]), axis=1)
+        np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_leavesremoved.xyz", with_labels)
         
-        wood_mask, leaf_mask = model.separate_leaves_rgi(full_data)
-        full_data = full_data[wood_mask]
-
-        if full_data is None:
-            print("Unable to remove leaves on segment.")
-            return 
-
-        full_data, instance_labels = model.perform_instance_segmentation(full_data)
-        if full_data is None or instance_labels is None:
-            print("Unable to perform instance segmentation.")
-            return
-
-        cylinder_data = model.get_cylinders(full_data, instance_labels)
-        print("Cylinder data shape", cylinder_data.shape)
-
-
-        # Save results.
-        if save_data:
-            cylinder_data = self.unnormalize_point_cloud(cylinder_data)
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_cylinders.txt", cylinder_data)
-            unnormalized = self.unnormalize_point_cloud(full_data)
-            with_labels = np.concatenate((unnormalized[:,:3], instance_labels[:,np.newaxis]), axis=1)
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_leavesremoved.xyz", with_labels)
-            with open(f"{self.results_folder}/{path.stem}/{path.stem}_data.txt", "w") as f:
-                f.writelines(f"{self.mean[0]} {self.mean[1]} {self.mean[2]}")
-                f.writelines("\n")
-                f.writelines(str(self.ground_z))
-
-        if show_plots:
-            self.view_cylinders(full_data, cylinder_data)
-
-
-    def process_tile_treeX(self, tile_path, save_data=False, show_plots=False):
-        """
-        Process a point cloud tile with the TreeX segmenter.
-        Does not perform ground removal, and leaf removal is done after segmentation.  
-
-        Args:
-            tile_path (str): Path to the point cloud tile.
-            save_data (bool): Whether to save the results or not. 
-            show_plots (bool): Whether to show the plots or not.
-        """
-
-
-    def process_tile_no_leaf_removal(self, tile_path, save_data=False, show_plots=False):
-        """
-        Perform only the instance segmentation and TreeQSM on the tile. Assumes leaf removal already complete. 
-
-        Args:
-            tile_path (str): Path to the point cloud tile.
-            save_data (bool): Whether to save the results or not. 
-            show_plots (bool): Whether to show the plots or not.
-        """
-        path = Path(tile_path)
-        os.makedirs(f"{self.results_folder}/{path.stem}",exist_ok=True )
-        xyz_data, full_data = load_point_cloud(str(path), full_data=True)
-        full_data = model.normalize_point_cloud(full_data)
-
-        full_data, instance_labels = model.perform_instance_segmentation(full_data)
-        if full_data is None or instance_labels is None:
-            print("Unable to perform instance segmentation.")
-            return
-
-        cylinder_data = model.get_cylinders(full_data, instance_labels)
-        print("Cylinder data shape", cylinder_data.shape)
-        cylinder_data = self.unnormalize_point_cloud(cylinder_data)
-
-        # Save results. 
-        if save_data:
-            shutil.copy(str(path), f"{self.results_folder}/{path.stem}/{path.stem}.xyz")
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_cylinders.txt", cylinder_data)
-            with open(f"{self.results_folder}/{path.stem}/{path.stem}_data.txt", "w") as f:
-                f.writelines(str(self.mean))
-                f.writelines("\n")
-                f.writelines(str(self.ground_z))
-
-        if show_plots:
-            self.view_cylinders(full_data, cylinder_data)
+        with open(f"{self.results_folder}/{path.stem}/{path.stem}_data.txt", "w") as f:
+            f.writelines(f"{mean[0]} {mean[1]} {mean[2]}")
+            f.writelines("\n")
+            f.writelines(str(ground_z))
 
 
 class EcomodelScanline:
@@ -649,6 +506,18 @@ class EcomodelTreeX(EcomodelFunctions):
                                                           smoothMode=True, 
                                                           useResidualTest=True, 
                                                           useCurvatureTest=True)
+        # self.leaf_wood_classifier = RGIWoodLeafClassifier(    
+        #                                                         noise_percentile=0, 
+        #                                                         angle_deg=6,           # Permissive normals # Seems like lower angle meant more thinner branches. 
+        #                                                         curv_thresh=0.2,       # Allow high-curvature edges
+        #                                                         resid_thresh=0.05,       # Loose geometry tolerance
+        #                                                         k=400,                  # Smaller neighborhood = better thin structure sensitivity
+        #                                                         minClusterSize=2,       # Minimal floor for survival,  5 and 10000 didnt seeem to work. 
+        #                                                         maxClusterSize=100000, # Low means larger regions are removed. 
+        #                                                         smoothMode=True,
+        #                                                         useCurvatureTest=False, # Don't penalize thin branch edges
+        #                                                         useResidualTest=True)
+
 
     def process_tile(self, tile_path, save_data = True, show_plots = True):
 
@@ -657,21 +526,27 @@ class EcomodelTreeX(EcomodelFunctions):
         _, full_data = load_point_cloud(str(path), full_data=True)
         full_data, mean = self.normalize_point_cloud(full_data)
 
-        full_data, instance_labels = self.segmenter.segment(full_data)
+        full_data, instance_labels = self.instance_segmenter.segment(full_data)
         if full_data is None or instance_labels is None:
             print("Unable to perform instance segmentation.")
             return
 
         # Filter out ground and extra noise manually.
-        ground_mask = instance_labels == -1
-        full_data = full_data[~ground_mask]
-        instance_labels = instance_labels[~ground_mask]
-        ground_z = np.min(full_data[:,2])
+        try: 
+            ground_mask = instance_labels == -1
+            full_data = full_data[~ground_mask]
+            instance_labels = instance_labels[~ground_mask]
+            ground_z = np.min(full_data[:,2])
+        except ValueError as e:
+            logger.info(f"Error {e} - Couldnt get z value")
+            ground_z = 0
 
 
         wood_mask, leaf_mask = self.leaf_wood_classifier.classify(full_data)
         full_data = full_data[wood_mask]
         instance_labels = instance_labels[wood_mask]
+        full_data, intensity_mask = self.filter_intensity(full_data, 42000)
+        instance_labels = instance_labels[intensity_mask]
         if full_data is None:
             print("Unable to remove leaves on segment.")
             return 
@@ -689,15 +564,7 @@ class EcomodelTreeX(EcomodelFunctions):
         # exit()
         # Save results.
         if save_data:
-            cylinder_data = self.unnormalize_point_cloud(cylinder_data, mean)
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_cylinders.txt", cylinder_data)
-            unnormalized = self.unnormalize_point_cloud(full_data, mean)
-            with_labels = np.concatenate((unnormalized[:,:3], instance_labels[:,np.newaxis]), axis=1)
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_leavesremoved.xyz", with_labels)
-            with open(f"{self.results_folder}/{path.stem}/{path.stem}_data.txt", "w") as f:
-                f.writelines(f"{mean[0]} {mean[1]} {mean[2]}")
-                f.writelines("\n")
-                f.writelines(str(ground_z))
+            self.save_data(path, full_data, instance_labels, cylinder_data, mean, ground_z)
 
         if show_plots:
             self.view_cylinders(full_data, cylinder_data)
@@ -708,35 +575,81 @@ class EcomodelTreeX(EcomodelFunctions):
 
 
 if __name__ == "__main__":
-    # model = EcomodelLite(results_folder="results_lite_rush_tree_saved_treeX", intensity_threshold=2)
-    # # model.process_tile_no_leaf_removal(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10")
+    model = EcomodelTreeX(results_folder="results_lite_rush_tree_saved_treeX_20", intensity_threshold=0)
+    # model.process_tile_no_leaf_removal(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10")
 
-    # folder = r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better"
-    # files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
-    # for tile in files:
-    #     logger.info("------------- Processing Tile %s -------------", tile)
-    #     full_tile_path = os.path.join(folder, tile)
-    #     model.process_tile_treeX(full_tile_path, save_data=True, show_plots=True)
-    #     # break
+    folder = r"G:\Projects\TreeCanopyLidar\Datasets\tiled_leaf_test"
+    files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
+    for tile in files:
+        logger.info("------------- Processing Tile %s -------------", tile)
+        full_tile_path = os.path.join(folder, tile)
+        model.process_tile(full_tile_path, save_data=True, show_plots=True)
+        # break
 
     # Use this for doing a single full tile. 
     # model = EcomodelTreeX("results_lite_rush_tree_saved_treeX", intensity_threshold=0)
     # model.process_tile(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better\rush_07_3_6.las")
 
 
-    model = EcomodelTreeX("results_lite_rush_tree_saved_treeX", intensity_threshold=0)
-    path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better\rush_07_3_6.las")
-    remove_ground = CSFGroundRemoval()
-    tile_data, full_data = load_point_cloud(str(path), full_data=True)
-    full_data, ground_z = remove_ground.remove_ground(full_data)
-    full_data = model.filter_intensity(full_data, 2)
-    wood, leaf = model.leaf_wood_classifier.classify(full_data)
-    full_data = full_data[wood]
+    # model = EcomodelTreeX("results_lite_rush_tree_saved_treeX", intensity_threshold=0)
+    # path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\testing\rush_07_3_6_segmented.las")
+    # # path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\FORinstance_dataset\single_tree_test\plot_1_annotated.las.extract.outside.extract.las")
+    # remove_ground = CSFGroundRemoval()
+    # tile_data, full_data = load_point_cloud(str(path), full_data=True)
+    # full_data, ground_z = remove_ground.remove_ground(full_data)
+    # full_data = model.filter_intensity(full_data, 25)
 
-    np.savetxt("NewLeavesRemoved.txt", full_data)
+    # classifier = RGIWoodLeafClassifier(noise_percentile=0, 
+    #                                     angle_deg=6, 
+    #                                     curv_thresh=0.07, 
+    #                                     resid_thresh=0.05, 
+    #                                     k=100,
+    #                                     minClusterSize=40, 
+    #                                     maxClusterSize=100000,
+    #                                     smoothMode=True, 
+    #                                     useResidualTest=True, 
+    #                                     useCurvatureTest=True)
+    # try:
+    #     wood_mask, leaf_mask = classifier.classify(full_data)
+    # except Exception as e:
+    #     print("FAIL", e)
+    # full_data = full_data[wood_mask]
+
+    # gb_seperation = GBSeperationWoodLeafClassifier()
+    # wood_mask, leaf_mask = gb_seperation.classify(tile_data, return_mask=True)
+    # wood, leaf = model.leaf_wood_classifier.classify(full_data)
+    # full_data = full_data[wood]
+
+    # np.savetxt(f"NewLeavesRemoved_test.txt", full_data)
+
+
+
     
 
+###### LEAF REMOVAL
+        # self.leaf_wood_classifier = RGIWoodLeafClassifier(noise_percentile=0, 
+        #                                                   angle_deg=45, 
+        #                                                   curv_thresh=0.07, 
+        #                                                   resid_thresh=0.5, 
+        #                                                   k=5000, # Smaller means more removed, larger means less removed. 
+        #                                                   minClusterSize=3, 
+        #                                                   maxClusterSize=100000,
+        #                                                   smoothMode=True, 
+        #                                                   useResidualTest=True, 
+        #                                                   useCurvatureTest=False)
+        ##### This stuff is pretty good for the ecomodel. 
+        # self.leaf_wood_classifier = RGIWoodLeafClassifier(noise_percentile=0, 
+        #                                                   angle_deg=6, 
+        #                                                   curv_thresh=0.07, 
+        #                                                   resid_thresh=0.05, 
+        #                                                   k=100,
+        #                                                   minClusterSize=40, 
+        #                                                   maxClusterSize=100000,
+        #                                                   smoothMode=True, 
+        #                                                   useResidualTest=True, 
+        #                                                   useCurvatureTest=True)
 
+#####
 
 
 
