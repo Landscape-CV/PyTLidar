@@ -592,7 +592,7 @@ if __name__ == "__main__":
     model = EcomodelLite(results_folder="results_Ecomodel_Lite", intensity_threshold=10)
     # model.process_tile_no_leaf_removal(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10")
 
-    folder = r"/home/hice1/gbatungwanayo3/scratch/ProjectsData/treeLearn"
+    folder = r"C:\Users\kaipo\Documents\Dev\Dev2\PyTLidar\Dataset"
     files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
     for tile in files:
         logger.info("------------- Processing Tile %s -------------", tile)

@@ -1,0 +1,12 @@
+model:
+  kernel_size: 3 # kernel size of convolution layers
+  channels: 32 # channel size of first convolution layer
+  num_blocks: 7 # number of blocks to be used in the Unet or Lnet
+  use_feats: False # whether to use precomputed features as network input or not (default is False)
+  use_coords: False # whether to use the coordinates as network input or not. Coords are redundant since relativ position defined by voxel grid (default is False)
+  dim_coord: 3 # dimension of coordinates (not used if use_coords is False)
+  dim_feat: 1 # dimension of precomputed features (not used if use_feats is False)
+  max_num_points_per_voxel: 3 # maximum number of points within a voxel to use for feature averaging (technical detail, not that important)
+  fixed_modules: [] # modules whose parameters are not updated during training
+  spatial_shape: ~ # spatial shape of the tiles/crops (technical detail, not that important).
+  voxel_size: 0.1 # determines the voxel size in m for generating the sparse voxel grid
