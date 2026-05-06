@@ -9,9 +9,10 @@ model:
 ############ non-default args
 #forest_path: 'data/pipeline/L1W/forest/L1W.laz' # path to forest point cloud to be segmented (las, npy, npz or txt)
 forest_path: 'C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\Dataset\\retile_573088_2840115.laz'
+#forest_path: 'C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\Dataset\\L1W.laz'
 pretrain: 'C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\model_weights\\model_weights_with_small_20241213.pth' # path to trained network parameters for offset and semantic prediction
 fp16: True # using half precision for network prediction
-tile_generation: False # whether to generate tiles for the forest point cloud to be segmented. If you re-run the pipeline multiple times for the same point cloud, this can be set to False after the first time.
+tile_generation: True # whether to generate tiles for the forest point cloud to be segmented. If you re-run the pipeline multiple times for the same point cloud, this can be set to False after the first time.
 
 dataloader:
   batch_size: 1
