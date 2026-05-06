@@ -50,7 +50,7 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
     point_cloud : ndarray
         Nx3 matrix of point coordinates (x, y, z).
     """
-    if ".xyz" in file_path:
+    if ".xyz" in file_path or ".txt" in file_path:
         # Load point cloud from an XYZ file
         point_data = np.loadtxt(file_path, dtype=np.float64)
         if point_data.shape[1] == 3:
@@ -58,8 +58,8 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
         elif point_data.shape[1] >= 4:
             I = point_data[:, 3] >= intensity_threshold
             point_cloud = point_data[I, :3]
-        # else:
-        #     raise ValueError("Unsupported format in XYZ file.")
+        else:
+            raise ValueError("Unsupported format in .xyz or .txt file.")
         return point_cloud if not full_data else (point_cloud, point_data)
     with laspy.open(file_path) as las:
         point_data = las.read()

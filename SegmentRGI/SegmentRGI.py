@@ -80,6 +80,12 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
     labels_full[original_indices] = labels_filtered
     labels = labels_full
 
+    if len(RGKNN.Clusters) == 0:
+        print("No clusters found after region growing")
+        return
+
+    print(f"[CLUSTERING] Found {len(RGKNN.Clusters)} clusters after filtering")
+
     # --- Trunk Analysis ---
     start_class = time.time()
     largest_cluster_id = np.argmax([len(c) for c in RGKNN.Clusters])

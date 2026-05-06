@@ -2,26 +2,50 @@
 This module includes a class which streamlines the current ecomodel.
 """
 
-
+import random
+import CSF
 import numpy as np
 from Utils.Utils import load_point_cloud
+from SegmentRGI.SegmentRGI import classify_wood_leaf
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from plyfile import PlyData, PlyElement
 from Utils.plot_tools import SimplePlotter
 import open3d as o3d
 import networkx as nx
 import cc3d
+import matplotlib.pyplot as plt
+import os
+from pc_skeletor import LBC, SLBC
+from pc_skeletor.utility import simplify_graph
+
+import networkx as nx
+import matplotlib.pyplot as plt
+from copy import deepcopy
+import mistree as mist
+from Utils.Utils import load_point_cloud
+from Utils.plot_tools import  ResultsPlotter
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
+from Utils.RobustCylinderFitting import RobustCylinderFitter
+from scipy.spatial.distance import pdist
 from sklearn.cluster import DBSCAN
 import pyvista as pv
 from circle_fit import taubinSVD
 from pathlib import Path
-
+import torch
 # John
 import time
 from TreeQSMSteps.cover_sets import cover_sets
 from Utils.TreeSegmentation import segment_point_cloud
 from ecomodel import Tile
+
+# TreeX
+import pointtree
+import numpy as np
+from pointtree.instance_segmentation import TreeXAlgorithm, TreeXPresetTLS, TreeXPresetULS, TreeXPresetOriginal
+from dataclasses import replace
+from pointtorch import read
 
 
 class PlotterBase:
@@ -37,14 +61,16 @@ class PlotterBase:
         """"""
         np.savetxt(path, point_cloud)
 
+    
+
+
 
 class PotentialBranch:
     """
-    Responsibility of class is to hold information about a specific branch.
-
-    Basically we want the 'graph' to consist of only nearby things.
+    Responsibility of class is to hold information about a specific branch. 
+    
+    Basically we want the 'graph' to consist of only nearby things. 
     """
-
     def __init__(self, segment_id):
         """"""
         self.segment_id = segment_id
@@ -56,18 +82,18 @@ class PotentialBranch:
 
     # def add_branch_segment(self, centroid):
     #     self.top_layer_cendroid = np.mean(self.main_point_cloud[mask], axis=1)
+        
 
 
 class Segmenter(PlotterBase):
     """
-    Responsiblity of this class is to return a point cloud that has individial branch chains segmented,
-    Especially from mangrovy type bushes. Maybe can work for trees? I am not sure.
+    Responsiblity of this class is to return a point cloud that has individial branch chains segmented, 
+    Especially from mangrovy type bushes. Maybe can work for trees? I am not sure.     
     """
-
     def __init__(self):
         super().__init__()
 
-    def process(self, point_cloud, layer_height=0.1, radius=0.2):
+    def process(self, point_cloud, layer_height = 0.1, radius = 0.2):
         """
         Builds layers
 
@@ -79,10 +105,8 @@ class Segmenter(PlotterBase):
         min_value = min(point_cloud[:, 2])
         layer_min = min_value
         point_cloud_xyz = point_cloud[:, 0:3]
-        point_cloud_classification = np.concatenate((point_cloud_xyz, np.full((point_cloud_xyz.shape[0], 1), -1)),
-                                                    axis=1)
-        point_cloud_segment_classification = np.concatenate(
-            (point_cloud_xyz, np.full((point_cloud_xyz.shape[0], 1), -1)), axis=1)
+        point_cloud_classification = np.concatenate((point_cloud_xyz, np.full((point_cloud_xyz.shape[0], 1), -1)), axis=1)
+        point_cloud_segment_classification = np.concatenate((point_cloud_xyz, np.full((point_cloud_xyz.shape[0], 1), -1)), axis=1)
 
         potential_trees = []
         segment_id = 0
@@ -128,25 +152,25 @@ class Segmenter(PlotterBase):
                 if label == -1:
                     continue
 
-                if layer_num == 3:
+                if layer_num ==3 :
                     # branch_segment_mask = point_cloud_classification[:, 3] == label
-                    # layer_segment_mask = layer_pc_mask#  & branch_segment_mask
-                    # print("Layer segment mask")
+                    # layer_segment_mask = layer_pc_mask#  & branch_segment_mask   
+                    # print("Layer segment mask")    
                     # point_cloud_classification[layer_segment_mask,  3] = segment_id
                     pass
                     # self.view_point_cloud(point_cloud_segment_classification[layer_pc_mask])
                 branch_segment_mask = point_cloud_segment_classification[:, 3] == label
-                layer_segment_mask = layer_pc_mask & branch_segment_mask
-
+                layer_segment_mask = layer_pc_mask & branch_segment_mask       
+                
                 if layer_num == 0:
-                    point_cloud_classification[layer_segment_mask, 3] = segment_id
+                    point_cloud_classification[layer_segment_mask,  3] = segment_id
                     new_branch = PotentialBranch(segment_id)
                     new_branch.add_centroid(np.mean(point_cloud_segment_classification[layer_segment_mask], axis=0))
                     potential_trees.append(new_branch)
                     segment_id += 1
                     # print("Base branch added")
                     continue
-
+                    
                 else:
                     brand_new_branch = True
                     for potential_tree in potential_trees:
@@ -165,47 +189,49 @@ class Segmenter(PlotterBase):
                                 brand_new_branch = False
                                 tree = potential_tree
                                 break
-
+                                
                     if brand_new_branch:
                         new_branch = PotentialBranch(segment_id)
-                        new_branch.top_centroid = np.mean(point_cloud_segment_classification[layer_segment_mask],
-                                                          axis=0)
+                        new_branch.top_centroid = np.mean(point_cloud_segment_classification[layer_segment_mask], axis=0)    
                         potential_trees.append(new_branch)
                         segment_id += 1
                         # print("new branch added")
 
                     else:
-                        layer_segment_mask = layer_pc_mask & branch_segment_mask
+                        layer_segment_mask = layer_pc_mask & branch_segment_mask     
                         tree.top_centroid = np.mean(point_cloud_segment_classification[layer_segment_mask], axis=0)
                         mapping.append((label, tree.segment_id))
                         point_cloud_classification[layer_segment_mask, 3] = tree.segment_id
                         # print("existing branch")
-
+            
             # Centroids
             # print("Centroids", [tree.top_centroid for tree in potential_trees])
-            # print(f"Euclidean Distance: {distance}")
+                # print(f"Euclidean Distance: {distance}")
 
-            # branch_segment_mask = point_cloud_classification[layer_pc_mask][] == label
+                # branch_segment_mask = point_cloud_classification[layer_pc_mask][] == label
 
-            # potential_trees.append(PotentialBranch())
+                # potential_trees.append(PotentialBranch())
 
-            # self.view_point_cloud(point_cloud_xyz)
+                # self.view_point_cloud(point_cloud_xyz)
 
             layer_min += layer_height
             layer_num += 1
 
             # Classify the entire cloud now with each of the potential branches.
-
+             
             # for tree in potential_trees:
             #     tree: PotentialBranch
             #     point_cloud_classification[tree.]
 
-        print(np.unique(point_cloud_classification[:, 3]))
+
+        print(np.unique(point_cloud_classification[:,3]))
 
         # self.view_point_cloud(point_cloud_xyz)
         # break
         self.save_point_cloud("output.xyz", point_cloud_classification)
         self.view_point_cloud(point_cloud_classification)
+        
+
 
     def classify_via_dbscan(self, point_cloud, epsilon=0.05):
         """
@@ -218,61 +244,69 @@ class Segmenter(PlotterBase):
         )
 
         return labels
+    
+
+
+
+
 
 
 class SegmenterScanline:
     """
-    Returns labels for each thing.
+    Returns labels for each thing. 
 
-    point_cloud --> labels.
+    point_cloud --> labels. 
     """
-
     def __init__(self):
         pass
 
-    def process_working(self, point_cloud, intensity_threshold=0):
+    def process_working(self, point_cloud, intensity_threshold = 0):
         """
         Segments the point cloud into groups from a single tree
-        Parameters:
+        Parameters: 
                 min_points (int): Minimum number of points in a cluster.
         Returns:
                 numpy.ndarray: Clustered point cloud, shape (n_points, 3).
-        """
+        """         
+
+
+
+        
 
         # inputs = {'PatchDiam1': 0.08, 'BallRad1':.08, 'nmin1': 15}
-        inputs = {'PatchDiam1': 0.15, 'BallRad1': .15, 'nmin1': 25}
+        inputs = {'PatchDiam1': 0.15, 'BallRad1':.15, 'nmin1': 25}
         # inputs = {'PatchDiam1': 0.1, 'BallRad1':.125, 'nmin1': 5}
-
-        cover_set_adjust = 0
+        
+        cover_set_adjust = 0 
         for x in range(1):
             tile = Tile(point_cloud[:, :3], point_cloud)
             # logger.info("Segmenting tile: %s",i)
 
             # tile.to_xyz(f"{self.results_folder}/pre_segmentation.xyz")
-            intensity_mask = tile.point_data[:, 3] > intensity_threshold
+            intensity_mask = tile.point_data[:,3]>intensity_threshold
             tile.point_data = tile.point_data[intensity_mask]
             tile.cloud = tile.cloud[intensity_mask]
             # tile.cover_sets = tile.cover_sets[intensity_mask]
             # tile.segment_labels = tile.segment_labels[intensity_mask]
             # tile.cluster_labels = tile.cluster_labels[intensity_mask]
 
+
             # logger.info("Create Cover Sets")
             start = time.time()
-            cover = cover_sets(tile.get_cloud_as_array(), inputs, qsm=False, device='cpu',
-                               full_point_data=tile.point_data)
+            cover = cover_sets(tile.get_cloud_as_array(), inputs, qsm =False, device = 'cpu', full_point_data = tile.point_data)
             if len(cover['sets']) == 0:
-                # logger.info("No cover sets found")
+                 #logger.info("No cover sets found")
                 continue
-
+            
             labels = cover['sets']
-
-            noise_mask = labels > -1
+            
+            noise_mask = labels >-1
             tile.cloud = tile.cloud[noise_mask]
             tile.point_data = tile.point_data[noise_mask]
             labels = labels[noise_mask]
-            tile.cover_sets = labels
+            tile.cover_sets=labels
             I = np.argsort(labels)
-            cover_set_adjust = len(tile.cover_sets)
+            cover_set_adjust=len(tile.cover_sets)
 
             if len(labels) == 0:
                 # logger.info("No cover sets found")
@@ -281,8 +315,9 @@ class SegmenterScanline:
 
             # logger.info("Segment Cloud")
             start = time.time()
-            # settings for Missouri data
+            #settings for Missouri data
             # segment_point_cloud(tile,base_height=.75, connect_ambiguous_points=True, fix_overlapping_segments=False,base_dist_multiplier=1.2,max_dist=.17,combine_nearby_bases=False,initial_size_limit=100000,min_height =.1)
+            
 
             # Leaf Removal Step
             # intensity_threshold = 42000
@@ -295,35 +330,36 @@ class SegmenterScanline:
             # tile.point_data = tile.point_data[wood_mask]
             # tile.cover_sets = tile.cover_sets[wood_mask]
             # self.save_point_cloud("leaves_removed", tile.point_data)
-
+            
             # tile.to_xyz(f"{self.results_folder}/pre_segmentation.xyz")
 
             # Default parameters for the tree instance segmentation.
             default_arguments = {
                 "max_dist": 0.16,
-                "min_height": .3,
-                "connect_using_midpoint": False,
-                "base_height": .65,
-                "base_dist_multiplier": 2.5,
-                "connect_ambiguous_points": True,
-                "fix_overlapping_segments": False,
-                "layer_size": .16,
-                "min_Z": float(np.min(tile.cloud[:, 2])),
-                "combine_nearby_bases": True,
+                "min_height" :.3,  
+                "connect_using_midpoint" :False, 
+                "base_height" :.65, 
+                "base_dist_multiplier" :2.5, 
+                "connect_ambiguous_points" :True, 
+                "fix_overlapping_segments" :False, 
+                "layer_size" :.16, 
+                "min_Z" :float(np.min(tile.cloud[:,2])),
+                "combine_nearby_bases" :True ,
             }
 
-            # New tuned parameters.
+            # New tuned parameters. 
             tuned_arguments = {
                 "max_dist": 0.3,
-                "base_height": 1,
-                "layer_size": 0.15,
-                "combine_nearby_bases": False,
+                "base_height" : 1, 
+                "layer_size" :0.15, 
+                "combine_nearby_bases" :False,
             }
 
+
             default_arguments.update(tuned_arguments)
-            segment_point_cloud(tile, **default_arguments)
+            segment_point_cloud(tile,**default_arguments)
             # tile.to_xyz(f"{self.results_folder}/post_segmentation.xyz", True)
-            mask = tile.segment_labels > -2  # filters out points that could not be connected, ideal will segment better and this will be uneccesary
+            mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
             print("UNIQUE LABELS", np.unique(tile.segment_labels))
             # for label in np.unique(tile.segment_labels):
             #     # if label < 0:
@@ -331,99 +367,103 @@ class SegmenterScanline:
             #     save_mask = tile.segment_labels == label
             #     self.save_point_cloud(f"segment_label_{label}", tile.cloud[save_mask])
 
+
             tile.cloud = tile.cloud[mask]
             tile.point_data = tile.point_data[mask]
-            tile.segment_labels = tile.segment_labels[mask]
-            tile.cover_sets = tile.cover_sets[mask]
+            tile.segment_labels=tile.segment_labels[mask]
+            tile.cover_sets =tile.cover_sets[mask]
             try:
                 tile.original_data = tile.original_data[intensity_mask.cpu().numpy()][noise_mask][I][mask]
             except:
                 pass
             # logger.info("Time to segment cloud: %s",time.time()-start)
-
+            
             # tile.cluster_labels = labels
-            # args_formatted = str(tuned_arguments).replace(" ", "_").replace(",", "_").replace(":","_").replace("'", "")
+            # args_formatted = str(tuned_arguments).replace(" ", "_").replace(",", "_").replace(":","_").replace("'", "") 
             # out_path = os.path.join(self.results_folder, f"data_{args_formatted}.xyz")
             # tile.to_xyz(out_path, True)
             # logger.info(f"Clustered tile written to {out_path}")
 
         # self.save_point_cloud(f"data_{arguments}", )
         # logger.info("Tree segmentation finished.")
-
+        
         point_cloud = tile.cloud
         labels = tile.segment_labels
 
+
         return point_cloud, labels
 
-    def process(self, point_cloud, intensity_threshold=0):
+    def process(self, point_cloud, intensity_threshold = 0):
         """
         Segments the point cloud into groups from a single tree
-        Parameters:
+        Parameters: 
                 min_points (int): Minimum number of points in a cluster.
         Returns:
                 numpy.ndarray: Clustered point cloud, shape (n_points, 3).
-        """
+        """         
 
-        inputs = {'PatchDiam1': 0.15, 'BallRad1': .15, 'nmin1': 25}
+        inputs = {'PatchDiam1': 0.15, 'BallRad1':.15, 'nmin1': 25}
         tile = Tile(point_cloud[:, :3], point_cloud)
 
-        cover = cover_sets(tile.get_cloud_as_array(), inputs, qsm=False, device='cpu', full_point_data=tile.point_data)
+        cover = cover_sets(tile.get_cloud_as_array(), inputs, qsm =False, device = 'cpu', full_point_data = tile.point_data)
         if len(cover['sets']) == 0:
             return None, None
-
+        
         labels = cover['sets']
-
-        noise_mask = labels > -1
+        
+        noise_mask = labels >-1
         tile.cloud = tile.cloud[noise_mask]
         tile.point_data = tile.point_data[noise_mask]
         labels = labels[noise_mask]
-        tile.cover_sets = labels
+        tile.cover_sets=labels
 
         if len(labels) == 0:
             return None, None
 
+
         # Default parameters for the tree instance segmentation.
         default_arguments = {
             "max_dist": 0.16,
-            "min_height": .3,
-            "connect_using_midpoint": False,
-            "base_height": .65,
-            "base_dist_multiplier": 2.5,
-            "connect_ambiguous_points": True,
-            "fix_overlapping_segments": False,
-            "layer_size": .16,
-            "min_Z": float(np.min(tile.cloud[:, 2])),
-            "combine_nearby_bases": True,
+            "min_height" :.3,  
+            "connect_using_midpoint" :False, 
+            "base_height" :.65, 
+            "base_dist_multiplier" :2.5, 
+            "connect_ambiguous_points" :True, 
+            "fix_overlapping_segments" :False, 
+            "layer_size" :.16, 
+            "min_Z" :float(np.min(tile.cloud[:,2])),
+            "combine_nearby_bases" :True ,
         }
 
-        # New tuned parameters.
+        # New tuned parameters. 
         tuned_arguments = {
             "max_dist": 0.3,
-            "base_height": 1,
-            "layer_size": 0.15,
-            "combine_nearby_bases": False,
+            "base_height" : 1, 
+            "layer_size" :0.15, 
+            "combine_nearby_bases" :False,
         }
 
         default_arguments.update(tuned_arguments)
-        segment_point_cloud(tile, **default_arguments)
-        mask = tile.segment_labels > -2  # filters out points that could not be connected, ideal will segment better and this will be uneccesary
+        segment_point_cloud(tile,**default_arguments)
+        mask = tile.segment_labels >-2#filters out points that could not be connected, ideal will segment better and this will be uneccesary
         print("UNIQUE LABELS", np.unique(tile.segment_labels))
-
+        
         point_cloud = tile.cloud[mask]
         labels = tile.segment_labels[mask]
 
+
         return point_cloud, labels
 
-    def old(self, point_cloud, intensity_threshold=0):
+    def old(self, point_cloud, intensity_threshold = 0):
         tile = Tile(point_cloud[:, :3], point_cloud)
-        inputs = {'PatchDiam1': 0.15, 'BallRad1': .15, 'nmin1': 25}
-        cover = cover_sets(point_cloud[:, :3], inputs, qsm=False, full_point_data=point_cloud)
+        inputs = {'PatchDiam1': 0.15, 'BallRad1':.15, 'nmin1': 25}
+        cover = cover_sets(point_cloud[:, :3], inputs, qsm =False, full_point_data = point_cloud)
         if len(cover['sets']) == 0:
             return None, None
         cover_set_labels = cover['sets']
-
+        
         # Remove noise.
-        noise_mask = cover_set_labels > -1
+        noise_mask = cover_set_labels >-1
         point_cloud = point_cloud[noise_mask]
         cover_set_labels = cover_set_labels[noise_mask]
 
@@ -436,28 +476,28 @@ class SegmenterScanline:
 
         default_arguments = {
             "max_dist": 0.16,
-            "min_height": .3,
-            "connect_using_midpoint": False,
-            "base_height": .65,
-            "base_dist_multiplier": 2.5,
-            "connect_ambiguous_points": True,
-            "fix_overlapping_segments": False,
-            "layer_size": .16,
-            "min_Z": float(np.min(point_cloud[:, 2])),
-            "combine_nearby_bases": True,
+            "min_height" :.3,  
+            "connect_using_midpoint" :False, 
+            "base_height" :.65, 
+            "base_dist_multiplier" :2.5, 
+            "connect_ambiguous_points" :True, 
+            "fix_overlapping_segments" :False, 
+            "layer_size" :.16, 
+            "min_Z": float(np.min(point_cloud[:,2])),
+            "combine_nearby_bases" :True ,
         }
 
-        # New tuned parameters.
+        # New tuned parameters. 
         tuned_arguments = {
             "max_dist": 0.3,
-            "base_height": 1,
-            "layer_size": 0.15,
-            "combine_nearby_bases": False,
+            "base_height" : 1, 
+            "layer_size" :0.15, 
+            "combine_nearby_bases" :False,
         }
 
         default_arguments.update(tuned_arguments)
         segment_point_cloud(tile, **default_arguments)
-        mask = tile.segment_labels > -2  # filters out points that could not be connected, ideal will segment better and this will be uneccesary
+        mask = tile.segment_labels >-2 # filters out points that could not be connected, ideal will segment better and this will be uneccesary
         print("UNIQUE LABELS", np.unique(tile.segment_labels))
 
         point_cloud = point_cloud[mask]
@@ -466,6 +506,7 @@ class SegmenterScanline:
         return point_cloud, labels
 
         # print(point_cloud[point_mask].shape)
+
 
 
 class Segmenter2():
@@ -477,9 +518,9 @@ class Segmenter2():
 
     def create_skeleton_and_cylinders(self, point_cloud):
         """
-        Creates a Skeleton Graph in preperation for retreiving cylinder information from the segment.
+        Creates a Skeleton Graph in preperation for retreiving cylinder information from the segment. 
         """
-        point_cloud = point_cloud[:, :3]
+        point_cloud = point_cloud[:,:3]
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(point_cloud)
 
@@ -492,16 +533,16 @@ class Segmenter2():
 
         if point_cloud.shape[0] > 50000:
             init_contraction = 80
-            max_contraction = 2048
+            max_contraction=2048
         elif point_cloud.shape[0] < 10:
             return None
         else:
             init_contraction = 10
-            max_contraction = 2048
+            max_contraction=2048
 
         lbc = LBC(point_cloud=pcd,
-                  down_sample=0.008, init_contraction=init_contraction, max_contraction=max_contraction)
-
+                down_sample=0.008, init_contraction=init_contraction, max_contraction=max_contraction)
+        
         try:
             lbc.extract_skeleton()
         except:
@@ -514,14 +555,17 @@ class Segmenter2():
 
         return self.get_cylinder_from_branch_segment(point_cloud, branch_skeleton_graph, branch_graph)
 
+
+
     def clean_graph(self, graph):
         """
-        Cleans the graph by doing some operations on it.
+        Cleans the graph by doing some operations on it. 
         """
         # Combine nodes that are in a straight line.
         # print("Before", graph.number_of_nodes())
-
-        # Remove nodes with a single edge.
+        
+        
+        # Remove nodes with a single edge. 
         # for n in list(graph.nodes()):
         #     if graph.degree(n) == 1:
         #         graph.remove_node(n)
@@ -549,6 +593,7 @@ class Segmenter2():
         if points.shape[0] < 10:
             return None, None
 
+
         # self.view_point_cloud(numpy_points)
 
         k = 6  # typical for skeletons
@@ -570,15 +615,20 @@ class Segmenter2():
 
         T = nx.minimum_spanning_tree(G, weight='weight')
 
+    
         T = self.clean_graph(T)
 
         return T, skeleton_pc
 
         # Visualize
 
+
+
+
+
         # pcd = o3d.geometry.PointCloud()
         # pcd.points = o3d.utility.Vector3dVector(slice_pos)
-
+        
         # # convert edges to LineSet
         # edges = np.array([[u, v] for u, v in T.edges()])
         # lines = o3d.geometry.LineSet(
@@ -587,6 +637,8 @@ class Segmenter2():
         # )
 
         # o3d.visualization.draw_geometries([pcd, lines, pcd2])
+
+
 
         # self.simple_plotter.plotter.add_points(points, color='blue', point_size=5)
 
@@ -598,7 +650,7 @@ class Segmenter2():
         # self.simple_plotter.plotter.show()
 
     def get_points_within_line(self, pt1, pt2, point_cloud, T):
-
+        
         # Side 1
         normal_vector = (pt1 - pt2) / np.linalg.norm(pt1 - pt2)
 
@@ -615,16 +667,20 @@ class Segmenter2():
         # slice: keep points on positive side
         line_points = slice_pos[d > 0]
 
-        # Keep points within a certian radius of the two other points.
+    
 
-        # Get cylinder information while we are at it.
+
+        # Keep points within a certian radius of the two other points. 
+
+        # Get cylinder information while we are at it. 
         # Project points onto plane
         # fitter = RobustCylinderFitter()
-        # on that plane, get the max distance between two points.
+        # on that plane, get the max distance between two points. 
         normal_vector = (pt1 - pt2) / np.linalg.norm(pt1 - pt2)
 
-        pc1, pc2, pc3 = self.orthonormal_basis_from_vector(normal_vector)
 
+        pc1, pc2, pc3 = self.orthonormal_basis_from_vector(normal_vector)
+        
         projection1 = np.dot(line_points, pc2)
         projection2 = np.dot(line_points, pc3)
         circle_projection = np.column_stack([projection1, projection2])
@@ -642,7 +698,7 @@ class Segmenter2():
         for label in labels:
             label_mask = labels == label
             test_point = circle_projection[label_mask][0]
-            distance = np.linalg.norm(test_point - np.array((0, 0)))
+            distance = np.linalg.norm(test_point - np.array((0,0)))
             if distance < min_distance:
                 candidate_label = label
 
@@ -651,7 +707,7 @@ class Segmenter2():
         label_mask = labels == candidate_label
         cluster_circle = circle_projection[label_mask]
 
-        ########### Attempt 1 Robust Cylinder Fitter
+        ########### Attempt 1 Robust Cylinder Fitter 
         # fitter = RobustCylinderFitter()
         # self.circle_projection = np.transpose(circle_projection)
         # circle_params = fitter._WRLTS(self.circle_projection) # For Me WRLTS had better results on tree branches.
@@ -664,7 +720,7 @@ class Segmenter2():
 
         # print("max distance",max_distance)
 
-        ########### Attempt 2 Max distance
+        ########### Attempt 2 Max distance 
         # max_distance = np.max(pdist(cluster_circle))
         # start = pt2
         # axis = normal_vector
@@ -673,7 +729,8 @@ class Segmenter2():
 
         # self.simple_plotter.add_cylinder(start, axis, r, l)
 
-        ########### Attempt 3 better circle fitter.
+
+        ########### Attempt 3 better circle fitter.  
 
         # plt.scatter(cluster_circle[:, 0], cluster_circle[:, 1])
         # plt.axis('equal')
@@ -687,6 +744,7 @@ class Segmenter2():
         except:
             return
 
+
         print(f"Center: ({xc}, {yc}), Radius: {r}, Residual Error: {sigma}")
 
         start = pt2
@@ -697,6 +755,7 @@ class Segmenter2():
         self.simple_plotter.add_cylinder(start, axis, r, l)
         # [cylinder start x, start y, start z, radius, axis x, axis y, axis z, length]
         self.cylinder_data_list.append([start[0], start[1], start[2], r, axis[0], axis[1], axis[2], l])
+
 
     def orthonormal_basis_from_vector(self, v):
         v = v / np.linalg.norm(v)
@@ -715,9 +774,10 @@ class Segmenter2():
 
         return v, u, w
 
+
     def get_cylinder_from_branch_segment(self, branch_points, branch_skeleton_points, branch_graph):
         """
-        Returns the cylinder information given the branch segment.
+        Returns the cylinder information given the branch segment. 
         """
         # points = T.nodes(data=True)
         skeleton_points_numpy = np.asarray(branch_skeleton_points.points)
@@ -727,8 +787,9 @@ class Segmenter2():
             lines=o3d.utility.Vector2iVector(edges)
         )
 
-        points = np.asarray(lines.points)  # shape (N, 3)
-        lines = np.asarray(lines.lines)  # shape (M, 2)
+        points = np.asarray(lines.points)   # shape (N, 3)
+        lines  = np.asarray(lines.lines)    # shape (M, 2)
+
 
         # For each line process the points to get the cylinders
         for u, v in lines:
@@ -741,35 +802,39 @@ class Segmenter2():
             self.get_points_within_line(p1, p2, branch_points, branch_graph)
             line = pv.Line(p1, p2)
             self.simple_plotter.plotter.add_mesh(line, color="blue", line_width=2)
-
+            
             # self.get_cylinder_from_branch_segment(line_points)
 
-            # break
+            # break 
             # # We slice the space to grab the points
             # from scipy.spatial import cKDTree
 
             # tree = cKDTree(points)
 
-        # Prune the cylinders to remove the outliers.
+        # Prune the cylinders to remove the outliers. 
         cylinder_data_array = np.array(self.cylinder_data_list)
-
-        arr = cylinder_data_array[:, 3]
+        
+        arr = cylinder_data_array[:,3]
         z = np.abs((arr - arr.mean()) / arr.std())
-        clean_mask = arr < 0.15  # keep values less than 15 cm
+        clean_mask =  arr < 0.15  # keep values less than 15 cm
 
         cleaned_cylinders = cylinder_data_array[clean_mask]
 
         # self.simple_plotter.add_point_cloud(branch_points)
+        
 
         return cleaned_cylinders
 
-        # Then we convert the points
+
+
+        # Then we convert the points 
 
     def process(self, point_cloud):
         """"""
         data_xyz = point_cloud[:, :3]
         self.save_point_cloud("Debug.txt", data_xyz)
 
+        
         # data_xyz = data_xyz - np.mean(data_xyz, axis=1)[:,np.newaxis]
         # self.view_point_cloud(point_cloud)
         self.pcd = o3d.geometry.PointCloud()
@@ -781,9 +846,12 @@ class Segmenter2():
         # octree.traverse(self.traverse_callback)
         # self.octree = octree
 
+        
+
         # voxels = voxel_grid.get_voxels()  # returns list of voxels
         # indices = np.stack(list(vx.grid_index for vx in voxels))
         # colors = np.stack(list(vx.color for vx in voxels))
+
 
         voxel_grid, vg = self.create_voxel_grid(0.1)
 
@@ -792,7 +860,10 @@ class Segmenter2():
         classified_point_cloud = self.restore_point_cloud(point_cloud, voxel_labels, vg, 0.1)
         # self.simple_plotter.add_point_cloud(classified_point_cloud)
         self.view_point_cloud(classified_point_cloud)
-        # Then we turn those voxels back into the worldspace.
+        # Then we turn those voxels back into the worldspace. 
+
+
+
 
     def traverse_callback(self, node, node_info):
         if isinstance(node, o3d.geometry.OctreeLeafNode):
@@ -832,16 +903,17 @@ class Segmenter2():
         idxs = ((point_cloud - min_corner) / voxel_size).astype(int)
 
         # Clamp indices to grid bounds
-        idxs = np.clip(idxs, [0, 0, 0], np.array(voxel_grid.shape) - 1)
+        idxs = np.clip(idxs, [0,0,0], np.array(voxel_grid.shape) - 1)
 
         # Assign labels
         classified[:, 3] = voxel_grid[idxs[:, 0], idxs[:, 1], idxs[:, 2]]
 
         return classified
 
+
     # def create_voxel_grid(self, point_cloud):
     #     """
-    #     Converts a list of voxels (from octree) into a 3d matrix of 1s and 0s.
+    #     Converts a list of voxels (from octree) into a 3d matrix of 1s and 0s. 
     #     """
 
     #     # points = np.zeros((len(self.occupied_voxels), 3))
@@ -871,22 +943,29 @@ class Segmenter2():
     #     for idx in indices:
     #         voxel_grid[idx[0], idx[1], idx[2]] = 1
 
+
+
+
     #     return voxel_grid
+    
+
 
     def classify_connected_components(self, voxel_grid):
-        labels_out = cc3d.connected_components(voxel_grid, connectivity=26)  # 26-connected
+        labels_out = cc3d.connected_components(voxel_grid, connectivity=26) # 26-connected
         print(np.unique(labels_out))
         return labels_out
 
+
     # def restore_point_cloud(self, point_cloud, voxel_grid):
     #     """
-    #     Returns a classified point cloud.
+    #     Returns a classified point cloud. 
     #     """
     #     # self.view_point_cloud(point_cloud)
     #     classified = np.concatenate((point_cloud, np.zeros((point_cloud.shape[0], 1))), axis=1)
 
+        
     #     min_corner = self.octree.origin
-
+        
     #     for node, info in zip(self.occupied_nodes, self.occupied_voxels):
     #         idx = ((info.origin - min_corner) / info.size).astype(int)
     #         # print(idx)
@@ -894,6 +973,7 @@ class Segmenter2():
 
     #         min_point = info.origin
     #         max_point = info.origin + info.size
+
 
     #         mask = np.all((classified[:,:3] >= min_point) & (classified[:,:3] <= max_point), axis=1)
     #         # np.savetxt("mask.txt", mask)
@@ -904,87 +984,99 @@ class Segmenter2():
     #         classified[mask, 3] = classification
     #         # print("origin", info.origin)
     #         # print("size", voxel_size)
-    #         # print(node.indices)
+    #         # print(node.indices) 
 
     #     np.savetxt("classified.txt",classified )
 
     #     print(classified.shape)
 
+
     #     return classified
+            
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(projection='3d')
 
-    # # voxel_grid is a 3D numpy array of 0/1
-    # ax.voxels(voxel_grid.astype(bool), facecolors='blue', edgecolor='k')
+        # fig = plt.figure()
+        # ax = fig.add_subplot(projection='3d')
 
-    # plt.show()
+        # # voxel_grid is a 3D numpy array of 0/1
+        # ax.voxels(voxel_grid.astype(bool), facecolors='blue', edgecolor='k')
 
-    # voxels = []
-    # for info in self.occupied_voxels:
-    #     center = info.origin + info.size * 0.5
-    #     voxels.append(o3d.geometry.Voxel(center, voxel_size))
+        # plt.show()
 
-    # vg = o3d.geometry.VoxelGrid()
-    # vg.voxels = o3d.utility.Vector3iVector(voxels)
-    # vg.voxel_size = voxel_size
 
-    # o3d.visualization.draw_geometries([vg])
 
-    # early_stop = False
 
-    # if isinstance(node, o3d.geometry.OctreeInternalNode):
-    #     if isinstance(node, o3d.geometry.OctreeInternalPointNode):
-    #         n = 0
-    #         for child in node.children:
-    #             if child is not None:
-    #                 n += 1
-    #         print(
-    #             "{}{}: Internal node at depth {} has {} children and {} points ({})"
-    #             .format('    ' * node_info.depth,
-    #                     node_info.child_index, node_info.depth, n,
-    #                     len(node.indices), node_info.origin))
 
-    #         # we only want to process nodes / spatial regions with enough points
-    #         early_stop = len(node.indices) < 250
-    # elif isinstance(node, o3d.geometry.OctreeLeafNode):
-    #     if isinstance(node, o3d.geometry.OctreePointColorLeafNode):
-    #         print("{}{}: Leaf node at depth {} has {} points with origin {}".
-    #             format('    ' * node_info.depth, node_info.child_index,
-    #                     node_info.depth, len(node.indices), node_info.origin))
-    # else:
-    #     raise NotImplementedError('Node type not recognized!')
 
-    # # early stopping: if True, traversal of children of the current node will be skipped
-    # return early_stop
+        # voxels = []
+        # for info in self.occupied_voxels:
+        #     center = info.origin + info.size * 0.5
+        #     voxels.append(o3d.geometry.Voxel(center, voxel_size))
+
+        # vg = o3d.geometry.VoxelGrid()
+        # vg.voxels = o3d.utility.Vector3iVector(voxels)
+        # vg.voxel_size = voxel_size
+
+        # o3d.visualization.draw_geometries([vg])
+
+
+
+
+
+
+
+        # early_stop = False
+
+        # if isinstance(node, o3d.geometry.OctreeInternalNode):
+        #     if isinstance(node, o3d.geometry.OctreeInternalPointNode):
+        #         n = 0
+        #         for child in node.children:
+        #             if child is not None:
+        #                 n += 1
+        #         print(
+        #             "{}{}: Internal node at depth {} has {} children and {} points ({})"
+        #             .format('    ' * node_info.depth,
+        #                     node_info.child_index, node_info.depth, n,
+        #                     len(node.indices), node_info.origin))
+
+        #         # we only want to process nodes / spatial regions with enough points
+        #         early_stop = len(node.indices) < 250
+        # elif isinstance(node, o3d.geometry.OctreeLeafNode):
+        #     if isinstance(node, o3d.geometry.OctreePointColorLeafNode):
+        #         print("{}{}: Leaf node at depth {} has {} points with origin {}".
+        #             format('    ' * node_info.depth, node_info.child_index,
+        #                     node_info.depth, len(node.indices), node_info.origin))
+        # else:
+        #     raise NotImplementedError('Node type not recognized!')
+
+        # # early stopping: if True, traversal of children of the current node will be skipped
+        # return early_stop
 
     # octree.traverse(collect)
 
 
-class SegmenterTreeLearn:
-    """
-    From the TreeLearn package.
-    """
 
+class SegmenterTreeX:
+    """
+    From the Pointtree package.
+    """
     def __init__(self):
-        #preset = TreeXPresetOriginal()  # or use TreeXPresetULS()
+        preset = TreeXPresetOriginal()  # or use TreeXPresetULS()
 
         # FIX: Lower the intensity threshold to match your data's intensity range (0-33)
         # Default is 6000, but your data only goes to 33
-
-
-        #preset = replace(
-            #preset,
+        
+        preset = replace(
+            preset, 
             stem_search_min_cluster_intensity=2,
             # csf_tree_classification_threshold = 0.5,
             # stem_search_min_z = 0.5,
             # stem_search_max_z = 3,
-            stem_search_dbscan_2d_min_points=50,
-            stem_search_voxel_size=0.005,
-            stem_search_circle_fitting_max_std_diameter=5,
-            stem_search_circle_fitting_min_completeness_idx=None,
-            stem_search_circle_fitting_min_points=5
-            # Lowering this alloewed for a tree trunk to be properly segmented.
+            stem_search_dbscan_2d_min_points = 50,
+            stem_search_voxel_size = 0.005,
+            stem_search_circle_fitting_max_std_diameter = 5,
+            stem_search_circle_fitting_min_completeness_idx = None,
+            stem_search_circle_fitting_min_points = 5 # Lowering this alloewed for a tree trunk to be properly segmented. 
             # Relax circle fitting to detect more trees
             # stem_search_circle_fitting_layer_start=2,
             # stem_search_circle_fitting_max_std_diameter=0.1,  # 0.04 is too strict
@@ -995,9 +1087,11 @@ class SegmenterTreeLearn:
             # tree_seg_max_search_radius=0.35,  # Reduce from 0.5 to prevent nearby crowns merging
             # tree_seg_seed_diameter_factor=0.85,  # Reduce from 1.05 for tighter initial seeds
             # tree_seg_seed_layer_height=0.4,  # Reduce from 0.6 for finer seed resolution
-        #)
+        )
 
-        #self.algorithm = TreeXAlgorithm(**preset)
+        self.algorithm = TreeXAlgorithm(**preset)
+
+
 
     def segment(self, point_cloud):
         """
@@ -1008,12 +1102,14 @@ class SegmenterTreeLearn:
 
         Returns:
             point_cloud (numpy.ndarray): Input point cloud with shape (n_points, 4) where columns are [x, y, z, intensity].
-            instance_ids: output instance Ids.
+            instance_ids: output instance Ids. 
         """
-        instance_ids, trunk_positions, trunk_diameters = self.algorithm(point_cloud[:, :3],
-                                                                        intensities=point_cloud[:, 3])
+        instance_ids, trunk_positions, trunk_diameters = self.algorithm(point_cloud[:, :3], intensities=point_cloud[:, 3])
 
         return point_cloud, instance_ids
+
+
+
 
 if __name__ == "__main__":
     classifier = DistanceBasedNoiseRemoval()
