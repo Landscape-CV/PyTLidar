@@ -564,8 +564,17 @@ class EcomodelTreeX(EcomodelFunctions):
         
 if __name__ == "__main__":
     #### This block is for testing the TreeX Ecomodel on a single tile.
+    # model = EcomodelTreeX(results_folder="results", intensity_threshold=42000)
+    # model.process_tile(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10\retile_573088_2840085_0_1.laz", save_data=True, show_plots=True)
+
+    #### Just segmentation:
     model = EcomodelTreeX(results_folder="results", intensity_threshold=42000)
-    model.process_tile(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10\retile_573088_2840085_0_1.laz", save_data=True, show_plots=True)
+    path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10\retile_573088_2840085_0_1.laz")
+    _, full_data = load_point_cloud(str(path), full_data=True)
+    full_data, instance_labels = model.instance_segmenter.segment(full_data)
+    with_labels = np.concatenate((full_data[:,:3], instance_labels[:,np.newaxis]), axis=1)
+    np.savetxt(f"{path.stem}_TreeX_Classification.txt", with_labels)
+
 
     #### Uncomment this block to run on all tiles in a folder.
     # model = EcomodelTreeX(results_folder="results", intensity_threshold=42000)
