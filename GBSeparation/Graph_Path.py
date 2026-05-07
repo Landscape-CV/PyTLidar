@@ -116,7 +116,7 @@ def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
     # and all ids already processed (processed_idx).
     current_idx = indices[-1]
     processed_idx = indices[-1]
-    unprocessed_idx = idx_base[np.in1d(idx_base, processed_idx, invert=True)]
+    unprocessed_idx = idx_base[np.isin(idx_base, processed_idx, invert=True)]
 
     # Initializing temp_nbrs_threshold which will be changed in loop.
     temp_nbrs_threshold = nbrs_threshold
@@ -134,7 +134,7 @@ def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
             dd = distances[current_idx]
 
             # Masking out indices already contained in processed_idx.
-            mask1 = np.in1d(nn, processed_idx, invert=True).reshape(nn.shape)
+            mask1 = np.isin(nn, processed_idx, invert=True).reshape(nn.shape)
 
             # Initializing temporary list of nearest neighbors. This list
             # is latter used to accumulate points that will be added to
@@ -167,7 +167,7 @@ def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
             
             # Masking indices in idx2 that have already been processed. The
             # idea is to connect remaining points to existing graph nodes.
-            mask1 = np.in1d(unprocessed_nn, processed_idx).reshape(unprocessed_nn.shape)
+            mask1 = np.isin(unprocessed_nn, processed_idx).reshape(unprocessed_nn.shape)
             if np.sum(mask1) == 0:
                 break
             # Masking neighboring points that are withing threshold distance.
@@ -193,7 +193,7 @@ def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
             # still not in the graph are desired. Now, to make sure the
             # continuity of the graph is kept, join current remaining indices
             # to indices already in G.
-            mask = np.in1d(nn, processed_idx).reshape(nn.shape)
+            mask = np.isin(nn, processed_idx).reshape(nn.shape)
 
             # Looping over current indices's set of nn points and selecting
             # knn points that have alreay been added/processed (mask).
@@ -216,7 +216,7 @@ def array_to_graph(arr, base_id, kpairs=3, knn=300, nbrs_threshold=0.1,
         processed_idx = np.append(processed_idx, current_idx)
 
         # Generating list of remaining proints to process.
-        unprocessed_idx = idx_base[np.in1d(idx_base, processed_idx, invert=True)]
+        unprocessed_idx = idx_base[np.isin(idx_base, processed_idx, invert=True)]
 
         # print("unprocessed_count:", unprocessed_idx.shape[0])
 

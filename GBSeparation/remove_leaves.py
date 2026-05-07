@@ -12,13 +12,13 @@ import laspy
 import matplotlib.pyplot as plt
 from Utils.Utils import load_point_cloud
 
-class LeafRemover:
+class GBSeperationWoodLeafClassifier:
     def __init__(self):
         self.knn = 300
         self.kpairs = 3
         
         
-    def process(self, xyz_point_cloud, return_mask = False):
+    def classify(self, xyz_point_cloud):
         """
         Adapted from GBSeperation (https://zenodo.org/records/6837613)
         
@@ -81,11 +81,9 @@ class LeafRemover:
         final_wood_mask[-1] = True
         leaf = xyz_point_cloud[~final_wood_mask]
         
-        if not return_mask:
-            return wood, leaf
-        else:
-            final_wood_mask = final_wood_mask[:-1]
-            return final_wood_mask,~final_wood_mask
+
+        final_wood_mask = final_wood_mask[:-1]
+        return final_wood_mask,~final_wood_mask
 
 if __name__ == "__main__":
     
@@ -96,9 +94,9 @@ if __name__ == "__main__":
 
     print("point_cloud_array", point_cloud_array.shape)
 
-    leaf_remover = LeafRemover()
+    leaf_remover = GBSeperationWoodLeafClassifier()
 
-    wood, leaf = leaf_remover.process(point_cloud_array)
+    wood, leaf = leaf_remover.classify(point_cloud_array)
 
     # write separation result with .txt format.
     np.savetxt(f'wood_points_{tree_file}.txt', wood, fmt='%1.6f')
