@@ -25,8 +25,8 @@ class GBSeperationWoodLeafClassifier:
         Parameters: 
             xyz_point_cloud: Nx3 array of XYZ and intensity values
         Returns: 
-            wood: Nx3 array of XYZ and intensity values representing wood
-            leaf: Nx3 array of XYZ and intensity values representing leaves
+            wood: Mask containing the wood points
+            leaf: Mask containing the leaf points
         """
         # Please ensure that the growth direction of the tree is parallel to the Z coordinate axis.
 

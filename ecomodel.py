@@ -37,7 +37,7 @@ import trimesh
 from alphashape import alphashape
 import pickle
 import dotenv
-from GBSeparation.remove_leaves import LeafRemover
+from GBSeparation.remove_leaves import GBSeperationWoodLeafClassifier
 from robpy.covariance import DetMCD,FastMCD
 from sklearn.covariance import MinCovDet
 import CSF
@@ -480,8 +480,8 @@ class Ecomodel:
                 # )
                 # np.savetxt(f"tree_{i}_{segment}.xyz",center_points,delimiter=',')
                 # center_points = center_points.cpu().numpy().astype(np.float64)
-                # LR = LeafRemover()
-                # wood_mask,leaf_mask = LR.process(tree_cloud, True)
+                # LR = GBSeperationWoodLeafClassifier()
+                # wood_mask,leaf_mask = LR.classify(tree_cloud, True)
                 
                 # wood_mask = np.isin(labels,np.where(wood_mask)[0])
                 # leaf_mask = np.isin(labels,np.where(leaf_mask)[0])
@@ -1067,12 +1067,12 @@ class Ecomodel:
                     logger.info("No cover sets found"),
                     continue
 
-                # LR = LeafRemover()
+                # LR = GBSeperationWoodLeafClassifier()
                 # wood_mask, leaf_mask = LR.process(tree_cloud, return_mask=True)
                 # tree_cloud = tree_cloud[wood_mask]
 
 
-                # replace LeafRemover with classify_wood_leaf
+                # replace GBSeperationWoodLeafClassifier with classify_wood_leaf
                 intensity_threshold = 42000
                 try:
                     # Combine classification result with intensity threshold
