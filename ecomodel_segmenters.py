@@ -24,7 +24,7 @@ class SegmenterScanline:
     def __init__(self):
         pass
 
-    def process(self, point_cloud, intensity_threshold = 0):
+    def segment(self, point_cloud):
         """
         Segments the point cloud into groups from a single tree
         Parameters: 
