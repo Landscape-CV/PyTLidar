@@ -17,7 +17,7 @@ from pointtorch import read
 
 class SegmenterScanline:
     """
-    Returns labels for each Tree. 
+    Standalone implementation of John's segmentation algorithm. 
 
     point_cloud --> labels. 
     """
