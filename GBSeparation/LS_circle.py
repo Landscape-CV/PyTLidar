@@ -18,7 +18,6 @@ def circleFit(arr):
     circle_r : float
          radius of fitted circle.
     """
-
     n = arr.shape[0]
     assert n >= 3, "point_cloud must be an array with at least\
      3 points"

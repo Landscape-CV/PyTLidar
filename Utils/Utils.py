@@ -50,16 +50,16 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
     point_cloud : ndarray
         Nx3 matrix of point coordinates (x, y, z).
     """
-    if ".xyz" in file_path:
+    if ".xyz" in file_path or ".txt" in file_path:
         # Load point cloud from an XYZ file
         point_data = np.loadtxt(file_path, dtype=np.float64)
         if point_data.shape[1] == 3:
             point_cloud = point_data
-        elif point_data.shape[1] == 4:
+        elif point_data.shape[1] >= 4:
             I = point_data[:, 3] >= intensity_threshold
             point_cloud = point_data[I, :3]
         else:
-            raise ValueError("Unsupported format in XYZ file.")
+            raise ValueError("Unsupported format in .xyz or .txt file.")
         return point_cloud if not full_data else (point_cloud, point_data)
     with laspy.open(file_path) as las:
         point_data = las.read()
@@ -2472,6 +2472,12 @@ def subtract_terrain(point_cloud,terrain_raster,grid_size=0.1):
     
     num_bins = terrain_raster.shape[0]
 
+    # print("Subtract Terrain", x_min, x_max)
+    # print("Subtract Terrain", y_min, y_max)
+    # print("Subtract Terrain", x_bins_num, y_bins_num)
+    print("Subtract Terrain", terrain_raster.shape)
+
+
     x_bins = np.linspace(x_min, x_max, num_bins-1)
     y_bins = np.linspace(y_min, y_max, num_bins-1)
 
@@ -2480,6 +2486,7 @@ def subtract_terrain(point_cloud,terrain_raster,grid_size=0.1):
     
     normalized_heights = point_cloud[:, 2].copy()
 
+    # For each point, subtract the height found in the bin 
     for i in range(len(point_cloud)):
         normalized_heights[i] -= terrain_raster[x_indices[i], y_indices[i]]
 

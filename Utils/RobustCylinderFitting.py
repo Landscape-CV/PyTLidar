@@ -80,7 +80,7 @@ class RobustCylinderFitter:
         start = center - (l/2) * axis
         return start
 
-    def get_cylinder_center(self, pc2, pc3, x, y, mcd_mean):
+    def get_cylinder_center(self, pc2, pc3, x, y):
         """
         PC2 (v1) and PC3 (vo)
         """

@@ -4,6 +4,60 @@ import numpy as np
 import matplotlib.pyplot as plt
 from .Utils import load_point_cloud
 
+
+class SimplePlotter:
+    def __init__(self, terrain_style=True, parallel_projection=False):
+        self.plotter = pv.Plotter()
+        if terrain_style:
+            self.plotter.enable_terrain_style()
+        if parallel_projection:
+            self.plotter.camera.SetParallelProjection(True)
+        
+    def add_point_cloud(self, point_cloud_with_intensity):
+        """
+        Adds a point cloud to the scene
+        """
+        xyz = point_cloud_with_intensity[:, :3]
+
+        # Compute mean for global shift and scale.
+        # mean = np.mean(xyz, axis=0)
+        # xyz = xyz - mean
+        pc = pv.PolyData(xyz)
+
+        if point_cloud_with_intensity.shape[1] > 3:
+            pc['intensity'] = point_cloud_with_intensity[:, 3]
+            self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="rainbow")
+            # self.plotter.set_background(color='black')
+        else:
+            self.plotter.add_mesh(pc, point_size=2, cmap="hsv")
+
+
+
+    def show(self, title=""):
+        """
+        Shows the plot
+        """
+        # self.plotter.add_title(title)
+        self.plotter.show()
+
+    def _get_cylinder_mesh(self, cylinder_start, radius, axis, length):
+        """
+        returns mesh from ecomodel data
+        
+        Get the center from the start, length and axis. 
+        """
+        axis_normalized = axis / np.linalg.norm(axis)
+        center = cylinder_start + (length/2) * axis_normalized
+        mesh = pv.Cylinder(center=center, direction=axis_normalized, radius=radius, height=length)
+        return mesh
+
+    def add_cylinder(self, start, axis, radius, length):
+        """
+        Adds cylinder
+        """
+        mesh = self._get_cylinder_mesh(start, radius, axis, length)
+        self.plotter.add_mesh(mesh, color='red', opacity=0.5)
+
 class ResultsPlotter:
     """
     Class contains methods to plot cylinder results using pyvista
@@ -16,8 +70,8 @@ class ResultsPlotter:
     >>> results.add_cylinders(r"results/File_first_link_stroud.txt", mean)
     >>> results.show() 
     """
-    def __init__(self, grid_center, grid=True, terrain_style=True, parallel_projection=True, legend=True):
-        self.plotter = pv.Plotter()
+    def __init__(self, grid_center, grid=True, terrain_style=True, parallel_projection=False, legend=True, off_screen = False):
+        self.plotter = pv.Plotter(off_screen=off_screen)
 
         # Create grid for reference to ground plane.
         if grid:
@@ -29,7 +83,7 @@ class ResultsPlotter:
             self.plotter.enable_terrain_style()
         
         if parallel_projection:
-            self.plotter.camera.SetParallelProjection(False)
+            self.plotter.camera.SetParallelProjection(True)
 
         # Create Legend:
         if legend:
@@ -37,11 +91,18 @@ class ResultsPlotter:
             left = 800
             self.plotter.add_text("Legend:", position=(left, top), font_size=12)
             self.plotter.add_text('Twig (r=0-2cm)', color= 'r', position=(left, top-20), font_size=12)
-            self.plotter.add_text('Small Branch (r=2-5cm)', color= 'purple', position=(left, top-40), font_size=12)
+            self.plotter.add_text('Small Branch (r=2-5cm)', color= 'g', position=(left, top-40), font_size=12)
             self.plotter.add_text('Medium Branch (r=5-10cm)', color= 'b', position=(left, top-60), font_size=12)
             self.plotter.add_text('Large Branch (r=10+cm)', color= 'orange', position=(left, top-80), font_size=12)
 
             self.plotter.add_axes(interactive=True)
+
+        # self.plotter.camera_position = 'iso'
+        # self.plotter.camera.position = np.array([21.220488085053102, 17.745813665473612, 10.826663849739447]) # This is for the ecomodel 10x10 tiles. 
+        self.plotter.camera.position = np.array([40.220488085053102, 35.745813665473612, 25.826663849739447]) # This is for the ecomodel 10x10 tiles. 
+
+        self.plotter.camera.focal_point = (0, 0, -1)
+
 
     def _get_cylinder_mesh(self, cylinder_start, radius, axis, length):
         """
@@ -66,7 +127,7 @@ class ResultsPlotter:
         if 0 < radius <= 0.02:
             return ('r', 'Twig (0-2cm)')
         elif 0.02 < radius <= 0.05:
-            return ('purple', 'Small Branch (2-5cm)')
+            return ('g', 'Small Branch (2-5cm)')
         elif 0.05 < radius <= 0.10:
             return( 'b', 'Medium Branch (5-10cm)')
         else:
@@ -87,19 +148,40 @@ class ResultsPlotter:
         pc['intensity'] = data
         self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
 
-    def add_point_cloud_np(self, point_cloud_with_intensity, mean):
+    def add_point_cloud_np_intensity(self, point_cloud_with_intensity):
         """
         Adds a point cloud to the scene
         """
         xyz = point_cloud_with_intensity[:, :3]
-        xyz = xyz - mean
         pc = pv.PolyData(xyz)
         pc['intensity'] = point_cloud_with_intensity[:, 3]
         self.plotter.add_mesh(pc, scalars="intensity", point_size=2, cmap="viridis")
 
+    def add_point_cloud_np(self, point_cloud, mean):
+        """
+        Adds a point cloud to the scene
+        """
+        xyz = point_cloud
+        # xyz = xyz - mean
+        # print(xyz[0])
+        pc = pv.PolyData(xyz)
+        self.plotter.add_mesh(pc, point_size=2, cmap="viridis")
 
+    def normalize_point_cloud(self, point_cloud):
+        self.mean = np.mean(point_cloud[:,0:3], axis=0)
 
-    def add_cylinders(self, path_to_cylinder_data_file, mean):
+        point_cloud[:, :3] = point_cloud[:, :3] - self.mean
+
+        return point_cloud
+
+    def get_image(self, filename):
+        filepath = f"images/{filename}"
+        self.plotter.show()
+        self.plotter.screenshot(filepath)
+
+        return filepath
+
+    def add_cylinders(self, cylinders):
         """
         Plots cylinders from ecomodel results
 
@@ -107,13 +189,14 @@ class ResultsPlotter:
             path_to_cylinder_data_file (str): path to cylinder data file
             mean (np.array): Mean from ecomodel results to adjust cylinders
         """
-        cylinders = np.loadtxt(path_to_cylinder_data_file)
-        cylinders[:, 0:3] = cylinders[:, 0:3] - mean 
+        # cylinders = np.loadtxt(path_to_cylinder_data_file)
+        cylinders_copy = np.copy(cylinders)
+        # cylinders_copy[:, 0:3] = cylinders[:, 0:3] - mean 
 
-        print("Total Number of Cylinders:", cylinders.shape[0])
+        print("Total Number of Cylinders:", cylinders_copy.shape[0])
         
-        for cylinder_row in range(0, cylinders.shape[0]):
-            cylinder_data = cylinders[cylinder_row]
+        for cylinder_row in range(0, cylinders_copy.shape[0]):
+            cylinder_data = cylinders_copy[cylinder_row]
 
             start = cylinder_data[0:3]
             radius = cylinder_data[3:4]
@@ -147,6 +230,10 @@ class ResultsPlotter:
         Shows the plot
         """
         self.plotter.show()
+
+
+
+
 
 
 class Datamaker:
