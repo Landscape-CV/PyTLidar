@@ -46,8 +46,9 @@ class SimplePlotter:
         
         Get the center from the start, length and axis. 
         """
-        center = cylinder_start + (length/2) * axis
-        mesh = pv.Cylinder(center=center, direction=axis, radius=radius, height=length)
+        axis_normalized = axis / np.linalg.norm(axis)
+        center = cylinder_start + (length/2) * axis_normalized
+        mesh = pv.Cylinder(center=center, direction=axis_normalized, radius=radius, height=length)
         return mesh
 
     def add_cylinder(self, start, axis, radius, length):

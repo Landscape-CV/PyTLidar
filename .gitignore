@@ -21,3 +21,5 @@ test.py
 cloth_nodes.txt
 /local_testing
 /_experimentation
+ecomodel_log.log
+.vscode/

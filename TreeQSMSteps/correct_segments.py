@@ -64,7 +64,7 @@ def correct_segments(P,cover,segment,inputs,RemSmall=False,ModBases=True,AddChil
     ns = len(Segs)
     for i in range(ns):
         if  len(SChi[i])==0:
-            SChi[i] = np.zeros((0, 1), dtype=np.uint32)
+            SChi[i] = np.zeros(0, dtype=np.uint32)
 
     if ModBases:
         # Modify the base of the segments
@@ -935,7 +935,7 @@ def remove_small(Ce, Segs, SPar, SChi):
                 else:
                     SChi[i] = ChildSegs
             else:
-                SChi[i] = np.zeros((0, 1))
+                SChi[i] = np.zeros(0, dtype=np.uint32)
     SChi = SChi[Keep]
     
     return Segs, SPar, SChi

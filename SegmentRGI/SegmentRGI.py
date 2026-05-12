@@ -30,6 +30,7 @@ def load_point_cloud(input_path):
     else:
         raise ValueError(f"Unsupported format {ext}. Only .pcd and .ply are supported.")
 
+
 def classify_wood_leaf(input_path, save_dir="", show_plots=False,
                         noise_percentile = 5,
                         angle_deg=15.0, 
@@ -41,6 +42,9 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
                         smoothMode = True,
                         useResidualTest = True,
                         useCurvatureTest = True,):
+    """
+    This function takes a point cloud file as input, classifies points as wood or leaf, and saves the results.
+    """
     base_name = os.path.splitext(os.path.basename(input_path))[0]
     if save_dir != "":
         os.makedirs(save_dir, exist_ok=True)
@@ -49,7 +53,7 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
 
     # print("[DEBUG] Available fields:", list(pcd_t.point))
     full_intensity = pcd_t.point[intensity_key].numpy().flatten()
-
+    print("full_intensity.shape: ", full_intensity.shape)
     # --- Adaptive Noise Filter ---
     # noise_percentile = noise_percentile
     threshold_noise = np.percentile(full_intensity, noise_percentile)
@@ -61,6 +65,15 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
     pcd = pcd_filtered.to_legacy()
     intensity = full_intensity[valid_mask]
     original_indices = np.nonzero(valid_mask)[0]
+
+
+    print("valid_mask", valid_mask, type(valid_mask))
+    print("noise_mask", noise_mask, type(noise_mask))
+    print("pcd_filtered", pcd_filtered, type(pcd_filtered))
+    print("pcd", pcd, type(pcd))
+    print("intensity", intensity, type(intensity))
+    print("original_indices", original_indices, type(original_indices))
+    exit()
 
     # --- Region Growing Clustering ---
     start_rg = time.time()
@@ -167,6 +180,100 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
         plt.grid(True)
         plt.tight_layout()
         plt.show()
+
+def classify_wood_leaf_point_cloud( point_cloud,
+                                    noise_percentile = 5,
+                                    angle_deg=15.0, 
+                                    curv_thresh=0.07, 
+                                    resid_thresh=0.05, 
+                                    k=30,
+                                    minClusterSize = 3,
+                                    maxClusterSize = 100000,
+                                    smoothMode = True,
+                                    useResidualTest = True,
+                                    useCurvatureTest = True,):
+    """
+    Given a point cloud, classifies each point as either wood or leaf. Similar function to 
+    classify_wood_leaf but does not have the file saving or plotting functionality. 
+
+    Args: 
+        point_cloud: (Nx4) numpy array. 
+    """
+    # --- Adaptive Noise Filter ---
+    full_intensity = point_cloud[:, 3]
+    threshold_noise = np.percentile(full_intensity, noise_percentile)
+    print(f"[FILTER] Removing intensity < {threshold_noise:.2f} (bottom {noise_percentile}%)")
+
+    valid_mask = full_intensity >= threshold_noise
+    noise_mask = ~valid_mask
+    point_cloud = point_cloud[valid_mask]
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(point_cloud[:, :3])
+    intensity = full_intensity[valid_mask]
+    original_indices = np.nonzero(valid_mask)[0]
+
+    # --- Region Growing Clustering ---
+    print("[CLUSTERING] Beginning Region Region Growing Clustering")
+    start_rg = time.time()
+    RGKNN = RG.RegionGrowing()
+    RGKNN.SetDataThresholds(pcd, angle_deg, curv_thresh, resid_thresh, k)
+    RGKNN.minClusterSize = minClusterSize
+    RGKNN.maxClusterSize = maxClusterSize
+    RGKNN.smoothMode = smoothMode
+    RGKNN.useResidualTest = useResidualTest
+    RGKNN.useCurvatureTest = useCurvatureTest
+    RGKNN.RGKnn()
+    end_rg = time.time()
+    print(f"[TIMING] Region Growing took {end_rg - start_rg:.2f} seconds")
+
+    labels_filtered = RGKNN.ReLabeles()
+    labels_full = -1 * np.ones(len(full_intensity), dtype=np.int32)
+    labels_full[original_indices] = labels_filtered
+    labels = labels_full
+
+    if len(RGKNN.Clusters) == 0:
+        print("No clusters found after region growing")
+        return
+
+    print(f"[CLUSTERING] Found {len(RGKNN.Clusters)} clusters after filtering")
+
+    # --- Trunk Analysis ---
+    start_class = time.time()
+    largest_cluster_id = np.argmax([len(c) for c in RGKNN.Clusters])
+    largest_cluster_indices = RGKNN.Clusters[largest_cluster_id]
+    trunk_intensities = np.array([intensity[i] for i in largest_cluster_indices])
+    trunk_median = np.median(trunk_intensities)
+    # buffer = 5000
+    # trunk_min = trunk_median - buffer
+    # trunk_max = trunk_median + buffer
+    q1 = np.percentile(trunk_intensities, 25)
+    trunk_min = q1
+    trunk_max = np.inf
+    print(f"[TRUNK INTENSITY] min={trunk_min:.2f} median={trunk_median:.2f} max={trunk_max:.2f}")
+
+    # --- Classification ---
+    wood_clusters, leaf_clusters = set(), set()
+    for cid, indices in enumerate(RGKNN.Clusters):
+        ci_intensity = np.array([intensity[i] for i in indices])
+        ci_median = np.median(ci_intensity)
+        if cid == largest_cluster_id or trunk_min <= ci_median:
+            wood_clusters.add(cid)
+        else:
+            leaf_clusters.add(cid)
+
+
+    wood_indices = np.array([original_indices[i] for cid in wood_clusters for i in RGKNN.Clusters[cid]])
+    leaf_indices = np.array([original_indices[i] for cid in leaf_clusters for i in RGKNN.Clusters[cid]])
+
+    print("Length Total", point_cloud.shape)
+    print("wood_indices", wood_indices.shape)
+    print("leaf_indices", leaf_indices.shape)
+
+    wood_mask = np.zeros(point_cloud.shape[0], dtype=bool)
+    wood_mask[wood_indices] = True
+
+    return wood_mask, ~wood_mask
+
 
 # Main to use
 if __name__ == "__main__":
