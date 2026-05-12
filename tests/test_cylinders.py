@@ -2,10 +2,10 @@ import numpy as np
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from libraries.TreeQSMSteps.cylinders import cylinders
-from libraries.TreeQSMSteps.cover_sets import cover_sets
-from libraries.TreeQSMSteps.tree_sets import tree_sets
-from libraries.TreeQSMSteps.segments import segments
+from lib.TreeQSMSteps.cylinders import cylinders
+from lib.TreeQSMSteps.cover_sets import cover_sets
+from lib.TreeQSMSteps.tree_sets import tree_sets
+from lib.TreeQSMSteps.segments import segments
 
 
 

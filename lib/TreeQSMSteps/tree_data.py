@@ -8,7 +8,7 @@ except ImportError:
 try:
     from . import LSF
 except ImportError:
-    import libraries.TreeQSMSteps.LSF as LSF
+    import lib.TreeQSMSteps.LSF as LSF
 
 try:
     from ..reporting import Plottingutils
@@ -411,7 +411,7 @@ def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
     
     return treedata
 
-# Requires the alphashape libraries
+# Requires the alphashape lib
 
 def crown_measures(treedata, cylinder, branch):
     """

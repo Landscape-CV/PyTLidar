@@ -120,7 +120,7 @@ standard defined by a recognized standards body, or, in the case of
 interfaces specified for a particular programming language, one that
 is widely used among developers working in that language.
 
-  The "System Libraries" of an executable work include anything, other
+  The "System lib" of an executable work include anything, other
 than the work as a whole, that (a) is included in the normal form of
 packaging a Major Component, but which is not part of that Major
 Component, and (b) serves only to enable use of the work with that
@@ -135,11 +135,11 @@ produce the work, or an object code interpreter used to run it.
 the source code needed to generate, install, and (for an executable
 work) run the object code and to modify the work, including scripts to
 control those activities.  However, it does not include the work's
-System Libraries, or general-purpose tools or generally available free
+System lib, or general-purpose tools or generally available free
 programs which are used unmodified in performing those activities but
 which are not part of the work.  For example, Corresponding Source
 includes interface definition files associated with source files for
-the work, and the source code for shared libraries and dynamically
+the work, and the source code for shared lib and dynamically
 linked subprograms that the work is specifically designed to require,
 such as by intimate data communication or control flow between those
 subprograms and other parts of the work.
@@ -291,7 +291,7 @@ in one of these ways:
     charge under subsection 6d.
 
   A separable portion of the object code, whose source code is excluded
-from the Corresponding Source as a System libraries, need not be
+from the Corresponding Source as a System lib, need not be
 included in conveying the object code work.
 
   A "User Product" is either (1) a "consumer product", which means any
@@ -667,8 +667,8 @@ For more information on this, and how to apply and follow the GNU GPL, see
 <https://www.gnu.org/licenses/>.
 
   The GNU General Public License does not permit incorporating your program
-into proprietary programs.  If your program is a subroutine libraries, you
+into proprietary programs.  If your program is a subroutine lib, you
 may consider it more useful to permit linking proprietary applications with
-the libraries.  If this is what you want to do, use the GNU Lesser General
+the lib.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.

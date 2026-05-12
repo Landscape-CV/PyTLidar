@@ -29,7 +29,7 @@ from collections import deque
 try:
     from . import LSF
 except ImportError:
-    import libraries.TreeQSMSteps.LSF as LSF
+    import lib.TreeQSMSteps.LSF as LSF
 try:
     from ...utils import utils
 except ImportError:

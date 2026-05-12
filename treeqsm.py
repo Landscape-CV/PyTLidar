@@ -26,16 +26,16 @@ from numba import jit
 import numpy as np
 from datetime import datetime
 try:
-    from .libraries.TreeQSMSteps.cover_sets import cover_sets
-    from .libraries.TreeQSMSteps.tree_sets import tree_sets
-    from .libraries.TreeQSMSteps.segments import segments
-    from .libraries.TreeQSMSteps.relative_size import relative_size
-    from .libraries.TreeQSMSteps.cylinders import cylinders
-    from .libraries.TreeQSMSteps.branches import branches
-    from .libraries.TreeQSMSteps.tree_data import tree_data
-    from .libraries.TreeQSMSteps.point_model_distance import point_model_distance
-    from .libraries.TreeQSMSteps.correct_segments import correct_segments
-    from .libraries.TreeQSMSteps.cube_volume import cube_volume
+    from .lib.TreeQSMSteps.cover_sets import cover_sets
+    from .lib.TreeQSMSteps.tree_sets import tree_sets
+    from .lib.TreeQSMSteps.segments import segments
+    from .lib.TreeQSMSteps.relative_size import relative_size
+    from .lib.TreeQSMSteps.cylinders import cylinders
+    from .lib.TreeQSMSteps.branches import branches
+    from .lib.TreeQSMSteps.tree_data import tree_data
+    from .lib.TreeQSMSteps.point_model_distance import point_model_distance
+    from .lib.TreeQSMSteps.correct_segments import correct_segments
+    from .lib.TreeQSMSteps.cube_volume import cube_volume
     from .reporting.cylinders_line_plotting import cylinders_line_plotting
     from .reporting.point_cloud_plotting import point_cloud_plotting
     from .reporting.qsm_plotting import qsm_plotting
@@ -43,16 +43,16 @@ try:
     from .utils.define_input import define_input
     
 except ImportError:
-    from libraries.TreeQSMSteps.cover_sets import cover_sets
-    from libraries.TreeQSMSteps.tree_sets import tree_sets
-    from libraries.TreeQSMSteps.segments import segments
-    from libraries.TreeQSMSteps.relative_size import relative_size
-    from libraries.TreeQSMSteps.cylinders import cylinders
-    from libraries.TreeQSMSteps.branches import branches
-    from libraries.TreeQSMSteps.tree_data import tree_data
-    from libraries.TreeQSMSteps.point_model_distance import point_model_distance
-    from libraries.TreeQSMSteps.correct_segments import correct_segments
-    from libraries.TreeQSMSteps.cube_volume import cube_volume
+    from lib.TreeQSMSteps.cover_sets import cover_sets
+    from lib.TreeQSMSteps.tree_sets import tree_sets
+    from lib.TreeQSMSteps.segments import segments
+    from lib.TreeQSMSteps.relative_size import relative_size
+    from lib.TreeQSMSteps.cylinders import cylinders
+    from lib.TreeQSMSteps.branches import branches
+    from lib.TreeQSMSteps.tree_data import tree_data
+    from lib.TreeQSMSteps.point_model_distance import point_model_distance
+    from lib.TreeQSMSteps.correct_segments import correct_segments
+    from lib.TreeQSMSteps.cube_volume import cube_volume
     from reporting.cylinders_line_plotting import cylinders_line_plotting
     from reporting.point_cloud_plotting import point_cloud_plotting
     from reporting.qsm_plotting import qsm_plotting

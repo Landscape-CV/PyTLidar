@@ -11,20 +11,20 @@ from sklearn import linear_model
 from sklearn.cluster import DBSCAN
 from sklearn.cluster import k_means
 import matplotlib.pyplot as plt
-from libraries.TreeQSMSteps.cover_sets import cover_sets
-from libraries.TreeQSMSteps.segments import segments
-from libraries.TreeQSMSteps.correct_segments import correct_segments
-from libraries.TreeQSMSteps.tree_sets import tree_sets
-from libraries.TreeQSMSteps.relative_size import relative_size
-from libraries.TreeSegmentation import segment_point_cloud
-from libraries.TreeQSMSteps.cylinders import cylinders
-from libraries.TreeQSMSteps.point_model_distance import point_model_distance
+from lib.TreeQSMSteps.cover_sets import cover_sets
+from lib.TreeQSMSteps.segments import segments
+from lib.TreeQSMSteps.correct_segments import correct_segments
+from lib.TreeQSMSteps.tree_sets import tree_sets
+from lib.TreeQSMSteps.relative_size import relative_size
+from lib.TreeSegmentation import segment_point_cloud
+from lib.TreeQSMSteps.cylinders import cylinders
+from lib.TreeQSMSteps.point_model_distance import point_model_distance
 from utils.define_input import define_input
 from reporting.cylinders_line_plotting import cylinders_line_plotting
 from reporting.point_cloud_plotting import point_cloud_plotting
 from reporting.cylinders_plotting import cylinders_plotting
 from reporting.qsm_plotting import qsm_plotting
-import libraries.TreeQSMSteps.LSF as LSF
+import lib.TreeQSMSteps.LSF as LSF
 from scipy.spatial import Delaunay
 from scipy.spatial.transform import Rotation 
 from scipy.spatial.distance import cdist
@@ -37,7 +37,7 @@ import trimesh
 from alphashape import alphashape
 import pickle
 import dotenv
-from libraries.GBSeparation.remove_leaves import GBSeperationWoodLeafClassifier
+from lib.GBSeparation.remove_leaves import GBSeperationWoodLeafClassifier
 from robpy.covariance import DetMCD,FastMCD
 from sklearn.covariance import MinCovDet
 import CSF
@@ -67,12 +67,12 @@ logger.addHandler(c_handler)
 
 
 
-from libraries.SegmentRGI.SegmentRGI import classify_wood_leaf
+from lib.SegmentRGI.SegmentRGI import classify_wood_leaf
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from plyfile import PlyData, PlyElement
 
-from libraries.RobustCylinderFitting import RobustCylinderFitterEcomodel
+from lib.RobustCylinderFitting import RobustCylinderFitterEcomodel
 dotenv.load_dotenv()
 
 class Ecomodel:

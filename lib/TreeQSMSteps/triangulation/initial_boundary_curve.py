@@ -24,9 +24,9 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 import numpy as np
-from libraries.TreeQSMSteps.triangulation import check_self_intersection
+from lib.TreeQSMSteps.triangulation import check_self_intersection
 from utils.utils import distances_to_line
-from libraries.TreeQSMSteps.triangulation import boundary_curve2
+from lib.TreeQSMSteps.triangulation import boundary_curve2
 def initial_boundary_curve(P, TriaWidth):
     """
     Determines the boundary curve adaptively based on the given point cloud and triangular width.
