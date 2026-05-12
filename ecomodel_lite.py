@@ -5,29 +5,29 @@ import os
 import shutil
 import CSF
 import numpy as np
-from utils.utils import load_point_cloud
+from Utils.Utils import load_point_cloud
 from lib.SegmentRGI.SegmentRGI import classify_wood_leaf, classify_wood_leaf_point_cloud
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from plyfile import PlyData, PlyElement
-from utils.plot_tools import SimplePlotter
+from Utils.plot_tools import SimplePlotter
 import open3d as o3d
 import cc3d
 from copy import deepcopy
-from utils.utils import load_point_cloud
+from Utils.Utils import load_point_cloud
 import numpy as np
 from pathlib import Path
 import time
-from lib.TreeQSMSteps.cover_sets import cover_sets
+from TreeQSMSteps.cover_sets import cover_sets
 from lib.ecomodel_segmenters import SegmenterScanline, SegmenterTreeX
-from utils.define_input import define_input
+from Utils.define_input import define_input
 from treeqsm import treeqsm
-from lib.TreeQSMSteps.cover_sets import cover_sets
-from lib.TreeQSMSteps.segments import segments
-from lib.TreeQSMSteps.correct_segments import correct_segments
-from lib.TreeQSMSteps.tree_sets import tree_sets
-from lib.TreeQSMSteps.relative_size import relative_size
-from lib.TreeQSMSteps.cylinders import cylinders
+from TreeQSMSteps.cover_sets import cover_sets
+from TreeQSMSteps.segments import segments
+from TreeQSMSteps.correct_segments import correct_segments
+from TreeQSMSteps.tree_sets import tree_sets
+from TreeQSMSteps.relative_size import relative_size
+from TreeQSMSteps.cylinders import cylinders
 import logging
 from lib.GBSeparation.remove_leaves import GBSeperationWoodLeafClassifier
 
@@ -136,19 +136,45 @@ class TreeQSMCylinderFitting:
     Class which implements the TreeQSM algorithm by using only the specific function calls 
     necessary to produce the cylinders. 
     """
-    def __init__(self):
-        pass
+    def __init__(self, 
+                 PatchDiam1=0.025, 
+                 PatchDiam2Min=0.05, 
+                 PatchDiam2Max=0.08, 
+                 BallRad1=0.03, 
+                 BallRad2=0.09, 
+                 nmin1=5, 
+                 min_tree_points=100):
+        """
+        TreeQSM Cylinder fitting. 
+
+        Args:
+            PatchDiam1: Diameter of patch for initial cylinder fitting.
+            PatchDiam2Min: Minimum diameter of patch for second round of cylinder fitting.
+            PatchDiam2Max: Maximum diameter of patch for second round of cylinder fitting.
+            BallRad1: Radius of ball for initial cylinder fitting.
+            BallRad2: Radius of ball for second round of cylinder fitting.
+            nmin1: Minimum number of points in a patch for initial cylinder fitting.
+            min_tree_points: Minimum number of points in a tree segment to attempt TreeQSM on, otherwise skip. 
+        """
+        self.PatchDiam1 = PatchDiam1
+        self.PatchDiam2Min = PatchDiam2Min
+        self.PatchDiam2Max = PatchDiam2Max
+        self.BallRad1 = BallRad1
+        self.BallRad2 = BallRad2
+        self.nmin1 = nmin1
+        self.min_tree_points = min_tree_points
 
     def get_cylinders(self, point_cloud, instance_labels, noise_remover = None):
         """
         Returns Cx8 numpy array representing the cylinders found in the tile. 
 
         Note: 
-            Array is formatted as [start_x, start_y, start_z, radius, axis_x, axis_y, axis_z, length]
+            Input Array is formatted as [start_x, start_y, start_z, radius, axis_x, axis_y, axis_z, length]
         
         Args: 
             point_cloud (Nx4): point cloud representing a tile with trees.
             instance_labels (N): Array of instance labels for each point in the point cloud.
+            noise_remover: Optional class which removes noise from point cloud before TreeQSM.
         """
         labeled_point_cloud = np.concatenate((point_cloud[:,:3], instance_labels[:, np.newaxis]), axis=1)
 
@@ -164,15 +190,15 @@ class TreeQSMCylinderFitting:
             
             segment_mask = (labeled_point_cloud[:,3] == tree_instance)
             tree_cloud = labeled_point_cloud[segment_mask, :3]
-            print(tree_instance)
+            # print(tree_instance)
 
-            np.savetxt(f"segment_{tree_instance}.xyz", tree_cloud)
+            # np.savetxt(f"segment_{tree_instance}.xyz", tree_cloud)
             if noise_remover:
                 print("Removing Small clusters...")
                 tree_cloud = noise_remover.clean(tree_cloud)
                 print("Done.")
 
-            if len(tree_cloud) < 100:
+            if len(tree_cloud) < self.min_tree_points:
                 continue
             try:
                 qsm_input = define_input(tree_cloud, 1, 1, 1)[0]
@@ -182,14 +208,14 @@ class TreeQSMCylinderFitting:
                 traceback.print_exc()
                 continue
 
-            np.savetxt("troubled_segment.xyz", tree_cloud)
+            # np.savetxt("troubled_segment.xyz", tree_cloud)
 
-            qsm_input['PatchDiam1'] = 0.025
-            qsm_input['PatchDiam2Min'] = 0.05
-            qsm_input['PatchDiam2Max'] = 0.08
-            qsm_input['BallRad1'] = 0.03
-            qsm_input['BallRad2'] = 0.09
-            qsm_input['nmin1'] = 5
+            qsm_input['PatchDiam1'] = self.PatchDiam1
+            qsm_input['PatchDiam2Min'] = self.PatchDiam2Min
+            qsm_input['PatchDiam2Max'] = self.PatchDiam2Max
+            qsm_input['BallRad1'] = self.BallRad1
+            qsm_input['BallRad2'] = self.BallRad2
+            qsm_input['nmin1'] = self.nmin1
 
             try: 
                 cover1 = cover_sets(tree_cloud, qsm_input)
@@ -200,6 +226,8 @@ class TreeQSMCylinderFitting:
                 cover1 = cover_sets(tree_cloud, qsm_input, RS)
                 cover1, Base, Forb = tree_sets(tree_cloud, cover1, qsm_input, segment1)
                 segment1 = segments(cover1, Base, Forb)
+                # print(f"tree_cloud shape: {tree_cloud.shape}")
+                # print(f"segment1 type: {type(segment1)}, content sample: {segment1 if isinstance(segment1, (list, dict)) else type(segment1)}")
                 segment1 = correct_segments(tree_cloud, cover1, segment1, qsm_input,1,1,0)
                 cylinder = cylinders(tree_cloud,cover1,segment1,qsm_input)
             except Exception as e: 
@@ -228,7 +256,15 @@ class TreeQSMFull:
 
     def get_cylinders(self, point_cloud, instance_labels, noise_remover = None):
         """
-        Uses actual TreeQSM.
+        Returns Cx8 numpy array representing the cylinders found in the tile. 
+
+        Note: 
+            Input Array is formatted as [start_x, start_y, start_z, radius, axis_x, axis_y, axis_z, length]
+        
+        Args: 
+            point_cloud (Nx4): point cloud representing a tile with trees.
+            instance_labels (N): Array of instance labels for each point in the point cloud.
+            noise_remover: Optional class which removes noise from point cloud before TreeQSM.
         """
         labeled_point_cloud = np.concatenate((point_cloud[:,:3], instance_labels[:, np.newaxis]), axis=1)
 
@@ -247,6 +283,10 @@ class TreeQSMFull:
             tree_cloud = labeled_point_cloud[segment_mask, :3]
             print(tree_instance)
 
+            if noise_remover:
+                print("Removing Small clusters...")
+                tree_cloud = noise_remover.clean(tree_cloud)
+                print("Done.")
 
 
             def add_noise_to_uniform_cloud(point_cloud, noise_scale=0.001):
@@ -294,12 +334,23 @@ class CSFGroundRemoval:
     """
     Algorithm which removes ground from a point cloud. 
     """
-    def __init__(self):
-        pass
+    def __init__(self, cloth_resolution=0.1, class_threshold=0.5, iterations=500):
+        """
+        CSF Ground Removal.
+
+        Args:
+            cloth_resolution: The resolution of the cloth used in the CSF algorithm. Smaller values lead to a more detailed ground surface but increase computation time.
+            class_threshold: The threshold for classifying points as ground or non-ground. Higher values may result in more points being classified as ground.
+            iteratsion: The number of iterations for the CSF algorithm to run. More iterations may improve the accuracy of ground classification but increase computation time.
+        """
+        self.cloth_resolution = cloth_resolution
+        self.class_threshold = class_threshold
+        self.iterations = iterations
+            
 
     def remove_ground(self, point_cloud, remove_under_ground = True):
         """
-        Uses CSF To remove ground in point cloud. Stores the ground level in self.ground_z for the tile.
+        Uses CSF To remove ground in point cloud.
         
         Args: 
             point_cloud (Nx3 Array): Point cloud representing tile.
@@ -313,9 +364,9 @@ class CSFGroundRemoval:
         new_min_z = float('inf')
 
         # prameter settings
-        csf.params.cloth_resolution = 2
-        csf.params.class_threshold = 0.5
-        csf.params.interations = 500
+        csf.params.cloth_resolution = self.cloth_resolution
+        csf.params.class_threshold = self.class_threshold
+        csf.params.iterations = self.iterations
 
         csf.setPointCloud(point_cloud)
         ground = CSF.VecInt()  # a list to indicate the index of ground points after calculation
@@ -360,7 +411,7 @@ class RGIWoodLeafClassifier:
         
     def classify(self, point_cloud):
         """
-        Removes leaf points from a point cloud.
+        Creates two masks for wood and leaf points in the point cloud.
 
         Args:
             point_cloud (Nx4): point_cloud representing a tile with trees. 
@@ -387,15 +438,15 @@ class RGIWoodLeafClassifier:
 class EcomodelFunctions:
     """
     Contains useful generic function used in ecomodel pipeline.
+
+    Saves results in results folder. 
     """
-    def __init__(self, results_folder="results", intensity_threshold=0):
+    def __init__(self, results_folder="results"):
         super().__init__()
         if not os.path.isdir(results_folder):
             os.mkdir(results_folder)
         self.results_folder = results_folder
-        self.intensity_threshold = intensity_threshold
         self.plotter = SimplePlotter()
-        self.ground_z = 0
 
     @staticmethod
     def filter_intensity(point_cloud, intensity):
@@ -495,8 +546,8 @@ class EcomodelScanline(EcomodelFunctions):
     """
     This Ecomodel uses the 
     """
-    def __init__(self, results_folder, intensity_threshold):
-        super().__init__(results_folder, intensity_threshold)
+    def __init__(self, results_folder):
+        super().__init__(results_folder)
         self.instance_segmenter = SegmenterScanline()
         self.leaf_wood_classifier = RGIWoodLeafClassifier(noise_percentile=0, 
                                                           angle_deg=6, 
@@ -510,6 +561,7 @@ class EcomodelScanline(EcomodelFunctions):
                                                           useCurvatureTest=True)
         self.qsm = TreeQSMCylinderFitting()
         self.ground_removal = CSFGroundRemoval()
+        self.intensity_threshold = 42000
 
     def process_tile(self, tile_path, save_data = True, show_plots = True):
         """
@@ -560,8 +612,8 @@ class EcomodelScanline(EcomodelFunctions):
 
 
 class EcomodelTreeX(EcomodelFunctions):
-    def __init__(self, results_folder="results", intensity_threshold=0):
-        super().__init__(results_folder, intensity_threshold)
+    def __init__(self, results_folder="results"):
+        super().__init__(results_folder)
 
         self.instance_segmenter = SegmenterTreeX()
         self.leaf_wood_classifier = RGIWoodLeafClassifier(noise_percentile=0, 
@@ -575,6 +627,7 @@ class EcomodelTreeX(EcomodelFunctions):
                                                           useResidualTest=True, 
                                                           useCurvatureTest=True)
         self.qsm = TreeQSMCylinderFitting()
+        self.intensity_threshold = 42000
 
     def process_tile(self, tile_path, save_data = True, show_plots = True):
 
@@ -606,7 +659,7 @@ class EcomodelTreeX(EcomodelFunctions):
         wood_mask, leaf_mask = self.leaf_wood_classifier.classify(full_data)
         full_data = full_data[wood_mask]
         instance_labels = instance_labels[wood_mask]
-        full_data, intensity_mask = self.filter_intensity(full_data, 42000)
+        full_data, intensity_mask = self.filter_intensity(full_data, self.intensity_threshold)
         instance_labels = instance_labels[intensity_mask]
         if full_data is None:
             logger.warning("Unable to remove leaves on segment.")
@@ -630,7 +683,7 @@ class EcomodelTreeX(EcomodelFunctions):
         
 if __name__ == "__main__":
     #### This block is for testing the TreeX Ecomodel on a single tile.
-    model = EcomodelScanline(results_folder="results", intensity_threshold=42000)
+    model = EcomodelTreeX(results_folder="results")
     model.process_tile(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10\retile_573088_2840085_0_1.laz", save_data=True, show_plots=True)
 
     #### Just segmentation:

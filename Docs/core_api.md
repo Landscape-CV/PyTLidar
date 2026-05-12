@@ -4,9 +4,9 @@
 This document provides API documentation for the core functions in the core TreeQSM functionality, in order of execution.
 
 ---
-## utils
+## Utils
 
-### utils.load_point_cloud
+### Utils.load_point_cloud
 
 Loads a point cloud from LAS or LAZ files and converts it to numpy format
 

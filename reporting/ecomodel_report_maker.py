@@ -1,11 +1,11 @@
 from reportlab.lib.pagesizes import letter, landscape, A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
-from utils.plot_tools import ResultsPlotter
+from Utils.plot_tools import ResultsPlotter
 import numpy as np
 from pathlib import Path
 import os
-from utils.utils import load_point_cloud
+from Utils.Utils import load_point_cloud
 
 # class CameraTracker:
 #     def __init__(self, plotter):

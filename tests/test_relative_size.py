@@ -5,7 +5,7 @@ import numpy as np
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from lib.TreeQSMSteps.relative_size import relative_size
+from TreeQSMSteps.relative_size import relative_size
 
 
 def test_single_segment():

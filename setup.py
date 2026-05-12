@@ -14,7 +14,7 @@ setuptools.setup(
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: OS Independent",
     ],
-    packages=['PyTLidar.utils', 'PyTLidar.plotting', 'PyTLidar.TreeQSMSteps'],
+    packages=['PyTLidar.Utils', 'PyTLidar.plotting', 'PyTLidar.TreeQSMSteps'],
     py_modules=['PyTLidar.main', 'PyTLidar.treeqsm', 'PyTLidar.treeqsm_batch'],
     python_requires=">=3.8, <3.12",
     install_requires=[

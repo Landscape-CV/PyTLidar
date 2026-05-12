@@ -2,7 +2,7 @@ import json
 import pyvista as pv
 import numpy as np
 import matplotlib.pyplot as plt
-from .utils import load_point_cloud
+from .Utils import load_point_cloud
 
 
 class SimplePlotter:

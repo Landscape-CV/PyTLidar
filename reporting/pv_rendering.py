@@ -58,7 +58,7 @@ def _turbo_color(t: float) -> str:
     )
 
 
-# ── Radius-class colour scheme (matches utils/plot_tools.ResultsPlotter) ──────
+# ── Radius-class colour scheme (matches Utils/plot_tools.ResultsPlotter) ──────
 
 _RADIUS_CLASSES: list[tuple[float, float, str]] = [
     (0.00, 0.02, "red"),       # twig       0–2 cm

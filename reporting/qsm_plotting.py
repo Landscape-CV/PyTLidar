@@ -66,7 +66,7 @@ def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=1,return_ht
         segs = np.concatenate([np.array([-1]),segments["SegmentArray"]])
         segment_ids= np.repeat(segs, num_indices) 
         # segs = [np.concatenate(seg).astype(np.int64) for seg in segments["segments"]]
-        # segment_ids = utils.assign_segments(points,segs,cover_sets["sets"])
+        # segment_ids = Utils.assign_segments(points,segs,cover_sets["sets"])
         cover_set_ids = cover_sets["sets"]  
     else:
         segment_ids = segments
