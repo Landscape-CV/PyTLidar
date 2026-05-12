@@ -9,9 +9,9 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 import numpy as np
 try:
-    from ...utils import utils
+    from ..Utils import Utils
 except ImportError:
-    import utils.utils as utils
+    import Utils.Utils as Utils
 import numba
 
 # class LSF:
@@ -32,7 +32,7 @@ def rotate_to_z_axis(Vec):
     if np.linalg.norm(D) > 0:
         # Use acos on the z-component (assuming Vec is normalized or that we want the angle with z-axis)
         a = np.arccos(Vec[2])
-        R = utils.rotation_matrix(D, a)
+        R = Utils.rotation_matrix(D, a)
     else:
         R = np.eye(3)
         a = 0.0
@@ -506,7 +506,7 @@ def least_squares_axis(P, Axis, Point0, Rad0, weight=None):
 
     # Compute distances from the original points to the fitted axis.
     # Use the utility distances_to_line: P, axis, and Point0.
-    d_axis, _, h, _ = utils.distances_to_line(P, Axis_opt, Point0)
+    d_axis, _, h, _ = Utils.distances_to_line(P, Axis_opt, Point0)
     d_axis = d_axis - Rad0  # subtract cylinder radius
     Len = np.max(h) - np.min(h)
 
@@ -524,8 +524,8 @@ def least_squares_axis(P, Axis, Point0, Rad0, weight=None):
         ns = int(np.ceil(2 * np.pi * Rad0 / res))
         ns = max(ns, 8)
         ns = min(ns, 36)
-        # utils.surface_coverage returns a tuple; we take the first element.
-        SurfCov, _, _, _ = utils.surface_coverage(P, Axis_opt, Point0, nl, ns, 0.8 * Rad0)
+        # Utils.surface_coverage returns a tuple; we take the first element.
+        SurfCov, _, _, _ = Utils.surface_coverage(P, Axis_opt, Point0, nl, ns, 0.8 * Rad0)
         SurfCov = float(SurfCov)
     else:
         SurfCov = 0.0
@@ -848,9 +848,9 @@ def least_squares_cylinder(P, cyl0, weight=None, Q=None):
         nl = max(3, int(np.ceil(cyl_length / res)))
         ns = int(np.ceil(2 * np.pi * cyl_out['radius'] / res))
         ns = min(36, max(ns, 8))
-        # Assume utils.surface_coverage returns a tuple; we take its first element.
-        #SurfCov, _, _, _ = utils.surface_coverage(P, Axis.reshape(1, -1), Point_adjusted.reshape(1, -1), nl, ns, 0.8 * cyl_out['radius'])
-        SurfCov, _, _, _ = utils.surface_coverage(P, Axis, Point_adjusted, nl, ns,
+        # Assume Utils.surface_coverage returns a tuple; we take its first element.
+        #SurfCov, _, _, _ = Utils.surface_coverage(P, Axis.reshape(1, -1), Point_adjusted.reshape(1, -1), nl, ns, 0.8 * cyl_out['radius'])
+        SurfCov, _, _, _ = Utils.surface_coverage(P, Axis, Point_adjusted, nl, ns,
                                                     0.8 * cyl_out['radius'])
         cyl_out['SurfCov'] = float(SurfCov)
     else:

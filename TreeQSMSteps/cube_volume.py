@@ -1,8 +1,8 @@
 import numpy as np
 try:
-    from ...utils import utils
+    from ..Utils import Utils
 except ImportError:
-    import utils.utils as utils 
+    import Utils.Utils as Utils 
 
 
 

@@ -2,18 +2,18 @@ import numpy as np
 from scipy.spatial import ConvexHull
 from alphashape import alphashape 
 try:
-    from ...utils import utils
+    from ..Utils import Utils
 except ImportError:
-    import utils.utils as utils
+    import Utils.Utils as Utils
 try:
     from . import LSF
 except ImportError:
-    import lib.TreeQSMSteps.LSF as LSF
+    import LSF
 
 try:
-    from ..reporting import Plottingutils
+    from ..reporting import PlottingUtils
 except ImportError:
-    import reporting.Plottingutils as Plottingutils
+    import reporting.PlottingUtils as PlottingUtils
 import matplotlib.pyplot as plt
 import matplotlib
 def tree_data(cylinder, branch, trunk, inputs, iter = 0):
@@ -220,121 +220,121 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     plt.grid(True)
 
     plt.subplot(2, 4, 2)
-    Plottingutils.plot_distribution(Q, 6+iter*10, 0, 0, 'VolCylDia')
+    PlottingUtils.plot_distribution(Q, 6+iter*10, 0, 0, 'VolCylDia')
 
     plt.subplot(2, 4, 3)
-    Plottingutils.plot_distribution(Q, 6+iter*10, 0, 0, 'AreCylDia')
+    PlottingUtils.plot_distribution(Q, 6+iter*10, 0, 0, 'AreCylDia')
 
     plt.subplot(2, 4, 4)
-    Plottingutils.plot_distribution(Q, 6+iter*10, 0, 0, 'LenCylDia')
+    PlottingUtils.plot_distribution(Q, 6+iter*10, 0, 0, 'LenCylDia')
 
     plt.subplot(2, 4, 5)
-    Plottingutils.plot_distribution(Q, 6+iter*10, 0, 0, 'VolBranchOrd')
+    PlottingUtils.plot_distribution(Q, 6+iter*10, 0, 0, 'VolBranchOrd')
 
     plt.subplot(2, 4, 6)
-    Plottingutils.plot_distribution(Q, 6+iter*10, 0, 0, 'LenBranchOrd')
+    PlottingUtils.plot_distribution(Q, 6+iter*10, 0, 0, 'LenBranchOrd')
 
     plt.subplot(2, 4, 7)
-    Plottingutils.plot_distribution(Q, 6+iter*10, 0, 0, 'AreBranchOrd')
+    PlottingUtils.plot_distribution(Q, 6+iter*10, 0, 0, 'AreBranchOrd')
 
     plt.subplot(2, 4, 8)
-    Plottingutils.plot_distribution(Q, 6+iter*10, 0, 0, 'NumBranchOrd')
+    PlottingUtils.plot_distribution(Q, 6+iter*10, 0, 0, 'NumBranchOrd')
     plt.tight_layout()
 
     # Figure 7: Cylinder distributions
     plt.figure(7+iter*10)
     plt.subplot(3, 3, 1)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'VolCylHei')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'VolCylHei')
 
     plt.subplot(3, 3, 2)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'AreCylHei')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'AreCylHei')
 
     plt.subplot(3, 3, 3)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'LenCylHei')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'LenCylHei')
 
     plt.subplot(3, 3, 4)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'VolCylZen')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'VolCylZen')
 
     plt.subplot(3, 3, 5)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'AreCylZen')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'AreCylZen')
 
     plt.subplot(3, 3, 6)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'LenCylZen')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'LenCylZen')
 
     plt.subplot(3, 3, 7)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'VolCylAzi')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'VolCylAzi')
 
     plt.subplot(3, 3, 8)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'AreCylAzi')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'AreCylAzi')
 
     plt.subplot(3, 3, 9)
-    Plottingutils.plot_distribution(Q, 7+iter*10, 0, 0, 'LenCylAzi')
+    PlottingUtils.plot_distribution(Q, 7+iter*10, 0, 0, 'LenCylAzi')
     plt.tight_layout()
     # plt.show()
     
     # Figure 8: Branch distributions
     plt.figure(8+iter*10)
     plt.subplot(3, 4, 1)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'VolBranchDia', 'VolBranch1Dia')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'VolBranchDia', 'VolBranch1Dia')
 
     plt.subplot(3, 4, 2)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'AreBranchDia', 'AreBranch1Dia')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'AreBranchDia', 'AreBranch1Dia')
 
     plt.subplot(3, 4, 3)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'LenBranchDia', 'LenBranch1Dia')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'LenBranchDia', 'LenBranch1Dia')
 
     plt.subplot(3, 4, 4)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'NumBranchDia', 'NumBranch1Dia')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'NumBranchDia', 'NumBranch1Dia')
 
     plt.subplot(3, 4, 5)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'VolBranchHei', 'VolBranch1Hei')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'VolBranchHei', 'VolBranch1Hei')
 
     plt.subplot(3, 4, 6)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'AreBranchHei', 'AreBranch1Hei')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'AreBranchHei', 'AreBranch1Hei')
 
     plt.subplot(3, 4, 7)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'LenBranchHei', 'LenBranch1Hei')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'LenBranchHei', 'LenBranch1Hei')
 
     plt.subplot(3, 4, 8)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'NumBranchHei', 'NumBranch1Hei')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'NumBranchHei', 'NumBranch1Hei')
 
     plt.subplot(3, 4, 9)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'VolBranchAng', 'VolBranch1Ang')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'VolBranchAng', 'VolBranch1Ang')
 
     plt.subplot(3, 4, 10)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'AreBranchAng', 'AreBranch1Ang')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'AreBranchAng', 'AreBranch1Ang')
 
     plt.subplot(3, 4, 11)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'LenBranchAng', 'LenBranch1Ang')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'LenBranchAng', 'LenBranch1Ang')
 
     plt.subplot(3, 4, 12)
-    Plottingutils.plot_distribution(Q, 8+iter*10, 1, 0, 'NumBranchAng', 'NumBranch1Ang')
+    PlottingUtils.plot_distribution(Q, 8+iter*10, 1, 0, 'NumBranchAng', 'NumBranch1Ang')
     plt.tight_layout()
     # Figure 9: Branch zenith and azimuth distributions
     plt.figure(9+iter*10)
     plt.subplot(2, 4, 1)
-    Plottingutils.plot_distribution(Q, 9+iter*10, 1, 0, 'VolBranchZen', 'VolBranch1Zen')
+    PlottingUtils.plot_distribution(Q, 9+iter*10, 1, 0, 'VolBranchZen', 'VolBranch1Zen')
 
     plt.subplot(2, 4, 2)
-    Plottingutils.plot_distribution(Q, 9+iter*10, 1, 0, 'AreBranchZen', 'AreBranch1Zen')
+    PlottingUtils.plot_distribution(Q, 9+iter*10, 1, 0, 'AreBranchZen', 'AreBranch1Zen')
 
     plt.subplot(2, 4, 3)
-    Plottingutils.plot_distribution(Q, 9+iter*10, 1, 0, 'LenBranchZen', 'LenBranch1Zen')
+    PlottingUtils.plot_distribution(Q, 9+iter*10, 1, 0, 'LenBranchZen', 'LenBranch1Zen')
 
     plt.subplot(2, 4, 4)
-    Plottingutils.plot_distribution(Q, 9+iter*10, 1, 0, 'NumBranchZen', 'NumBranch1Zen')
+    PlottingUtils.plot_distribution(Q, 9+iter*10, 1, 0, 'NumBranchZen', 'NumBranch1Zen')
 
     plt.subplot(2, 4, 5)
-    Plottingutils.plot_distribution(Q, 9+iter*10, 1, 0, 'VolBranchAzi', 'VolBranch1Azi')
+    PlottingUtils.plot_distribution(Q, 9+iter*10, 1, 0, 'VolBranchAzi', 'VolBranch1Azi')
 
     plt.subplot(2, 4, 6)
-    Plottingutils.plot_distribution(Q, 9+iter*10, 1, 0, 'AreBranchAzi', 'AreBranch1Azi')
+    PlottingUtils.plot_distribution(Q, 9+iter*10, 1, 0, 'AreBranchAzi', 'AreBranch1Azi')
 
     plt.subplot(2, 4, 7)
-    Plottingutils.plot_distribution(Q, 9+iter*10, 1, 0, 'LenBranchAzi', 'LenBranch1Azi')
+    PlottingUtils.plot_distribution(Q, 9+iter*10, 1, 0, 'LenBranchAzi', 'LenBranch1Azi')
 
     plt.subplot(2, 4, 8)
-    Plottingutils.plot_distribution(Q, 9+iter*10, 1, 0, 'NumBranchAzi', 'NumBranch1Azi')
+    PlottingUtils.plot_distribution(Q, 9+iter*10, 1, 0, 'NumBranchAzi', 'NumBranch1Azi')
     plt.tight_layout()
     if inputs['plot'] > 1:
         plt.show()
@@ -411,7 +411,7 @@ def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
     
     return treedata
 
-# Requires the alphashape lib
+# Requires the alphashape library
 
 def crown_measures(treedata, cylinder, branch):
     """
@@ -436,11 +436,11 @@ def crown_measures(treedata, cylinder, branch):
     P = np.zeros((5 * nc*10, 3))  # Four mid points on the cylinder surface
     t = 0
     for i in range(nc):
-        U, V = utils.orthonormal_vectors(Axe[i, :])
+        U, V = Utils.orthonormal_vectors(Axe[i, :])
         U = cylinder['radius'][i] * U
         if cylinder['branch'][i] == 0:
             # For stem cylinders, generate more points
-            R = utils.rotation_matrix(Axe[i, :], np.pi / 12)
+            R = Utils.rotation_matrix(Axe[i, :], np.pi / 12)
             for k in range( 4):
                 M = Sta[i, :] + (k / 4) * Len[i] * Axe[i, :]
                 for j in range(12):
@@ -450,7 +450,7 @@ def crown_measures(treedata, cylinder, branch):
                     P[t-1, :] = M + U.T
         else:
             M = Sta[i, :] + 0.5 * Len[i] * Axe[i, :]
-            R = utils.rotation_matrix(Axe[i, :], np.pi / 4)
+            R = Utils.rotation_matrix(Axe[i, :], np.pi / 4)
             for j in range(4):
                 if j > 0:
                     U = R @ U

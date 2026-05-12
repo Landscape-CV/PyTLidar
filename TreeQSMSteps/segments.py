@@ -26,9 +26,9 @@ This derivative work is released under the GNU General Public License (GPL).
 import numpy as np
 from scipy.spatial.distance import cdist
 try:
-    from ...utils import utils
+    from ..Utils import Utils
 except ImportError:
-    import utils.utils as utils
+    import Utils.Utils as Utils
 def segments(cover, Base, Forb,qsm=True):
     """
     Segments the covered point cloud into branches.
@@ -221,7 +221,7 @@ def define_cut(Nei,CutPre,Forb,Fal):
     except:
         CutPre = np.array([CutPre])
     Cut = np.concatenate([Nei[c] for c in CutPre])
-    Cut = utils.unique_elements_array(Cut,Fal)
+    Cut = Utils.unique_elements_array(Cut,Fal)
     I = Forb[Cut]
     Cut = Cut[np.invert(I)]
     return Cut
@@ -299,7 +299,7 @@ def cut_components(Nei, Cut, CutSize, Fal, False_mask):
                 Fal[Added] = False
                 t += a
                 Ext = np.concatenate([Nei[a] for a in Added])
-                Ext = utils.unique_elements_array(Ext, False_mask)
+                Ext = Utils.unique_elements_array(Ext, False_mask)
                 I = Fal[Ext]
                 Added = Ext[I]
                 num_added += a
@@ -358,7 +358,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
         while i < ns-1:
             Forb[N] = True
             N = np.concatenate([Nei[n] for n in N])
-            N = utils.unique_elements_array(N, Fal)
+            N = Utils.unique_elements_array(N, Fal)
             I = Forb[N]
             N = N[~I]
             if len(N) > 0:
@@ -393,7 +393,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
             Comp[:a] = C
             Fal[C] = False
             if a > 1:
-                Add = utils.unique_elements_array(np.concatenate([Nei[c] for c in C]), False_mask)
+                Add = Utils.unique_elements_array(np.concatenate([Nei[c] for c in C]), False_mask)
             else:
 
                 Add = Nei[C]
@@ -412,7 +412,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
                 Fal[Add] = False
                 t += a
                 Add = np.concatenate([Nei[a] for a in Add])
-                Add = utils.unique_elements_array(Add, False_mask)
+                Add = Utils.unique_elements_array(Add, False_mask)
                 I = Fal[Add]
                 Add = Add[I]
                 a = len(Add)
@@ -447,7 +447,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
         Fal[Study[0]] = True
         for i in range(k):
             # Determine the size of the base of the components
-            Set = utils.unique_elements_array(np.concatenate([Components[i], Study[0]]), False_mask).astype(int)
+            Set = Utils.unique_elements_array(np.concatenate([Components[i], Study[0]]), False_mask).astype(int)
             False_mask[Components[i].astype(int)] = True
             I = (False_mask[Set] & Fal[Set]).copy()
             False_mask[Components[i].astype(int)] = False
@@ -459,14 +459,14 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
         Forb[study] = True
         for i in range(k):
             # Determine if the component can be extended
-            Set = utils.unique_elements_array(np.concatenate([Components[i], Study[ns - 1]]), False_mask).astype(int)
+            Set = Utils.unique_elements_array(np.concatenate([Components[i], Study[ns - 1]]), False_mask).astype(int)
             False_mask[Components[i].astype(int)] = True
             I = False_mask[Set] & Fal[Set]
             False_mask[Components[i].astype(int)] = False
             Set = Set[I]
             if len(Set) > 0:
                 N = np.concatenate([Nei[s] for s in Set])
-                N = utils.unique_elements_array(N, False_mask)
+                N = Utils.unique_elements_array(N, False_mask)
                 I = Forb[N]
                 N = N[~I]
                 if len(N) == 0:
