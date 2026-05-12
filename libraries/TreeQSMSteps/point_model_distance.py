@@ -26,9 +26,9 @@ This derivative work is released under the GNU General Public License (GPL).
 import numpy as np
 
 try:
-    from ..Utils import Utils
+    from ...utils import utils
 except ImportError:
-    import Utils.Utils as Utils
+    import utils.utils as utils
 
 def point_model_distance(P, cylinder):
     '''
@@ -69,7 +69,7 @@ def point_model_distance(P, cylinder):
     # Cubical partitioning parameters
     L = 2 * np.median(Len)
     NE_input = max(3, min(10, int(np.ceil(np.max(Len) / L)))) + 3
-    partition, _, Info = Utils.cubical_partition(P_sampled, L, NE_input, False)
+    partition, _, Info = utils.cubical_partition(P_sampled, L, NE_input, False)
     Min = Info[0:3]
     EL = Info[6]
     NE = int(Info[7])
@@ -118,7 +118,7 @@ def point_model_distance(P, cylinder):
             continue
         points = np.array(points, dtype=int)
         #print(points)
-        d, _, h, _ = Utils.distances_to_line(P_sampled[points], Axe[i], Sta[i])
+        d, _, h, _ = utils.distances_to_line(P_sampled[points], Axe[i], Sta[i])
         d = np.abs(d - Rad[i])
         #print(d)
         # Filter points within cylinder length and close

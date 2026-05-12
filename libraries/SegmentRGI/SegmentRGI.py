@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 try:
-    import RegionGrowing as RG
+    import libraries.SegmentRGI.RegionGrowing as RG
 except:
-    import SegmentRGI.RegionGrowing as RG
+    import libraries.SegmentRGI.RegionGrowing as RG
 import os
 
 

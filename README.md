@@ -116,7 +116,7 @@ import PyTLidar.treeqsm as qsm
 
 file = 'example_pine.las'
 
-P = qsm.Utils.load_point_cloud(file) #Load las file
+P = qsm.utils.load_point_cloud(file) #Load las file
 
 P = P - np.mean(P,axis = 0) #Normalize points
 

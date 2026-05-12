@@ -2,8 +2,8 @@ import numpy as np
 import plotly.graph_objects as go
 
 try:
-    from plotting.cylinders_plotting import create_cylinder
-    from plotting.cylinders_plotting import rotation_matrix_from_z
+    from reporting.cylinders_plotting import create_cylinder
+    from reporting.cylinders_plotting import rotation_matrix_from_z
 except ImportError:
     from .cylinders_plotting import create_cylinder
     from .cylinders_plotting import rotation_matrix_from_z

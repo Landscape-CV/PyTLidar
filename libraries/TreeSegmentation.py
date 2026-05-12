@@ -33,10 +33,6 @@ occasionally if the crowns of two trees are very intertwined the resulting segme
 This function trades points between overlapping trees until a clean delineation exists between the two
 Occasionally provides better results, usually fine to not use this
 Resets order of assignments to be used directly in Ecomodel
-
-
-
-
 """
 
 

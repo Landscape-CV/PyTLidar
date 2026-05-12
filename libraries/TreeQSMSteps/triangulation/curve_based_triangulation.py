@@ -22,10 +22,10 @@ This derivative work is released under the GNU General Public License (GPL)."""
 
 import numpy as np
 from scipy.spatial import Delaunay
-from TreeQSMSteps.triangulation import initial_boundary_curve
-from TreeQSMSteps.triangulation import boundary_curve
-from triangulation import check_self_intersection
-from Utils.Utils import cubical_partition
+from libraries.TreeQSMSteps.triangulation import initial_boundary_curve
+from libraries.TreeQSMSteps.triangulation import boundary_curve
+from libraries.TreeQSMSteps.triangulation import check_self_intersection
+from utils.utils import cubical_partition
 def curve_based_triangulation(P, TriaHeight, TriaWidth):
     """
     Reconstructs a triangulation for the stem-buttress surface based on boundary curves

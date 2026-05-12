@@ -651,7 +651,7 @@ class QueryPage(QWidget):
             return
         # Build PyVista meshes on the main thread — VTK must not be touched
         # from background threads while the interactive render loop is active.
-        from plotting.pv_rendering import build_voxel_query_meshes
+        from reporting.pv_rendering import build_voxel_query_meshes
         engine = self._engine
         if engine is None:
             return
@@ -711,7 +711,7 @@ class QueryPage(QWidget):
             cloud_view = cloud_full
 
         def _build(cloud):
-            from plotting.pv_rendering import build_point_cloud_meshes
+            from reporting.pv_rendering import build_point_cloud_meshes
             mesh_list, _ = build_point_cloud_meshes(cloud, None, "Height (Z)")
             return mesh_list
 
@@ -747,7 +747,7 @@ class QueryPage(QWidget):
         cyls_norm["start"] = raw["start"] - mean
 
         def _build(cyls):
-            from plotting.pv_rendering import build_cylinder_meshes
+            from reporting.pv_rendering import build_cylinder_meshes
             mesh_list, starts, ends, radii, lengths = build_cylinder_meshes(cyls)
             return {"mesh_list": mesh_list, "starts": starts, "ends": ends,
                     "radii": radii, "lengths": lengths}

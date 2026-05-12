@@ -2,7 +2,7 @@ import numpy as np
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-from TreeQSMSteps.point_model_distance import point_model_distance
+from libraries.TreeQSMSteps.point_model_distance import point_model_distance
 
 
 

@@ -222,7 +222,7 @@ def run_ecomodel_pipeline(
 
         # Capture the field names discovered during LAS loading so they can
         # be written to the checkpoint sidecar and used at snapshot time.
-        from Utils.Utils import get_last_las_field_names as _get_fields
+        from utils.utils import get_last_las_field_names as _get_fields
         _las_field_names.clear()
         _las_field_names.extend(_get_fields())
         _log(f"Loaded {len(eco._raw_tiles)} raw tile(s).  "

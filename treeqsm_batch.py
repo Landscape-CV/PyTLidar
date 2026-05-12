@@ -1,15 +1,15 @@
 try:
     from .treeqsm import treeqsm
     from .treeqsm import calculate_optimal
-    from .Utils.define_input import define_input
-    from .Utils.Utils import load_point_cloud
-    from .Utils import Utils
+    from .utils.define_input import define_input
+    from .utils.utils import load_point_cloud
+    from .utils import utils
 except ImportError:
     from treeqsm import treeqsm
     from treeqsm import calculate_optimal
-    from Utils.define_input import define_input
-    from Utils.Utils import load_point_cloud
-    import Utils.Utils as Utils
+    from utils.define_input import define_input
+    from utils.utils import load_point_cloud
+    import utils.utils as utils
 import os
 import sys
 import numpy as np
@@ -170,7 +170,7 @@ def process_output(output,directory):
         
         string = models[optimum]["file_id"]
         filename = f"{models[optimum]['rundata']['inputs']['name']}_t{models[optimum]['rundata']['inputs']['tree']}_m{models[optimum]['rundata']['inputs']['model']}"
-        Utils.save_fit(metric_data[3]["CylDist"],os.path.join("results",filename+"_"+string))
+        utils.save_fit(metric_data[3]["CylDist"],os.path.join("results",filename+"_"+string))
         saved_files.append((string,filename))
     os.chdir(original_location)
     return saved_files
@@ -183,7 +183,7 @@ if __name__== "__main__":
     except:
         print("No arguments found, for instructions on how to run this script, please run with the --help flag.")
         sys.exit(1)
-    parsed_args = Utils.parse_args(sys.argv[2:])
+    parsed_args = utils.parse_args(sys.argv[2:])
     
     
     if parsed_args not in ["ERROR","Help"]:

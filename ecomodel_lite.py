@@ -5,31 +5,31 @@ import os
 import shutil
 import CSF
 import numpy as np
-from Utils.Utils import load_point_cloud
-from SegmentRGI.SegmentRGI import classify_wood_leaf, classify_wood_leaf_point_cloud
+from utils.utils import load_point_cloud
+from libraries.SegmentRGI.SegmentRGI import classify_wood_leaf, classify_wood_leaf_point_cloud
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from plyfile import PlyData, PlyElement
-from Utils.plot_tools import SimplePlotter
+from utils.plot_tools import SimplePlotter
 import open3d as o3d
 import cc3d
 from copy import deepcopy
-from Utils.Utils import load_point_cloud
+from utils.utils import load_point_cloud
 import numpy as np
 from pathlib import Path
 import time
-from TreeQSMSteps.cover_sets import cover_sets
-from ecomodel_segmenters import SegmenterScanline, SegmenterTreeX
-from Utils.define_input import define_input
+from libraries.TreeQSMSteps.cover_sets import cover_sets
+from libraries.ecomodel_segmenters import SegmenterScanline, SegmenterTreeX
+from utils.define_input import define_input
 from treeqsm import treeqsm
-from TreeQSMSteps.cover_sets import cover_sets
-from TreeQSMSteps.segments import segments
-from TreeQSMSteps.correct_segments import correct_segments
-from TreeQSMSteps.tree_sets import tree_sets
-from TreeQSMSteps.relative_size import relative_size
-from TreeQSMSteps.cylinders import cylinders
+from libraries.TreeQSMSteps.cover_sets import cover_sets
+from libraries.TreeQSMSteps.segments import segments
+from libraries.TreeQSMSteps.correct_segments import correct_segments
+from libraries.TreeQSMSteps.tree_sets import tree_sets
+from libraries.TreeQSMSteps.relative_size import relative_size
+from libraries.TreeQSMSteps.cylinders import cylinders
 import logging
-from GBSeparation.remove_leaves import GBSeperationWoodLeafClassifier
+from libraries.GBSeparation.remove_leaves import GBSeperationWoodLeafClassifier
 
 logger = logging.getLogger("Ecomodel")
 logger.setLevel(logging.INFO)

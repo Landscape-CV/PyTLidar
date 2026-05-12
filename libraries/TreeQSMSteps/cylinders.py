@@ -29,11 +29,11 @@ from collections import deque
 try:
     from . import LSF
 except ImportError:
-    import LSF
+    import libraries.TreeQSMSteps.LSF as LSF
 try:
-    from ..Utils import Utils
+    from ...utils import utils
 except ImportError:
-    import Utils.Utils as Utils
+    import utils.utils as utils
 
 
 def cylinders(P,cover,segment,inputs):
@@ -131,7 +131,7 @@ def cylinders(P,cover,segment,inputs):
             layer_len = len(layer)
             IndSets.append((current, current + layer_len - 1))
             current += layer_len'''
-        Sets, IndSets = Utils.verticalcat(Seg)  # the cover sets indices and (start, end) indices in the segment
+        Sets, IndSets = utils.verticalcat(Seg)  # the cover sets indices and (start, end) indices in the segment
 
         ns = len(Sets)  # number of cover sets in the current segment
         #print(Sets)
@@ -247,7 +247,7 @@ def cylinders(P,cover,segment,inputs):
 
     # Growth volume correction
     if inputs.get('GrowthVolCor', False) and c > 0:
-        cylinder = Utils.growth_volume_correction(cylinder, inputs)
+        cylinder = utils.growth_volume_correction(cylinder, inputs)
 
     return cylinder
 
@@ -320,7 +320,7 @@ def cylinder_fitting(P, Points, Ind, nl, si):
                 ## Filter points and estimate radius
                 #print(Q0, c0)
                 if Q0.shape[0] > 20:
-                    Keep, c0 = Utils.surface_coverage_filtering(Q0, c0, 0.02, 20)
+                    Keep, c0 = utils.surface_coverage_filtering(Q0, c0, 0.02, 20)
                     reg = reg[Keep]
                     Q0 = Q0[Keep]
                 else:
@@ -494,7 +494,7 @@ def cylinder_fitting(P, Points, Ind, nl, si):
 
             ## Define other outputs
             #print("Q0 ", Q0, "c0", c0)  # Q0 is the same
-            Keep, c0 = Utils.surface_coverage_filtering(Q0, c0, 0.02, 20)
+            Keep, c0 = utils.surface_coverage_filtering(Q0, c0, 0.02, 20)
             
             #print("Keep ", Keep, "c0", c0)
             Reg = [Points[Keep]]
@@ -787,7 +787,7 @@ def parent_cylinder(SPar, SChi, CiS, cylinder, cyl, si):
 
                 # Get line distances
                 
-                Dist, _, DistOnLines = Utils.distances_between_lines(
+                Dist, _, DistOnLines = utils.distances_between_lines(
                     sta[0], axe[0],
                     cylinder['start'][pc],
                     cylinder['axis'][pc]
@@ -1062,7 +1062,7 @@ def adjustments(cyl, parcyl, inputs, Regs):
             if abs(radius - radius0) > 0.005 and (nr == nc or (nr < nc and i > 0)):
                 # Transform points to local coordinate system
                 P = Reg - cyl_start
-                U, V = Utils.orthonormal_vectors(cyl_axis)
+                U, V = utils.orthonormal_vectors(cyl_axis)
                 P_local = P @ np.column_stack([U, V])
 
                 # Fit circle to points
@@ -1075,13 +1075,13 @@ def adjustments(cyl, parcyl, inputs, Regs):
 
 
                     # Recalculate distances
-                    _, V_dist, h, _ = Utils.distances_to_line(Reg, cyl_axis, cyl_start)
+                    _, V_dist, h, _ = utils.distances_to_line(Reg, cyl_axis, cyl_start)
 
                     # Adjust cylinder length if needed
                     if np.min(h) < -0.001:
                         cyl_length = np.max(h) - np.min(h)
                         cyl_start += np.min(h) * cyl_axis
-                        _, V_dist, h, _ = Utils.distances_to_line(Reg, cyl_axis, cyl_start)
+                        _, V_dist, h, _ = utils.distances_to_line(Reg, cyl_axis, cyl_start)
 
                     # Calculate surface coverage
                     a = max(0.02, 0.2 * cyl_radius)
@@ -1089,11 +1089,11 @@ def adjustments(cyl, parcyl, inputs, Regs):
                     ns = max(10, min(36, int(np.ceil(2 * np.pi * cyl_radius / a))))
                     #print(a, nl, ns)
                     if np.size(cyl['SurfCov']) > 1:
-                        cyl['SurfCov'][i] = Utils.surface_coverage2(
+                        cyl['SurfCov'][i] = utils.surface_coverage2(
                             cyl_axis, cyl_length, V_dist, h, nl, ns
                         )
                     else:
-                        cyl['SurfCov'] = Utils.surface_coverage2(
+                        cyl['SurfCov'] = utils.surface_coverage2(
                             cyl_axis, cyl_length, V_dist, h, nl, ns
                         )
             cyl['start'][i] = cyl_start
@@ -1114,7 +1114,7 @@ def adjustments(cyl, parcyl, inputs, Regs):
                 # First define vector V and W which are orthogonal to the cylinder axis N
                 N = cyl['axis'][j]
                 if np.linalg.norm(N) > 1e-6:
-                    V, W = Utils.orthonormal_vectors(N)
+                    V, W = utils.orthonormal_vectors(N)
                     # Now define the new starting point, Solve linear system
                     A = np.column_stack([N, V, W])
                     x = np.linalg.lstsq(A, U.T)[0]
@@ -1127,7 +1127,7 @@ def adjustments(cyl, parcyl, inputs, Regs):
     #print(parcyl['radius'])
     if parcyl['radius'].size > 0:
         # Calculate distance to parent axis
-        d, V_dir, h, B = Utils.distances_to_line(
+        d, V_dir, h, B = utils.distances_to_line(
             cyl['start'][0],
             parcyl['axis'],
             parcyl['start']

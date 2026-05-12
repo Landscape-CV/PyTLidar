@@ -5,7 +5,7 @@ This module includes a class which streamlines the current ecomodel.
 # Scanline
 import numpy as np
 from TreeQSMSteps.cover_sets import cover_sets
-from Utils.TreeSegmentation import segment_point_cloud
+from libraries.TreeSegmentation import segment_point_cloud
 from ecomodel import Tile
 
 # TreeX

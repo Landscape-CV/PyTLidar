@@ -148,13 +148,13 @@ def _bg_load_run(run_dir: Path) -> dict:
 
 
 def _bg_build_cloud_meshes(cloud, fields, active_field) -> list:
-    from plotting.pv_rendering import build_point_cloud_meshes
+    from reporting.pv_rendering import build_point_cloud_meshes
     mesh_list, _ = build_point_cloud_meshes(cloud, fields, active_field)
     return mesh_list
 
 
 def _bg_build_segment_meshes(cloud, cover, labels, view_mode) -> list:
-    from plotting.pv_rendering import build_segment_meshes
+    from reporting.pv_rendering import build_segment_meshes
     mesh_list, _ = build_segment_meshes(cloud, cover, labels, view_mode)
     return mesh_list
 
@@ -177,7 +177,7 @@ def _bg_cylinders(cyl_path: Path) -> "dict | None":
         "length": data[:, 7],
     }
 
-    from plotting.pv_rendering import build_cylinder_meshes
+    from reporting.pv_rendering import build_cylinder_meshes
     mesh_list, starts, ends, radii, lengths = build_cylinder_meshes(cyls)
     return {
         "mesh_list": mesh_list,
@@ -478,7 +478,7 @@ class EmbeddedPlotWidget(QWidget):
         self._plotter.show()
 
         try:
-            from plotting.pv_rendering import apply_meshes_to_plotter
+            from reporting.pv_rendering import apply_meshes_to_plotter
             apply_meshes_to_plotter(self._plotter, mesh_list)
             if post_fn is not None:
                 post_fn(self._plotter)

@@ -26,18 +26,18 @@ This derivative work is released under the GNU General Public License (GPL).
 
 try:
     from .treeqsm import treeqsm
-    from .Utils.define_input import define_input
-    from .Utils.Utils import load_point_cloud
-    from .Utils import Utils
-    from .plotting.point_cloud_plotting import point_cloud_plotting
-    from .plotting.qsm_plotting import qsm_plotting
+    from .utils.define_input import define_input
+    from .utils.utils import load_point_cloud
+    from .utils import utils
+    from .reporting.point_cloud_plotting import point_cloud_plotting
+    from .reporting.qsm_plotting import qsm_plotting
 except ImportError:
     from treeqsm import treeqsm
-    from Utils.define_input import define_input
-    from Utils.Utils import load_point_cloud
-    import Utils.Utils as Utils
-    from plotting.point_cloud_plotting import point_cloud_plotting
-    from plotting.qsm_plotting import qsm_plotting
+    from utils.define_input import define_input
+    from utils.utils import load_point_cloud
+    import utils.utils as utils
+    from reporting.point_cloud_plotting import point_cloud_plotting
+    from reporting.qsm_plotting import qsm_plotting
 import os
 from PySide6.QtCore import QObject,QThread,Signal,Qt,QUrl,QProcess
 from PySide6.QtWidgets import QWidget,QGridLayout,QVBoxLayout,QLabel,QMainWindow,QPushButton,QApplication,QTextEdit,QToolButton,QComboBox,QHBoxLayout,QSlider,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem, QCheckBox,QRadioButton
@@ -152,7 +152,7 @@ MaxPatchDiam separated by commas for the values you would like to test
         self.optimumMetric = QComboBox(self)
         self.optimumMetric.setGeometry(500, 275, 200, 30)
 
-        self.metrics = Utils.get_all_metrics()
+        self.metrics = utils.get_all_metrics()
         self.optimumMetric.addItems(self.metrics)
         self.optimumMetric.setToolTip("Select the metric to use for the optimal model. The default is 'all_mean_dis'")
         self.optimumMetric.setToolTipDuration(10000)
@@ -443,7 +443,7 @@ class BatchProcessingWindow(QMainWindow):
             self.optimumMetric = QComboBox(self)
             self.optimumLayout.addWidget(self.optimumMetric)
             
-            self.optimumMetric.addItems(Utils.get_all_metrics())
+            self.optimumMetric.addItems(utils.get_all_metrics())
             self.optimumMetric.setToolTip("Select the metric to use for the optimal model. The default is 'all_mean_dis'")
             self.optimumMetric.setToolTipDuration(1000)
             self.optimumMetric.setCurrentText(self.optimum_metric)
@@ -702,7 +702,7 @@ class BatchProcessingWindow(QMainWindow):
         self.append_text("Changing optimum metric...\n")
         for index in range(len(self.file_data)):
             if self.metric_data[index] is None:
-                self.metric_data[index] = Utils.collect_data(self.file_data[index]['QSM'])
+                self.metric_data[index] = utils.collect_data(self.file_data[index]['QSM'])
             status = self.file_data[index]['status']
             if status != "Completed":
                 continue
@@ -722,10 +722,10 @@ class BatchProcessingWindow(QMainWindow):
             index = self.selected_index
         if self.metric_data[index] is None:
             self.append_text("Calculating metrics...\n")
-            self.metric_data[index] = Utils.collect_data(self.file_data[index]['QSM'])
+            self.metric_data[index] = utils.collect_data(self.file_data[index]['QSM'])
         metrics = []
         for i in range(len(self.file_data[index]['QSM'])):
-            metrics.append(Utils.compute_metric_value(Utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[index][0],self.metric_data[index][3]))
+            metrics.append(utils.compute_metric_value(utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[index][0],self.metric_data[index][3]))
         return np.argmax(np.array(metrics))
     
 
@@ -875,7 +875,7 @@ class SingleFileProcessingWindow(QMainWindow):
             self.optimumMetric = QComboBox(self)
             self.optimumLayout.addWidget(self.optimumMetric)
             
-            self.optimumMetric.addItems(Utils.get_all_metrics())
+            self.optimumMetric.addItems(utils.get_all_metrics())
             self.optimumMetric.setToolTip("Select the metric to use for the optimal model. The default is 'all_mean_dis'")
             self.optimumMetric.setToolTipDuration(1000)
             self.optimumMetric.setCurrentText(self.optimum_metric)
@@ -1097,7 +1097,7 @@ class SingleFileProcessingWindow(QMainWindow):
             min_pd = self.inputs['PatchDiam2Min']
             self.min_pd_combo.addItems([str(i) for i in min_pd])
         else:
-            self.metric_data = Utils.collect_data(self.data)
+            self.metric_data = utils.collect_data(self.data)
             self.optimum = self.calculate_optimal()
             npd1 = self.data[self.optimum]['PatchDiam1']
             max_pd = self.data[self.optimum]['PatchDiam2Max']
@@ -1108,10 +1108,10 @@ class SingleFileProcessingWindow(QMainWindow):
     def calculate_optimal(self):
         if self.metric_data is None:
             self.append_text("Calculating metrics...\n")
-            self.metric_data = Utils.collect_data(self.data)
+            self.metric_data = utils.collect_data(self.data)
         metrics = []
         for i in range(len(self.data)):
-            metrics.append(Utils.compute_metric_value(Utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[0],self.metric_data[3]))
+            metrics.append(utils.compute_metric_value(utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[0],self.metric_data[3]))
         return np.argmax(np.array(metrics))
 
         

@@ -10,7 +10,7 @@ from .Accuracy_evaluation import evaluate_indicators
 from .Visualization import show_graph, sp_graph, show_pcd
 import laspy
 import matplotlib.pyplot as plt
-from Utils.Utils import load_point_cloud
+from utils.utils import load_point_cloud
 
 class GBSeperationWoodLeafClassifier:
     def __init__(self):
