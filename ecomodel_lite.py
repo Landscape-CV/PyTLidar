@@ -1,12 +1,12 @@
 """
 This module includes a class which streamlines the current ecomodel.
 """
-import os 
+import os
 import shutil
 import CSF
 import numpy as np
 from Utils.Utils import load_point_cloud
-from SegmentRGI.SegmentRGI import classify_wood_leaf
+from SegmentRGI.SegmentRGI import classify_wood_leaf,classify_wood_leaf_point_cloud
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from plyfile import PlyData, PlyElement
@@ -19,7 +19,8 @@ import numpy as np
 from pathlib import Path
 import time
 from TreeQSMSteps.cover_sets import cover_sets
-from ecomodel_segmenters import SegmenterScanline, SegmenterTreeX
+#from ecomodel_segmenters import SegmenterScanline, SegmenterTreeX, SegmenterTreeLearn
+from ecomodel_segmenters import SegmenterScanline, SegmenterTreeLearn
 from Utils.define_input import define_input
 from treeqsm import treeqsm
 from TreeQSMSteps.cover_sets import cover_sets
@@ -330,7 +331,7 @@ class CSFGroundRemoval:
 
 class RGIWoodLeafClassifier:
     def __init__(self, noise_percentile=0, angle_deg=7, curv_thresh=0.07, 
-                 resid_thresh=0.05, k=100, minClusterSize=40, maxClusterSize=100000,
+                 resid_thresh=0.05, k=30, minClusterSize=40, maxClusterSize=100000,
                  smoothMode=True, useResidualTest=True, useCurvatureTest=True):
         self.input_params = {
             "noise_percentile": noise_percentile,
@@ -412,6 +413,8 @@ class RGIWoodLeafClassifier:
             wood_mask = build_mask(wood_coords)
 
             return wood_mask, leaf_mask
+
+
         
     def classify(self, point_cloud):
         """
@@ -426,29 +429,30 @@ class RGIWoodLeafClassifier:
         if point_cloud.shape[0] < 100:
             return None
 
-        wood_mask, leaf_mask = self.classify_wood_leaf_on_array(point_cloud)
+        wood_mask, leaf_mask = classify_wood_leaf_point_cloud(point_cloud, **self.input_params)
 
         if wood_mask is None or leaf_mask is None:
             return None
 
-        only_wood = point_cloud[wood_mask]
-        only_leaves = point_cloud[leaf_mask]
+        #only_wood = point_cloud[wood_mask]
+        #only_leaves = point_cloud[leaf_mask]
 
         return wood_mask, leaf_mask
 
 
 class EcomodelFunctions:
     """
+    Ecomodel base class
     Obtains cylinders from a dense forest tile. 
     """
-    def __init__(self, results_folder="results", intensity_threshold=0):
+    def __init__(self, results_folder="results", intensity_threshold=0,segmenter=None):
         super().__init__()
         if not os.path.isdir(results_folder):
             os.mkdir(results_folder)
         self.results_folder = results_folder
         self.intensity_threshold = intensity_threshold
-        # self.segmenter = SegmenterScanline()
-        self.segmenter = SegmenterTreeX()
+        #self.segmenter = SegmenterScanline()
+        self.segmenter = segmenter or SegmenterTreeLearn()
         self.plotter = SimplePlotter()
         self.noise_remover = DistanceBasedNoiseRemoval(0.25, 100)
         self.ground_z = 0
@@ -702,7 +706,182 @@ class EcomodelTreeX(EcomodelFunctions):
         if show_plots:
             self.view_cylinders(full_data, cylinder_data)
 
-        
+class EcomodelTreeLearn(EcomodelFunctions):
+    """
+    Pipeline that uses TreeLearn for instance segmentation.
+
+    Order of operations
+    -------------------
+    1. Load point cloud from disk
+    2. Remove ground (CSF)
+    3. Filter by intensity threshold
+    4. Run TreeLearn instance segmentation
+        - TreeLearn internally voxelises, tiles, runs the neural network,
+          clusters via offset-shifted coordinates, and assigns remaining
+          points via KNN.
+        - Returns voxelised coords + per-point tree labels (0 = non-tree).
+    5. Strip non-tree points (label == -1)
+    6. Classify wood vs leaf (RGI)
+    7. Keep wood points only
+    8. Fit TreeQSM cylinders per tree instance
+    9. Save / visualise results
+    """
+
+    def __init__(self, treelearn_config_path: str,
+                 results_folder: str = "results",
+                 intensity_threshold: int = 0):
+        """
+        Args:
+            treelearn_config_path: Path to the TreeLearn YAML config file.
+            results_folder:        Directory where per-tile result folders are written.
+            intensity_threshold:   Points with intensity <= this value are dropped
+                                   before segmentation.
+        """
+        from ecomodel_segmenters import SegmenterTreeLearn
+        segmenter = SegmenterTreeLearn(treelearn_config_path,logger)
+        super().__init__(results_folder, intensity_threshold, segmenter=segmenter)
+        self.qsm = TreeQSMCylinderFitting()
+        self.leaf_wood_classifier = RGIWoodLeafClassifier(
+            noise_percentile=0,
+            angle_deg=6,
+            curv_thresh=0.07,
+            resid_thresh=0.05,
+            k=30,
+            minClusterSize=40,
+            maxClusterSize=100000,
+            smoothMode=True,
+            useResidualTest=True,
+            useCurvatureTest=True,
+        )
+        self.ground_remover = CSFGroundRemoval()
+
+    def process_tile(self, tile_path: str,
+                     save_data: bool = True,
+                     show_plots: bool = False):
+        """
+        Full TreeLearn-based processing pipeline for a single LAS/LAZ/XYZ tile.
+
+        Args:
+            tile_path:   Path to the input point cloud file.
+            save_data:   Write cylinders, labeled cloud, and metadata to disk.
+            show_plots:  Open the PyVista cylinder viewer after processing.
+        """
+        path = Path(tile_path)
+        out_dir = os.path.join(self.results_folder, path.stem)
+        os.makedirs(out_dir, exist_ok=True)
+        os.makedirs(os.path.join(self.results_folder, "EcomodelTreeLearn_Cylinders"), exist_ok=True)
+
+        # ------------------------------------------------------------------
+        # 1. Load
+        # ------------------------------------------------------------------
+        logger.info("[TreeLearn] Loading %s", path.name)
+        _, full_data = load_point_cloud(str(path), full_data=True)
+
+        # ------------------------------------------------------------------
+        # 2. Ground removal
+        # ------------------------------------------------------------------
+        # logger.info("[TreeLearn] Removing ground")
+        # result = self.ground_remover.remove_ground(full_data)
+        # if result is None:
+        #     logger.warning("[TreeLearn] Ground removal returned nothing — skipping tile.")
+        #     return
+        # full_data, ground_z = result
+
+        # ------------------------------------------------------------------
+        # 3. Intensity filter
+        # ------------------------------------------------------------------
+        if self.intensity_threshold > 0:
+            full_data = self.filter_intensity(full_data, self.intensity_threshold)
+            if full_data.size < 100:
+                logger.warning("[TreeLearn] Too few points after intensity filter — skipping.")
+                return "Too few points after intensity filter"
+
+        # ------------------------------------------------------------------
+        # 4. Normalise (centre coords for numerical stability)
+        # ------------------------------------------------------------------
+        full_data, mean = self.normalize_point_cloud(full_data)
+
+
+        # ------------------------------------------------------------------
+        # 5. TreeLearn instance segmentation
+        # ------------------------------------------------------------------
+        logger.info("[TreeLearn] Running TreeLearn segmentation")
+        coords, instance_ids = self.segmenter.segment(full_data,out_dir)
+        if coords is None or instance_ids is None:
+            logger.warning("[TreeLearn] Segmentation failed — skipping tile.")
+            return "TreeLearn Segmentation failed"
+
+        # ------------------------------------------------------------------
+        # 6. Drop non-tree points  (label == -1)
+        # ------------------------------------------------------------------
+        tree_mask = instance_ids != -1
+        coords       = coords[tree_mask]
+
+        instance_ids = instance_ids[tree_mask]
+
+        if coords.shape[0] == 0:
+            logger.warning("[TreeLearn] No tree points found — skipping tile.")
+            return "TreeLearn No tree points found"
+
+        # ------------------------------------------------------------------
+        # 7. Leaf / wood classification (operates on xyz + intensity)
+        #    coords is the original full-density array returned by the segmenter
+        # ------------------------------------------------------------------
+        logger.info("[TreeLearn] Classifying wood / leaf")
+        wood_mask, leaf_mask = self.leaf_wood_classifier.classify(coords)
+        if wood_mask is None:
+            logger.warning("[TreeLearn] Leaf/wood classification failed — using all tree points.")
+            wood_coords = coords
+            wood_ids    = instance_ids
+        else:
+            wood_coords = coords[wood_mask]
+            wood_ids    = instance_ids[wood_mask]
+
+        if wood_coords.shape[0] == 0:
+            logger.warning("[TreeLearn] No wood points remain — skipping tile.")
+            return "No wood points remain after Tree-Leaf Segmentation"
+        os.makedirs(os.path.join(out_dir,"Tree-Leaf segmentation"), exist_ok=True)
+        np.savetxt(os.path.join(out_dir,"Tree-Leaf segmentation", f"{path.stem}_wood_only.txt"), wood_coords)
+
+        # ------------------------------------------------------------------
+        # 8. TreeQSM cylinder fitting
+        # ------------------------------------------------------------------
+        logger.info("[TreeLearn] Fitting QSM cylinders")
+        cylinder_data = self.qsm.get_cylinders(wood_coords, wood_ids,
+                                                noise_remover=self.noise_remover)
+        if cylinder_data is None or cylinder_data.shape[0] == 0:
+            logger.warning("[TreeLearn] No cylinders produced — skipping save.")
+            return "No cylinders produced by TreeQSM"
+
+        logger.info("[TreeLearn] Cylinder data shape: %s", cylinder_data.shape)
+
+        # ------------------------------------------------------------------
+        # 9. Save
+        # ------------------------------------------------------------------
+        if save_data:
+            cylinder_data_out = self.unnormalize_point_cloud(cylinder_data.copy(), mean)
+            os.makedirs(os.path.join(out_dir, "TreeQSM Output"), exist_ok=True)
+            np.savetxt(os.path.join(out_dir,'TreeQSM Output', f"{path.stem}_cylinders.txt"), cylinder_data_out)
+            np.savetxt(os.path.join(self.results_folder, 'EcomodelTreeLearn_Cylinders', f"{path.stem}_cylinders.txt"), cylinder_data_out)
+
+
+            unnorm_coords = self.unnormalize_point_cloud(wood_coords[:, :3].copy(), mean)
+            labeled = np.hstack([unnorm_coords, wood_ids[:, np.newaxis]])
+            np.savetxt(os.path.join(out_dir,'Tree-Leaf segmentation', f"{path.stem}_labeled.txt"), labeled)
+
+            with open(os.path.join(out_dir,'TreeQSM Output', f"{path.stem}_data.txt"), "w") as f:
+                f.write(f"{mean[0]} {mean[1]} {mean[2]}\n")
+                #f.write(f"{ground_z}\n")
+
+            logger.info("[TreeLearn] Results saved to %s", out_dir)
+
+        # ------------------------------------------------------------------
+        # 10. Visualise
+        # ------------------------------------------------------------------
+        if show_plots:
+            self.view_cylinders(wood_coords, cylinder_data)
+
+        return "Completed"
 
 
 
@@ -724,21 +903,38 @@ if __name__ == "__main__":
     # model.process_tile(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better\rush_07_3_6.las")
 
 
-    model = EcomodelTreeX("results_lite_rush_tree_saved_treeX", intensity_threshold=0)
-    path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better\rush_07_3_6.las")
-    remove_ground = CSFGroundRemoval()
-    tile_data, full_data = load_point_cloud(str(path), full_data=True)
-    full_data, ground_z = remove_ground.remove_ground(full_data)
-    full_data = model.filter_intensity(full_data, 2)
-    wood, leaf = model.leaf_wood_classifier.classify(full_data)
-    full_data = full_data[wood]
+    # model = EcomodelTreeX("results_lite_rush_tree_saved_treeX", intensity_threshold=0)
+    # path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better\rush_07_3_6.las")
+    # remove_ground = CSFGroundRemoval()
+    # tile_data, full_data = load_point_cloud(str(path), full_data=True)
+    # full_data, ground_z = remove_ground.remove_ground(full_data)
+    # full_data = model.filter_intensity(full_data, 2)
+    # wood, leaf = model.leaf_wood_classifier.classify(full_data)
+    # full_data = full_data[wood]
+    #
+    # np.savetxt("NewLeavesRemoved.txt", full_data)
 
-    np.savetxt("NewLeavesRemoved.txt", full_data)
-    
-
-
-
-
+    model = EcomodelTreeLearn(
+        treelearn_config_path=r"TreeLearn/configs/pipeline/pipeline.yaml",
+        results_folder="results_treelearn",
+        intensity_threshold=0
+    )
+    folder = r"Dataset/Tiles 2025 30x30"
+    files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
+    results=[]
+    for tile in files:
+        logger.info("------------- Processing Tile %s -------------", tile)
+        start = time.time()
+        result=model.process_tile(os.path.join(folder, tile), save_data=True, show_plots=False)
+        end=time.time()
+        results.append((tile,result,end-start))
+    logger.info("-------------OVERALL RESULTS -------------")
+    for tile, result, cycleTime in results:
+        logger.info("%s: %s, in %s sec", tile, result,cycleTime)
+    completed = sum(1 for _, r in results if r is not None and r.startswith("Completed"))
+    logger.info("------------- %d/%d completed (%.1f%%) -------------",
+                completed, len(results), 100 * completed / len(results))
+    totalTime=sum(t for _, r,t in results if r is not None and r.startswith("Completed"))
 
     # Testing: 
     # model = EcomodelLite()

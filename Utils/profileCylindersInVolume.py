@@ -468,13 +468,13 @@ def visualize(cyls, aabb,
     pl.camera.up = (0, 1, 0)
     pl.show()
 
-cylinders=mergeCylinderFiles('../Dataset/EcomodelCylinders_3_2_2025')
+#cylinders=mergeCylinderFiles(r'../Dataset/EcomodelCylinders_3_2_2025')
 # queryPoint=[5.731325400760621997e+05,2.840063605150410440e+06,-2.509709902458836694e+01]
-queryPoint=[5.731372539185482310e+05,2.840108105014920235e+06, -2.377911747101643058e+01]
+queryPoint=[5.731031857598150382e+05,2.840123000221467111e+06,-1.848659356832329337e+01]
 AABBSize=5
 AABB=getAABB(queryPoint,AABBSize)
 #visualize(cylinders,AABB)
-#cylinders=np.loadtxt(r"..\results\testCylinders.txt")
+cylinders=np.loadtxt(r"C:\Users\kaipo\Documents\Dev\Dev2\PyTLidar\results_treelearn\retile_573088_2840115_1_0\retile_573088_2840115_1_0_cylinders.txt")
 #cylinders=np.loadtxt(r"..\results\tile_573150_2840110.laz_cylinders.txt")
 #cylinders=np.loadtxt(r"..\results\tile_573150_2840110.laz_cylinders_debug.txt")
 #AABB=np.array([[-3,-3,-3],[2,2,2]])

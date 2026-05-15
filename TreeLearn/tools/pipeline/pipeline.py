@@ -21,9 +21,8 @@ START_NUM_PREDS = 1
 
 def run_treelearn_pipeline(config, config_path=None):
     # make dirs
-    plot_name = os.path.basename(config.forest_path)[:-4]
-    current_base  = os.path.dirname(os.path.dirname(config.forest_path))
-    base_dir = os.path.join(current_base, 'output', plot_name)
+    plot_name = os.path.basename(os.path.dirname(os.path.dirname(config.forest_path)))
+    base_dir  = os.path.dirname(os.path.dirname(config.forest_path))
     documentation_dir = os.path.join(base_dir, 'documentation')
     unvoxelized_data_dir = os.path.join(base_dir, 'forest')
     voxelized_data_dir = os.path.join(base_dir, f'forest_voxelized{config.sample_generation.voxel_size}')
@@ -45,9 +44,9 @@ def run_treelearn_pipeline(config, config_path=None):
     xyz_centered = xyz - xyz_mean
     # avoids overwriting of original file
     if not config.forest_path.endswith('.npz'):
-        config.forest_path = config.forest_path[:-4] + '.npz'
+        config.forest_path = config.forest_path[:-4] + '_xyzcentered.npz'
     else:
-        config.forest_path = config.forest_path[:-4] + '.npy'
+        config.forest_path = config.forest_path[:-4] + '_xyzcentered.npz'
     np.savez_compressed(config.forest_path, points=xyz_centered)
     
     # documentation
@@ -161,6 +160,7 @@ def run_treelearn_pipeline(config, config_path=None):
     if config.save_cfg.return_type == 'original':
         logger.info(f'{plot_name}: Propagating predictions to original points')
         coords_to_return = load_data(config.forest_path)[:, :3]
+        intensity_to_return = load_data(config.forest_path)[:, 3]
         hash_mapping_path = os.path.join(voxelized_data_dir, f'{plot_name}_hash_mapping.pkl')
         with open(hash_mapping_path, 'rb') as pickle_file:
             hash_mapping = pickle.load(pickle_file)
@@ -180,6 +180,7 @@ def run_treelearn_pipeline(config, config_path=None):
         masks_inner_coords_to_return = np.logical_not(mask_coords_to_return_within_hull_buffer_large)
         coords_to_return = coords_to_return[masks_inner_coords_to_return]
         preds_to_return = preds_to_return[masks_inner_coords_to_return]
+        intensity_to_return=intensity_to_return[masks_inner_coords_to_return]
         not_yet_propagated = not_yet_propagated[masks_inner_coords_to_return]
     # propagate predictions to points that were not yet propagated
     if not_yet_propagated.any():
@@ -194,7 +195,7 @@ def run_treelearn_pipeline(config, config_path=None):
     os.makedirs(full_dir, exist_ok=True)
 
     for save_format in config.save_cfg.save_formats:
-        save_data(np.hstack([coords_to_return, preds_to_return.reshape(-1, 1)]), save_format, plot_name, full_dir)
+        save_data(np.hstack([coords_to_return,intensity_to_return.reshape(-1, 1), preds_to_return.reshape(-1, 1)]), save_format, plot_name, full_dir)
     if config.save_cfg.save_treewise:
         trees_dir = os.path.join(results_dir, 'individual_trees')
         os.makedirs(trees_dir, exist_ok=True)

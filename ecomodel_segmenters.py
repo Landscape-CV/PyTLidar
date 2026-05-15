@@ -41,11 +41,11 @@ from Utils.TreeSegmentation import segment_point_cloud
 from ecomodel import Tile
 
 # TreeX
-import pointtree
-import numpy as np
-from pointtree.instance_segmentation import TreeXAlgorithm, TreeXPresetTLS, TreeXPresetULS, TreeXPresetOriginal
-from dataclasses import replace
-from pointtorch import read
+#import pointtree
+#import numpy as np
+#from pointtree.instance_segmentation import TreeXAlgorithm, TreeXPresetTLS, TreeXPresetULS, TreeXPresetOriginal
+#from dataclasses import replace
+#from pointtorch import read
 
 
 class PlotterBase:
@@ -1108,6 +1108,106 @@ class SegmenterTreeX:
 
         return point_cloud, instance_ids
 
+class SegmenterTreeLearn:
+    """
+    Wraps the TreeLearn pipeline to provide the same segment() interface
+    as SegmenterTreeX: accepts an (N,3) or (N,4) numpy array and returns
+    (point_cloud, instance_ids).
+
+    TreeLearn labels:
+        0  → non-tree  (remapped to -1 to match ecomodel convention)
+        1+ → individual tree instances
+
+    Usage:
+        segmenter = SegmenterTreeLearn(config_path="path/to/config.yaml")
+        point_cloud, instance_ids = segmenter.segment(point_cloud_array)
+    """
+
+    def __init__(self, config_path: str,logger):
+        """
+        Args:
+            config_path: Path to the TreeLearn YAML config file.
+                         The config's forest_path will be overridden at
+                         runtime with a temporary file for each call to
+                         segment(), so it only needs to be a valid path
+                         format — the actual file does not have to exist.
+        """
+        from tree_learn.util import get_config
+        self.config_path = config_path
+        self.base_config = get_config(config_path)
+        self.logger=logger
+
+    def segment(self, point_cloud: np.ndarray, temp_dir: str = None):
+        """
+        Run TreeLearn instance segmentation on an in-memory point cloud.
+
+        Args:
+            point_cloud (np.ndarray): (N, 3) or (N, 4) array [x, y, z, (intensity)].
+            temp_dir (str, optional): Directory for intermediate TreeLearn files.
+                                      A TemporaryDirectory is used if not supplied.
+
+        Returns:
+            point_cloud (np.ndarray): The voxelized/filtered point cloud that
+                                      TreeLearn actually operated on (may be
+                                      fewer points than the input due to
+                                      voxelization).
+            instance_ids (np.ndarray): Per-point integer labels.
+                                       -1  = non-tree / unassigned
+                                        1+ = individual tree instances
+        """
+        import copy
+        import tempfile
+        from tree_learn.util import get_config
+        from tools.pipeline.pipeline import run_treelearn_pipeline
+
+        xyz = point_cloud[:, :3].astype(np.float64)
+        work_dir = temp_dir
+
+        try:
+            # --- write input cloud as NPZ where TreeLearn expects it ----------
+            forest_dir = os.path.join(work_dir, "forest")
+            os.makedirs(forest_dir, exist_ok=True)
+            forest_path = os.path.join(forest_dir, os.path.basename(work_dir)+".npz")
+            np.savez_compressed(forest_path, points=xyz)
+
+            # --- build a per-call config with the temp paths -----------------
+            config = copy.deepcopy(self.base_config)
+            config.forest_path = forest_path
+            config.tile_generation=True
+            # Disable treewise saving to keep things fast
+            config.save_cfg.save_treewise = False
+            # Keep pointwise results so we can read instance_preds back
+            config.save_cfg.save_pointwise = False
+            config.save_cfg.save_formats=['npz','laz']
+
+
+            # --- read back results --------------------------------------------
+
+
+            # Results land under work_dir/results/input/pointwise_results/
+            full_segmented_forest = os.path.join(work_dir, 'results','full_forest',os.path.basename(work_dir)+".npz")
+
+            run_treelearn_pipeline(config)
+
+            if not os.path.exists(full_segmented_forest):
+                self.logger.warning("TreeLearn full segmented tree results not found at %s", full_segmented_forest)
+                return None, None
+
+
+            data = np.load(full_segmented_forest, allow_pickle=True)
+            coords = data['points'] # full XYZ with intensity
+            instance_preds = data['labels'].copy()
+
+            # Remap: TreeLearn 0 (non-tree) → ecomodel -1
+            instance_preds[instance_preds == 0] = -1
+
+            return coords, instance_preds
+
+        except Exception as e:
+            self.logger.error("TreeLearn segmentation failed: %s", e)
+            import traceback
+            traceback.print_exc()
+            return None, None
 
 
 

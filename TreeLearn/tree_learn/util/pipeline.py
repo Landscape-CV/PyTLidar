@@ -22,9 +22,8 @@ N_JOBS = 10 # number of threads/processes to use for several functions that have
 
 # function to generate tiles
 def generate_tiles(cfg, forest_path, logger, return_type='voxelized'):
-    plot_name = os.path.basename(forest_path)[:-4]
-    current_base = os.path.dirname(os.path.dirname(forest_path))
-    base_dir = os.path.join(current_base, 'output', plot_name)
+    plot_name = os.path.basename(os.path.dirname(os.path.dirname(forest_path)))
+    base_dir = os.path.dirname(os.path.dirname(forest_path))
 
     # dirs for data saving
     voxelized_dir = osp.join(base_dir, f'forest_voxelized{cfg.voxel_size}')
@@ -340,9 +339,9 @@ def generate_random_color():
 def save_data(data, save_format, save_name, save_folder, use_offset=True):
     if save_format == "las" or save_format == "laz":
         # get points and labels
-        assert data.shape[1] == 4
-        points = data[:, :3]
-        labels = data[:, 3]
+        assert data.shape[1] == 5
+        points = data[:, :4]
+        labels = data[:, 4]
         classification = np.ones(len(labels), dtype=np.uint8)
         classification[labels == 0] = 2 # terrain according to For-Instance labeling convention (https://zenodo.org/records/8287792)
         classification[labels != 0] = 4 # stem according to For-Instance labeling convention (https://zenodo.org/records/8287792)
@@ -350,7 +349,7 @@ def save_data(data, save_format, save_name, save_folder, use_offset=True):
         # Create a new LAS file
         header = laspy.LasHeader(version="1.2", point_format=3)
         if use_offset:
-            mean_x, mean_y, mean_z = points.mean(0)
+            mean_x, mean_y, mean_z = points[:,:3].mean(0)
             header.offsets = [mean_x, mean_y, mean_z]
         else:
             header.offsets = [0, 0, 0]
@@ -388,7 +387,7 @@ def save_data(data, save_format, save_name, save_folder, use_offset=True):
         np.save(save_path, data)
     elif save_format == "npz":
         save_path = osp.join(save_folder, f'{save_name}.{save_format}')
-        np.savez_compressed(save_path, points=data[:, :3], labels=data[:, 3])
+        np.savez_compressed(save_path, points=data[:, :4], labels=data[:, 4])
     elif save_format == "txt":
         save_path = osp.join(save_folder, f'{save_name}.{save_format}')
         np.savetxt(save_path, data)

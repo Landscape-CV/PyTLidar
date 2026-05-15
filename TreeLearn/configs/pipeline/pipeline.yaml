@@ -1,6 +1,9 @@
 # default_args is used to include configs from the _modular folder into this config. This ensures a modular way of combining different config files.
 # Individual entries of the loaded default args can be changed by simply redefining them as is done below under 'modification of default args'
-default_args: ["C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\configs\\_modular\\sample_generation.yaml", "C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\configs\\_modular\\model.yaml", "C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\configs\\_modular\\grouping.yaml", "C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\configs\\_modular\\dataset_test.yaml"]
+default_args: ["TreeLearn/configs/_modular/sample_generation.yaml",
+  "TreeLearn/configs/_modular/model.yaml",
+  "TreeLearn/configs/_modular/grouping.yaml",
+  "TreeLearn/configs/_modular/dataset_test.yaml"]
 
 ############ modification of default args
 model:
@@ -8,9 +11,9 @@ model:
 
 ############ non-default args
 #forest_path: 'data/pipeline/L1W/forest/L1W.laz' # path to forest point cloud to be segmented (las, npy, npz or txt)
-forest_path: 'C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\Dataset\\retile_573088_2840115.laz'
-#forest_path: 'C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\Dataset\\L1W.laz'
-pretrain: 'C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\model_weights\\model_weights_with_small_20241213.pth' # path to trained network parameters for offset and semantic prediction
+#forest_path: 'C:\\Users\\kaipo\\Documents\\Dev\\Dev2\\PyTLidar\\TreeLearn\\Dataset\\retile_573088_2840115.laz'
+forest_path: 'TreeLearn/Dataset/L1W.laz'
+pretrain: 'TreeLearn/model_weights/model_weights_with_small_20241213.pth' # path to trained network parameters for offset and semantic prediction
 fp16: True # using half precision for network prediction
 tile_generation: True # whether to generate tiles for the forest point cloud to be segmented. If you re-run the pipeline multiple times for the same point cloud, this can be set to False after the first time.
 
@@ -26,7 +29,7 @@ shape_cfg:
 
 save_cfg:
   save_formats: ['laz'] # save formats for predicted forest (laz, las, npz, npy or txt)
-  save_treewise: True # additionally save predicted trees individually as las files
-  save_pointwise: True # additionally save pointwise results as numpy arrays (offset predictions, semantic predictions, etc.)
+  save_treewise: False # additionally save predicted trees individually as las files
+  save_pointwise: False # additionally save pointwise results as numpy arrays (offset predictions, semantic predictions, etc.)
   return_type: 'original' # returns predictions on either the "voxelized_and_filtered", "voxelized" or "original" point cloud. Takes a bit longer if "original" is selected since predictions must be propagated to original input points.
   results_dir: 'results' # name of directory where results are saved
