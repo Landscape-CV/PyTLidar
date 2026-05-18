@@ -30,6 +30,7 @@ def load_point_cloud(input_path):
     else:
         raise ValueError(f"Unsupported format {ext}. Only .pcd and .ply are supported.")
 
+
 def classify_wood_leaf(input_path, save_dir="", show_plots=False,
                         noise_percentile = 5,
                         angle_deg=15.0, 
@@ -41,6 +42,9 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
                         smoothMode = True,
                         useResidualTest = True,
                         useCurvatureTest = True,):
+    """
+    This function takes a point cloud file as input, classifies points as wood or leaf, and saves the results.
+    """
     base_name = os.path.splitext(os.path.basename(input_path))[0]
     if save_dir != "":
         os.makedirs(save_dir, exist_ok=True)
@@ -49,7 +53,7 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
 
     # print("[DEBUG] Available fields:", list(pcd_t.point))
     full_intensity = pcd_t.point[intensity_key].numpy().flatten()
-
+    print("full_intensity.shape: ", full_intensity.shape)
     # --- Adaptive Noise Filter ---
     # noise_percentile = noise_percentile
     threshold_noise = np.percentile(full_intensity, noise_percentile)
@@ -61,6 +65,15 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
     pcd = pcd_filtered.to_legacy()
     intensity = full_intensity[valid_mask]
     original_indices = np.nonzero(valid_mask)[0]
+
+
+    print("valid_mask", valid_mask, type(valid_mask))
+    print("noise_mask", noise_mask, type(noise_mask))
+    print("pcd_filtered", pcd_filtered, type(pcd_filtered))
+    print("pcd", pcd, type(pcd))
+    print("intensity", intensity, type(intensity))
+    print("original_indices", original_indices, type(original_indices))
+    exit()
 
     # --- Region Growing Clustering ---
     start_rg = time.time()
@@ -168,23 +181,23 @@ def classify_wood_leaf(input_path, save_dir="", show_plots=False,
         plt.tight_layout()
         plt.show()
 
-def classify_wood_leaf_point_cloud(point_cloud,
-                                   noise_percentile=5,
-                                   angle_deg=15.0,
-                                   curv_thresh=0.07,
-                                   resid_thresh=0.05,
-                                   k=30,
-                                   minClusterSize=3,
-                                   maxClusterSize=100000,
-                                   smoothMode=True,
-                                   useResidualTest=True,
-                                   useCurvatureTest=True):
+def classify_wood_leaf_point_cloud( point_cloud,
+                                    noise_percentile = 5,
+                                    angle_deg=15.0, 
+                                    curv_thresh=0.07, 
+                                    resid_thresh=0.05, 
+                                    k=30,
+                                    minClusterSize = 3,
+                                    maxClusterSize = 100000,
+                                    smoothMode = True,
+                                    useResidualTest = True,
+                                    useCurvatureTest = True,):
     """
-    Given a point cloud, classifies each point as either wood or leaf. Similar function to
-    classify_wood_leaf but does not have the file saving or plotting functionality.
+    Given a point cloud, classifies each point as either wood or leaf. Similar function to 
+    classify_wood_leaf but does not have the file saving or plotting functionality. 
 
-    Args:
-        point_cloud: (Nx4) numpy array.
+    Args: 
+        point_cloud: (Nx4) numpy array. 
     """
     # --- Adaptive Noise Filter ---
     full_intensity = point_cloud[:, 3]

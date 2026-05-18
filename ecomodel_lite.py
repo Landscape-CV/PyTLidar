@@ -30,6 +30,7 @@ from TreeQSMSteps.tree_sets import tree_sets
 from TreeQSMSteps.relative_size import relative_size
 from TreeQSMSteps.cylinders import cylinders
 import logging
+from GBSeparation.remove_leaves import GBSeperationWoodLeafClassifier
 
 logger = logging.getLogger("Ecomodel")
 logger.setLevel(logging.INFO)
@@ -132,6 +133,10 @@ class DistanceBasedNoiseRemoval:
         return classification_copy
 
 class TreeQSMCylinderFitting:
+    """
+    Class which implements the TreeQSM algorithm by using only the specific function calls 
+    necessary to produce the cylinders. 
+    """
     def __init__(self):
         pass
 
@@ -171,7 +176,7 @@ class TreeQSMCylinderFitting:
             if len(tree_cloud) < 100:
                 continue
             try:
-                qsm_input = define_input(labeled_point_cloud[:,:3], 1, 1, 1)[0]
+                qsm_input = define_input(tree_cloud, 1, 1, 1)[0]
             except np.linalg.LinAlgError as e:
                 print(f"Failed to define input {e}")
                 import traceback
@@ -215,6 +220,10 @@ class TreeQSMCylinderFitting:
         return cylinder_data
 
 class TreeQSMFull:
+    """
+    Class that uses the actual TreeQSM function call to produce the cylinder results. 
+    Has additional overhead but may be more robust. 
+    """
     def __init__(self):
         pass
 
@@ -281,7 +290,11 @@ class TreeQSMFull:
         return cylinder_data
 
 
+
 class CSFGroundRemoval:
+    """
+    Algorithm which removes ground from a point cloud. 
+    """
     def __init__(self):
         pass
 
@@ -345,76 +358,6 @@ class RGIWoodLeafClassifier:
             "useResidualTest": useResidualTest,
             "useCurvatureTest": useCurvatureTest,
         }
-
-    def classify_wood_leaf_on_array(self, tree_cloud, input_params=None):
-        """
-        Helper method
-
-        Run classify_wood_leaf() directly on an in-memory NumPy point cloud array.
-        Saves the temporary segment, classifies it, and rebuilds boolean masks.
-        """
-        if input_params is None:
-            input_params = self.input_params
-            
-        with TemporaryDirectory() as tmpdir:
-            tmp_ply = Path(tmpdir) / "segment.ply"
-            tmp_results = Path(tmpdir) / "results"
-            tmp_results.mkdir(exist_ok=True)
-
-            # Save current segment to temporary PLY
-            vertex_dtype = [('x', 'f8'), ('y', 'f8'), ('z', 'f8'), ('Intensity', 'f4')]
-            structured = np.zeros(tree_cloud.shape[0], dtype=vertex_dtype)
-            structured['x'] = tree_cloud[:, 0]
-            structured['y'] = tree_cloud[:, 1]
-            structured['z'] = tree_cloud[:, 2]
-            structured['Intensity'] = tree_cloud[:, 3]
-
-            ply_elements = PlyElement.describe(structured, 'vertex')
-    
-            PlyData([ply_elements]).write(str(tmp_ply))
-
-            # If tile is too small, skip tile. 
-            if tree_cloud.shape[0] < 100:
-                return None, None
-
-            tree_coords = np.asarray(tree_cloud[:, :3])
-
-            print("Number of points for classification:", tree_cloud.shape[0])
-            # Run existing classification pipeline
-            classify_wood_leaf(str(tmp_ply), save_dir=str(tmp_results), show_plots=False, **input_params)
-
-            # Read back the classified clouds
-            wood_file = tmp_results / "segment_wood.ply"
-            leaf_file = tmp_results / "segment_leaves.ply"
-            
-            # If there appears to be no wood in the file, skip tile. 
-            if not wood_file.exists():
-                return None, None
-            
-            def build_mask(sub_coords):
-                # Ensure arrays are C-contiguous before viewing as structured array
-                tree_coords_c = np.ascontiguousarray(tree_coords)
-                sub_coords_c = np.ascontiguousarray(sub_coords)
-                
-                tree_view = tree_coords_c.view(np.void)
-                sub_view = sub_coords_c.view(np.void)
-                
-                mask = np.isin(tree_view, sub_view)
-                return mask.squeeze()
-            if not leaf_file.exists():
-                leaf_mask = np.zeros(tree_cloud.shape[0], dtype=bool)
-            else:
-                leaf_pcd = o3d.io.read_point_cloud(str(leaf_file))
-                leaf_coords = np.asarray(leaf_pcd.points)
-                leaf_mask = build_mask(leaf_coords)
-
-            wood_pcd = o3d.io.read_point_cloud(str(wood_file))
-            wood_coords = np.asarray(wood_pcd.points)
-            wood_mask = build_mask(wood_coords)
-
-            return wood_mask, leaf_mask
-
-
         
     def classify(self, point_cloud):
         """
@@ -430,20 +373,21 @@ class RGIWoodLeafClassifier:
             return None
 
         wood_mask, leaf_mask = classify_wood_leaf_point_cloud(point_cloud, **self.input_params)
-
+        print(wood_mask, leaf_mask)
+        if wood_mask is None or leaf_mask is None:
+            return None
         if wood_mask is None or leaf_mask is None:
             return None
 
-        #only_wood = point_cloud[wood_mask]
-        #only_leaves = point_cloud[leaf_mask]
+        # only_wood = point_cloud[wood_mask]
+        # only_leaves = point_cloud[leaf_mask]
 
         return wood_mask, leaf_mask
 
 
 class EcomodelFunctions:
     """
-    Ecomodel base class
-    Obtains cylinders from a dense forest tile. 
+    Contains useful generic function used in ecomodel pipeline.
     """
     def __init__(self, results_folder="results", intensity_threshold=0,segmenter=None):
         super().__init__()
@@ -451,25 +395,27 @@ class EcomodelFunctions:
             os.mkdir(results_folder)
         self.results_folder = results_folder
         self.intensity_threshold = intensity_threshold
-        #self.segmenter = SegmenterScanline()
-        self.segmenter = segmenter or SegmenterTreeLearn()
         self.plotter = SimplePlotter()
-        self.noise_remover = DistanceBasedNoiseRemoval(0.25, 100)
         self.ground_z = 0
 
-    def filter_intensity(self, point_cloud, intensity):
+    @staticmethod
+    def filter_intensity(point_cloud, intensity):
         """
         Filters points based on intensity.
 
         Args:
             point_cloud (Nx4): point_cloud representing a tile with trees.
             intensity (float): Removes points below this intensity threshold.
+
+        Returns:
+            point_cloud: Point cloud with intensity mask applied
+            intensity_mask: mask containing points above the threshold. 
         """
         intensity_mask = point_cloud[:,3] > intensity
-        return point_cloud[intensity_mask]
+        return point_cloud[intensity_mask], intensity_mask
 
-
-    def normalize_point_cloud(self, point_cloud):
+    @staticmethod
+    def normalize_point_cloud(point_cloud):
         """
         Subtracts mean from point cloud
 
@@ -483,7 +429,8 @@ class EcomodelFunctions:
         point_cloud[:, :3] = point_cloud[:, :3] - mean
         return point_cloud, mean
 
-    def unnormalize_point_cloud(self, point_cloud, mean):
+    @staticmethod
+    def unnormalize_point_cloud(point_cloud, mean):
         """
         Adds mean to point cloud
 
@@ -522,127 +469,36 @@ class EcomodelFunctions:
 
         self.plotter.show()
 
-    def process_tile_old(self, tile_path, save_data=False, show_plots=False):
+    def save_data(self, path, full_data, instance_labels, cylinder_data, mean, ground_z):
         """
-        Process a point cloud tile. 
+        Saves the data. 
+
+        Note: Unnormalizes the data back to original coordinates.
 
         Args:
-            tile_path (str): Path to the point cloud tile.
-            save_data (bool): Whether to save the results or not. 
-            show_plots (bool): Whether to show the plots or not.
+            path: Path object representing original tile.
+
         """
-        path = Path(tile_path)
-        os.makedirs(f"{self.results_folder}/{path.stem}",exist_ok=True )
-        _, full_data = load_point_cloud(str(path), full_data=True)
-        full_data = model.normalize_point_cloud(full_data)
-        full_data = model.remove_ground(full_data)
+        cylinder_data_copy = self.unnormalize_point_cloud(deepcopy(cylinder_data), mean)
+        np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_cylinders.txt", cylinder_data_copy)
 
-        if full_data is None: 
-            print("Low data tile after removing ground.")
-            return
-
-        full_data = model.filter_intensity(full_data, self.intensity_threshold)
-        if full_data.size < 100: 
-            print("Empty array after filtering intensity.")
-            return
+        unnormalized = self.unnormalize_point_cloud(deepcopy(full_data), mean)
+        with_labels = np.concatenate((unnormalized[:,:3], instance_labels[:,np.newaxis]), axis=1)
+        np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_leavesremoved.xyz", with_labels)
         
-        wood_mask, leaf_mask = model.separate_leaves_rgi(full_data)
-        full_data = full_data[wood_mask]
-
-        if full_data is None:
-            print("Unable to remove leaves on segment.")
-            return 
-
-        full_data, instance_labels = model.perform_instance_segmentation(full_data)
-        if full_data is None or instance_labels is None:
-            print("Unable to perform instance segmentation.")
-            return
-
-        cylinder_data = model.get_cylinders(full_data, instance_labels)
-        print("Cylinder data shape", cylinder_data.shape)
+        with open(f"{self.results_folder}/{path.stem}/{path.stem}_data.txt", "w") as f:
+            f.writelines(f"{mean[0]} {mean[1]} {mean[2]}")
+            f.writelines("\n")
+            f.writelines(str(ground_z))
 
 
-        # Save results.
-        if save_data:
-            cylinder_data = self.unnormalize_point_cloud(cylinder_data)
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_cylinders.txt", cylinder_data)
-            unnormalized = self.unnormalize_point_cloud(full_data)
-            with_labels = np.concatenate((unnormalized[:,:3], instance_labels[:,np.newaxis]), axis=1)
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_leavesremoved.xyz", with_labels)
-            with open(f"{self.results_folder}/{path.stem}/{path.stem}_data.txt", "w") as f:
-                f.writelines(f"{self.mean[0]} {self.mean[1]} {self.mean[2]}")
-                f.writelines("\n")
-                f.writelines(str(self.ground_z))
-
-        if show_plots:
-            self.view_cylinders(full_data, cylinder_data)
-
-
-    def process_tile_treeX(self, tile_path, save_data=False, show_plots=False):
-        """
-        Process a point cloud tile with the TreeX segmenter.
-        Does not perform ground removal, and leaf removal is done after segmentation.  
-
-        Args:
-            tile_path (str): Path to the point cloud tile.
-            save_data (bool): Whether to save the results or not. 
-            show_plots (bool): Whether to show the plots or not.
-        """
-
-
-    def process_tile_no_leaf_removal(self, tile_path, save_data=False, show_plots=False):
-        """
-        Perform only the instance segmentation and TreeQSM on the tile. Assumes leaf removal already complete. 
-
-        Args:
-            tile_path (str): Path to the point cloud tile.
-            save_data (bool): Whether to save the results or not. 
-            show_plots (bool): Whether to show the plots or not.
-        """
-        path = Path(tile_path)
-        os.makedirs(f"{self.results_folder}/{path.stem}",exist_ok=True )
-        xyz_data, full_data = load_point_cloud(str(path), full_data=True)
-        full_data = model.normalize_point_cloud(full_data)
-
-        full_data, instance_labels = model.perform_instance_segmentation(full_data)
-        if full_data is None or instance_labels is None:
-            print("Unable to perform instance segmentation.")
-            return
-
-        cylinder_data = model.get_cylinders(full_data, instance_labels)
-        print("Cylinder data shape", cylinder_data.shape)
-        cylinder_data = self.unnormalize_point_cloud(cylinder_data)
-
-        # Save results. 
-        if save_data:
-            shutil.copy(str(path), f"{self.results_folder}/{path.stem}/{path.stem}.xyz")
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_cylinders.txt", cylinder_data)
-            with open(f"{self.results_folder}/{path.stem}/{path.stem}_data.txt", "w") as f:
-                f.writelines(str(self.mean))
-                f.writelines("\n")
-                f.writelines(str(self.ground_z))
-
-        if show_plots:
-            self.view_cylinders(full_data, cylinder_data)
-
-
-class EcomodelScanline:
+class EcomodelScanline(EcomodelFunctions):
     """
     This Ecomodel uses the 
     """
-    def __init__(self):
-        pass
-
-    def process_tile(self):
-        pass
-
-
-class EcomodelTreeX(EcomodelFunctions):
-    def __init__(self, results_folder="results", intensity_threshold=0):
+    def __init__(self, results_folder, intensity_threshold):
         super().__init__(results_folder, intensity_threshold)
-
-        self.instance_segmenter = SegmenterTreeX()
-        self.qsm = TreeQSMCylinderFitting()
+        self.instance_segmenter = SegmenterScanline()
         self.leaf_wood_classifier = RGIWoodLeafClassifier(noise_percentile=0, 
                                                           angle_deg=6, 
                                                           curv_thresh=0.07, 
@@ -653,6 +509,73 @@ class EcomodelTreeX(EcomodelFunctions):
                                                           smoothMode=True, 
                                                           useResidualTest=True, 
                                                           useCurvatureTest=True)
+        self.qsm = TreeQSMCylinderFitting()
+        self.ground_removal = CSFGroundRemoval()
+
+    def process_tile(self, tile_path, save_data = True, show_plots = True):
+        """
+        Process Tile Scanline Segmentation.
+        """
+        path = Path(tile_path)
+        os.makedirs(f"{self.results_folder}/{path.stem}",exist_ok=True )
+        _, full_data = load_point_cloud(str(path), full_data=True)
+        full_data, mean = self.normalize_point_cloud(full_data)
+
+        full_data, ground_z = self.ground_removal.remove_ground(full_data, True)
+
+        full_data, intensity_mask = self.filter_intensity(full_data, 42000)
+        # full_data = full_data[intensity_mask]
+
+        wood_mask, leaf_mask = self.leaf_wood_classifier.classify(full_data)
+        full_data = full_data[wood_mask]
+
+        if full_data is None:
+            logger.warning("Unable to remove leaves on segment.")
+            return 
+        # np.savetxt(f"{path.stem}_wood_only.txt", full_data)
+
+        try:
+            full_data, instance_labels = self.instance_segmenter.segment(full_data)
+        except Exception as e:
+            logger.warning(f"Error during instance segmentation: {e}")
+            return
+        if full_data is None or instance_labels is None:
+            logger.warning("Unable to perform instance segmentation.")
+            return
+
+        # Visualualize intermediate step:
+        # with_labels = np.concatenate((full_data[:,:3], instance_labels[:,np.newaxis]), axis=1)
+        # np.savetxt(f"{path.stem}_labeled.txt", with_labels)
+
+        cylinder_data = self.qsm.get_cylinders(full_data, instance_labels)
+        print("Cylinder data shape", cylinder_data.shape)
+
+        # Save results.
+        if save_data:
+            self.save_data(path, full_data, instance_labels, cylinder_data, mean, ground_z)
+
+        if show_plots:
+            self.view_cylinders(full_data, cylinder_data)
+
+
+
+
+class EcomodelTreeX(EcomodelFunctions):
+    def __init__(self, results_folder="results", intensity_threshold=0):
+        super().__init__(results_folder, intensity_threshold)
+
+        self.instance_segmenter = SegmenterTreeX()
+        self.leaf_wood_classifier = RGIWoodLeafClassifier(noise_percentile=0, 
+                                                          angle_deg=6, 
+                                                          curv_thresh=0.07, 
+                                                          resid_thresh=0.05, 
+                                                          k=100,
+                                                          minClusterSize=40, 
+                                                          maxClusterSize=100000,
+                                                          smoothMode=True, 
+                                                          useResidualTest=True, 
+                                                          useCurvatureTest=True)
+        self.qsm = TreeQSMCylinderFitting()
 
     def process_tile(self, tile_path, save_data = True, show_plots = True):
 
@@ -661,47 +584,46 @@ class EcomodelTreeX(EcomodelFunctions):
         _, full_data = load_point_cloud(str(path), full_data=True)
         full_data, mean = self.normalize_point_cloud(full_data)
 
-        full_data, instance_labels = self.segmenter.segment(full_data)
+        try:
+            full_data, instance_labels = self.instance_segmenter.segment(full_data)
+        except Exception as e:
+            logger.warning(f"Error during instance segmentation: {e}")
+            return
         if full_data is None or instance_labels is None:
-            print("Unable to perform instance segmentation.")
+            logger.warning("Unable to perform instance segmentation.")
             return
 
         # Filter out ground and extra noise manually.
-        ground_mask = instance_labels == -1
-        full_data = full_data[~ground_mask]
-        instance_labels = instance_labels[~ground_mask]
-        ground_z = np.min(full_data[:,2])
+        try: 
+            ground_mask = instance_labels == -1
+            full_data = full_data[~ground_mask]
+            instance_labels = instance_labels[~ground_mask]
+            ground_z = np.min(full_data[:,2])
+        except ValueError as e:
+            logger.warning(f"Error {e} - Couldnt get z value")
+            ground_z = 0
 
 
         wood_mask, leaf_mask = self.leaf_wood_classifier.classify(full_data)
         full_data = full_data[wood_mask]
         instance_labels = instance_labels[wood_mask]
+        full_data, intensity_mask = self.filter_intensity(full_data, 42000)
+        instance_labels = instance_labels[intensity_mask]
         if full_data is None:
-            print("Unable to remove leaves on segment.")
+            logger.warning("Unable to remove leaves on segment.")
             return 
-        np.savetxt(f"{path.stem}_wood_only.txt", full_data)
+        # np.savetxt(f"{path.stem}_wood_only.txt", full_data)
 
 
-        with_labels = np.concatenate((full_data[:,:3], instance_labels[:,np.newaxis]), axis=1)
-        np.savetxt(f"{path.stem}_labeled.txt", with_labels)
-        # self.plotter.add_point_cloud(with_labels)
-        # self.plotter.show()
-        # exit()
+        # with_labels = np.concatenate((full_data[:,:3], instance_labels[:,np.newaxis]), axis=1)
+        # np.savetxt(f"{path.stem}_labeled.txt", with_labels)
 
         cylinder_data = self.qsm.get_cylinders(full_data, instance_labels)
         print("Cylinder data shape", cylinder_data.shape)
-        # exit()
+
         # Save results.
         if save_data:
-            cylinder_data = self.unnormalize_point_cloud(cylinder_data, mean)
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_cylinders.txt", cylinder_data)
-            unnormalized = self.unnormalize_point_cloud(full_data, mean)
-            with_labels = np.concatenate((unnormalized[:,:3], instance_labels[:,np.newaxis]), axis=1)
-            np.savetxt(f"{self.results_folder}/{path.stem}/{path.stem}_leavesremoved.xyz", with_labels)
-            with open(f"{self.results_folder}/{path.stem}/{path.stem}_data.txt", "w") as f:
-                f.writelines(f"{mean[0]} {mean[1]} {mean[2]}")
-                f.writelines("\n")
-                f.writelines(str(ground_z))
+            self.save_data(path, full_data, instance_labels, cylinder_data, mean, ground_z)
 
         if show_plots:
             self.view_cylinders(full_data, cylinder_data)
@@ -887,81 +809,28 @@ class EcomodelTreeLearn(EcomodelFunctions):
 
 
 if __name__ == "__main__":
-    # model = EcomodelLite(results_folder="results_lite_rush_tree_saved_treeX", intensity_threshold=2)
-    # # model.process_tile_no_leaf_removal(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10")
+    #### This block is for testing the TreeX Ecomodel on a single tile.
+    model = EcomodelScanline(results_folder="results", intensity_threshold=42000)
+    model.process_tile(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10\retile_573088_2840085_0_1.laz", save_data=True, show_plots=True)
 
-    # folder = r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better"
+    #### Just segmentation:
+    # model = EcomodelScanline(results_folder="results", intensity_threshold=42000)
+    # path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10\retile_573088_2840085_0_1.laz")
+    # _, full_data = load_point_cloud(str(path), full_data=True)
+    # full_data, instance_labels = model.instance_segmenter.segment(full_data)
+    # with_labels = np.concatenate((full_data[:,:3], instance_labels[:,np.newaxis]), axis=1)
+    # np.savetxt(f"{path.stem}_TreeX_Classification.txt", with_labels)
+
+
+    #### Uncomment this block to run on all tiles in a folder.
+    # model = EcomodelTreeX(results_folder="results", intensity_threshold=42000)
+    # folder = r"G:\Projects\TreeCanopyLidar\Datasets\2025_10x10"
     # files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
     # for tile in files:
     #     logger.info("------------- Processing Tile %s -------------", tile)
     #     full_tile_path = os.path.join(folder, tile)
-    #     model.process_tile_treeX(full_tile_path, save_data=True, show_plots=True)
+    #     model.process_tile(full_tile_path, save_data=True, show_plots=True)
     #     # break
-
-    # Use this for doing a single full tile. 
-    # model = EcomodelTreeX("results_lite_rush_tree_saved_treeX", intensity_threshold=0)
-    # model.process_tile(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better\rush_07_3_6.las")
-
-
-    # model = EcomodelTreeX("results_lite_rush_tree_saved_treeX", intensity_threshold=0)
-    # path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better\rush_07_3_6.las")
-    # remove_ground = CSFGroundRemoval()
-    # tile_data, full_data = load_point_cloud(str(path), full_data=True)
-    # full_data, ground_z = remove_ground.remove_ground(full_data)
-    # full_data = model.filter_intensity(full_data, 2)
-    # wood, leaf = model.leaf_wood_classifier.classify(full_data)
-    # full_data = full_data[wood]
-    #
-    # np.savetxt("NewLeavesRemoved.txt", full_data)
-
-    model = EcomodelTreeLearn(
-        treelearn_config_path=r"TreeLearn/configs/pipeline/pipeline.yaml",
-        results_folder="results_treelearn",
-        intensity_threshold=0
-    )
-    folder = r"Dataset/Tiles 2025 30x30"
-    files = [f for f in os.listdir(folder) if f.lower().endswith(('.las', '.laz'))]
-    results=[]
-    for tile in files:
-        logger.info("------------- Processing Tile %s -------------", tile)
-        start = time.time()
-        result=model.process_tile(os.path.join(folder, tile), save_data=True, show_plots=False)
-        end=time.time()
-        results.append((tile,result,end-start))
-    logger.info("-------------OVERALL RESULTS -------------")
-    for tile, result, cycleTime in results:
-        logger.info("%s: %s, in %s sec", tile, result,cycleTime)
-    completed = sum(1 for _, r in results if r is not None and r.startswith("Completed"))
-    logger.info("------------- %d/%d completed (%.1f%%) -------------",
-                completed, len(results), 100 * completed / len(results))
-    totalTime=sum(t for _, r,t in results if r is not None and r.startswith("Completed"))
-
-    # Testing: 
-    # model = EcomodelLite()
-    # # path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\2025_1cm\tile_00005_2_0.laz")
-    # path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\Rush7\Tiled_better\complete\rush_07_1_5.las")
-    # # path = Path(r"G:\Projects\TreeCanopyLidar\Datasets\oblong_tile\trunks.laz")
-    # folder_path = path.parent
-    # basename = path.stem
-    # tile_data, full_data = load_point_cloud(str(path), full_data=True)
-    # # full_data = model.remove_ground(full_data)
-    # # full_data = model.filter_intensity(full_data, 42000)
-    # full_data = model.remove_leaves_rgi(full_data)
-    # # model.save_point_cloud(f"{folder_path}\{path.stem}_leaves_removed.xyz", full_data)
-    # full_data = model.normalize_point_cloud(full_data)
-    # # np.savetxt("Fulldata.xyz", full_data)
-    # # model.remove_noise(full_data)
-    # full_data, instance_labels = model.perform_instance_segmentation(full_data)
-    # combined_data = np.concatenate((full_data, instance_labels[:, np.newaxis]), axis=1)
-    # np.savetxt("labeled_ecomodel_lite.xyz", combined_data)
-
-    # cylinder_data = model.get_cylinders(full_data, instance_labels)
-
-    # # view_data = np.concatenate((full_data,instance_labels[:,np.newaxis] ), axis=1)
-    # # model.view_point_cloud(view_data)
-    # # model.save_point_cloud(f"{folder_path}\{path.stem}_labeled.xyz", view_data)
-    # # model.view_cylinders(full_data, cylinder_data)
-    
 
 
 

@@ -5,6 +5,7 @@ import os
 import pyproj
 from pathlib import Path
 import vtk
+
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Vectorised ray-AABB slab intersection  (all N cylinders at once)
 # ═══════════════════════════════════════════════════════════════════════════════
