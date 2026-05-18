@@ -1,0 +1,56 @@
+2026-05-05 05:43:35,779 - INFO - { 'dataloader': {'batch_size': 1, 'num_workers': 2},
+  'dataset_test': { 'data_root': 'data/val/tiles/npz',
+                    'inner_square_edge_length': 8,
+                    'training': False},
+  'forest_path': 'C:\\\\Users\\\\kaipo\\\\Documents\\\\Dev\\\\Dev2\\\\PyTLidar\\\\TreeLearn\\\\Dataset\\\\retile_573088_2840115.npz',
+  'fp16': True,
+  'grouping': { 'tau_group': 0.15,
+                'tau_min': 50,
+                'tau_off': 4,
+                'tau_vert': 0.6,
+                'tree_conf_thresh': 0.5,
+                'use_hdbscan': True},
+  'model': { 'channels': 32,
+             'dim_coord': 3,
+             'dim_feat': 1,
+             'fixed_modules': [],
+             'kernel_size': 3,
+             'max_num_points_per_voxel': 3,
+             'num_blocks': 7,
+             'spatial_shape': [500, 500, 1000],
+             'use_coords': False,
+             'use_feats': False,
+             'voxel_size': 0.1},
+  'pretrain': 'C:\\\\Users\\\\kaipo\\\\Documents\\\\Dev\\\\Dev2\\\\PyTLidar\\\\TreeLearn\\\\model_weights\\\\model_weights_with_small_20241213.pth',
+  'sample_generation': { 'inner_edge': 8,
+                         'outer_edge': 10,
+                         'sample_generator': { 'multiplier_sor': None,
+                                               'n_neigh_sor': None,
+                                               'npoints_rad': None,
+                                               'rad': None},
+                         'search_radius_features': 0.6,
+                         'stride': 1,
+                         'voxel_size': 0.1},
+  'save_cfg': { 'results_dir': 'results',
+                'return_type': 'original',
+                'save_formats': ['laz'],
+                'save_pointwise': True,
+                'save_treewise': True},
+  'shape_cfg': { 'alpha': 0.6,
+                 'buffer_size_to_determine_edge_trees': 0.3,
+                 'outer_remove': None},
+  'tile_generation': True}
+2026-05-05 05:43:35,779 - INFO - #################### generating tiles ####################
+2026-05-05 05:43:35,780 - INFO - voxelizing forest...
+2026-05-05 05:44:49,853 - INFO - calculating features...
+2026-05-05 05:44:56,949 - INFO - getting tiles...
+2026-05-05 05:44:57,002 - INFO - defining plot corners
+2026-05-05 05:44:57,003 - INFO - setting up grid
+2026-05-05 05:44:57,264 - INFO - subset all points with outer square extensions
+2026-05-05 05:44:57,374 - INFO - only select chunks whose inner squares contain points
+2026-05-05 05:44:57,451 - INFO - center chunks
+2026-05-05 05:44:57,584 - INFO - save chunks
+2026-05-05 05:44:57,902 - INFO - retile_573088_2840115: #################### getting pointwise predictions ####################
+2026-05-05 05:45:03,872 - INFO - Load test dataset: 16 scans
+2026-05-05 05:46:43,937 - INFO - retile_573088_2840115: #################### ensembling predictions ####################
+2026-05-05 05:47:13,712 - INFO - retile_573088_2840115: #################### getting predicted instances ####################

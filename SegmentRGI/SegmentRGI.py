@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 try:
-    import RegionGrowing as RG
+    import RegionGrowing_optimized as RG
 except:
-    import SegmentRGI.RegionGrowing as RG
+    import SegmentRGI.RegionGrowing_optimized as RG
 import os
 
 
@@ -261,7 +261,6 @@ def classify_wood_leaf_point_cloud( point_cloud,
         else:
             leaf_clusters.add(cid)
 
-
     wood_indices = np.array([original_indices[i] for cid in wood_clusters for i in RGKNN.Clusters[cid]])
     leaf_indices = np.array([original_indices[i] for cid in leaf_clusters for i in RGKNN.Clusters[cid]])
 
@@ -273,7 +272,6 @@ def classify_wood_leaf_point_cloud( point_cloud,
     wood_mask[wood_indices] = True
 
     return wood_mask, ~wood_mask
-
 
 # Main to use
 if __name__ == "__main__":

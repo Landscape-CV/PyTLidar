@@ -1,6 +1,10 @@
 import pyvista as pv
 import numpy as np
 import matplotlib.pyplot as plt
+import os
+import pyproj
+from pathlib import Path
+import vtk
 
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Vectorised ray-AABB slab intersection  (all N cylinders at once)
@@ -164,41 +168,337 @@ def cylinderDiameterHistogramInBox(cylinders, aabb,
 
     return results, hist
 
+def mergeCylinderFiles(directory):
+    cylList=[]
+    for filename in os.listdir(directory):
+        tmp=np.loadtxt(os.path.join(directory,filename))
+        if tmp.ndim==2 and tmp.shape[1]==8:
+            cylList.append(tmp)
+    return np.vstack(cylList)
+def getAABB(queryPpoint,AABBSize):
+    minPoint=np.array(queryPpoint)-AABBSize/2
+    maxPoint=np.array(queryPpoint)+AABBSize/2
+    return np.array([minPoint,maxPoint])
 
-#cylinders=np.loadtxt(r"..\results\testCylinders.txt")
-cylinders=np.loadtxt(r"..\results\tile_573150_2840110.laz_cylinders.txt")
-#cylinders=np.loadtxt(r"..\results\tile_573150_2840110.laz_cylinders_debug.txt")
-AABB=np.array([[-3,-3,-3],[2,2,2]])
-results,histogram=cylinderDiameterHistogramInBox(cylinders,AABB)
+def cylinders_to_polydata(cyls):
+    """
+    Convert (N, 8) cylinder array to a single pv.PolyData of line segments.
 
-AABBCenter=[AABB[0][0]+(AABB[1][0]-AABB[0][0])/2,AABB[0][1]+(AABB[1][1]-AABB[0][1])/2,AABB[0][2]+(AABB[1][2]-AABB[0][2])/2]
-mesh = pv.Cube(center=AABBCenter,x_length=AABB[1][0]-AABB[0][0], y_length=AABB[1][1]-AABB[0][1], z_length=AABB[1][2]-AABB[0][2])
-pl = pv.Plotter()
-actor = pl.add_mesh(mesh, color='red', style='wireframe', line_width=4)
-points=[]
-labels=[]
-for i,cyl in enumerate(cylinders):
-    dir = cyl[4:7]
-    r = cyl[3]
-    len = cyl[7]
-    ori = cyl[0:3]
-    cent = ori + dir * len / 2
-    points.append(cent)
-    labels.append(results[i]['index'])
-    if results[i]['intersects']:
-        actor = pl.add_mesh(pv.Cylinder(center=cent,radius=r,direction=dir,height=len), color='green')
+    Each cylinder becomes one line segment from start to end.
+    Radius is stored as point data so .tube() can vary width per cylinder.
+
+    Parameters
+    ----------
+    cyls : (N, 8) ndarray  [sx,sy,sz, radius, ax,ay,az, length]
+
+    Returns
+    -------
+    pv.PolyData with lines and 'radius' point array
+    """
+    starts  = cyls[:, 0:3]
+    radii   = cyls[:, 3]
+    axes    = cyls[:, 4:7]
+    lengths = cyls[:, 7]
+    ends    = starts + axes * lengths[:, None]      # (N, 3)
+
+    N = len(cyls)
+
+    # Interleave start/end points: [s0, e0, s1, e1, ...]
+    points = np.empty((N * 2, 3))
+    points[0::2] = starts
+    points[1::2] = ends
+
+    # VTK line connectivity: [2, start_idx, end_idx] per segment
+    lines = np.empty((N, 3), dtype=int)
+    lines[:, 0] = 2
+    lines[:, 1] = np.arange(0, N * 2, 2)
+    lines[:, 2] = np.arange(1, N * 2, 2)
+
+    pd = pv.PolyData()
+    pd.points = points
+    pd.lines  = lines.ravel()
+
+    # Repeat radius for start and end point of each segment
+    pd.point_data['radius']   = np.repeat(radii, 2)
+    pd.point_data['diameter'] = np.repeat(radii * 2, 2)
+
+    return pd
+
+
+def build_aabb_mesh(aabb):
+    """
+    Build a pv.Box wireframe from an aabb tuple.
+
+    Parameters
+    ----------
+    aabb : tuple  ((min_x,min_y,min_z), (max_x,max_y,max_z))
+
+    Returns
+    -------
+    pv.Box
+    """
+    (x0, y0, z0), (x1, y1, z1) = aabb
+    return pv.Box(bounds=(x0, x1, y0, y1, z0, z1))
+
+def get_satellite_tile(x_min, y_min, x_max, y_max,
+                        utm_epsg  = 32617,
+                        pad_m     = 0,
+                        cache_path = 'satellite_tile.npz'):
+    """
+    Return satellite tile image + Web Mercator extent.
+    Loads from cache_path if it exists, otherwise fetches from Esri and saves.
+
+    Parameters
+    ----------
+    x_min, y_min, x_max, y_max : float   UTM bounding box in metres
+    utm_epsg   : int    EPSG code of your CRS (default 32617 = UTM 17N Florida)
+    pad_m      : float  padding in metres around the bounding box
+    cache_path : str    path to save/load the cached .npz tile
+
+    Returns
+    -------
+    img      : (H, W, 4) RGBA uint8 array
+    extent   : (x0_wm, x1_wm, y0_wm, y1_wm) in Web Mercator metres
+    tf       : pyproj Transformer (UTM → Web Mercator)
+    """
+    from pyproj import Transformer
+    tf = Transformer.from_crs(f"EPSG:{utm_epsg}", "EPSG:3857", always_xy=True)
+
+    cache = Path(cache_path)
+
+    if cache.exists():
+        print(f"[minimap] Loading tile from cache: {cache}")
+        data   = np.load(cache)
+        img    = data['img']
+        extent = tuple(data['extent'])
+        return img, extent, tf
+
+    # Not cached — fetch from Esri
+    print("[minimap] Fetching satellite tile from Esri (saved to cache after)...")
+    try:
+        import contextily as ctx
+
+        x0_wm, y0_wm = tf.transform(x_min - pad_m, y_min - pad_m)
+        x1_wm, y1_wm = tf.transform(x_max + pad_m, y_max + pad_m)
+
+        img, extent = ctx.bounds2img(x0_wm, y0_wm, x1_wm, y1_wm,
+                                      source=ctx.providers.Esri.WorldImagery)
+
+        np.savez(cache, img=img, extent=np.array(extent))
+        print(f"[minimap] Tile cached to {cache}  (shape={img.shape})")
+        return img, extent, tf
+
+    except Exception as e:
+        print(f"[minimap] Fetch failed: {e}")
+        return None, None, tf
+
+
+def visualize(cyls, aabb,
+
+              tube_sides   = 10,
+
+              color_by     = 'hit',
+              color_hit    = 'tomato',
+              color_miss   = 'steelblue',
+              aabb_color   = 'yellow',
+              aabb_opacity = 0.15,
+              utm_epsg     = 32617,
+              center_utm  = (573160.68, 2840102.11),
+              map_pad_m    = 40,
+              tile_cache   = 'satellite_tile.npz',
+              window_size  = (1400, 900)):
+    """
+    Interactive 3D view of cylinders + AABB with a satellite minimap.
+
+    Parameters
+    ----------
+    cyls         : (N, 8) ndarray  [sx,sy,sz, radius, ax,ay,az, length]
+    aabb         : tuple           ((min_x,min_y,min_z), (max_x,max_y,max_z))
+    utm_epsg     : int    EPSG code of your coordinate system (default 32617)
+    tube_sides   : int    tube cross-section resolution
+                          use 6 for 150k+ cylinders, 10-16 for smaller sets
+    color_by     : 'hit'      — intersecting=color_hit, miss=color_miss
+                   'diameter' — colormap by diameter
+                   'single'   — uniform color_hit for all cylinders
+    color_hit    : color for intersecting cylinders
+    color_miss   : color for non-intersecting cylinders
+    aabb_color   : AABB wireframe and face color
+    aabb_opacity : AABB surface opacity (0 = wireframe only)
+    map_pad_m    : metres of padding around cylinder extent for the tile
+    tile_cache   : path to the .npz cache file for the satellite tile
+    window_size  : (width, height) in pixels
+    """
+    box_min     = np.asarray(aabb[0], float)
+    box_max     = np.asarray(aabb[1], float)
+    aabb_center = (box_min + box_max) / 2
+
+    # ── Intersection detection ────────────────────────────────────────────────
+    t_entry, t_exit, _, hit = rays_aabb_intersection(
+        cyls[:, 0:3], cyls[:, 4:7], box_min, box_max
+    )
+    t_entry   = np.maximum(t_entry, 0.)
+    t_exit    = np.minimum(t_exit,  cyls[:, 7])
+    inter_len = np.where(hit, np.maximum(0., t_exit - t_entry), 0.)
+    hit_mask  = inter_len > 0
+
+    print(f"Cylinders total : {len(cyls):,}")
+    print(f"Intersecting    : {hit_mask.sum():,}")
+    print(f"Non-intersecting: {(~hit_mask).sum():,}")
+
+    # ── Tube mesh ─────────────────────────────────────────────────────────────
+    pd = cylinders_to_polydata(cyls)
+    print(f"Generating tubes (n_sides={tube_sides})...")
+    tubes = pd.tube(scalars='radius', absolute=True, n_sides=tube_sides)
+    print(f"Tube mesh: {tubes.n_points:,} pts, {tubes.n_cells:,} cells")
+
+    cells_per_cyl = max(1, tubes.n_cells // len(cyls))
+    cyl_ids = np.repeat(np.arange(len(cyls)), cells_per_cyl)
+    if len(cyl_ids) < tubes.n_cells:
+        cyl_ids = np.append(cyl_ids,
+                            np.full(tubes.n_cells - len(cyl_ids), len(cyls) - 1))
+    cyl_ids = cyl_ids[:tubes.n_cells]
+
+    # ── AABB ──────────────────────────────────────────────────────────────────
+    aabb_surface   = build_aabb_mesh(aabb)
+    aabb_wireframe = aabb_surface.extract_all_edges()
+
+    # ── Satellite tile (cached) ───────────────────────────────────────────────
+    cx,cy=center_utm
+    starts=cyls[:,0:3]
+    z_map = starts[:, 2].min() - 50
+
+    img, extent_wm, tf = get_satellite_tile(
+        cx-map_pad_m, cy-map_pad_m, cx+map_pad_m, cy+map_pad_m,
+        utm_epsg=utm_epsg,
+        cache_path=tile_cache
+    )
+    have_tile = img is not None
+
+    if have_tile:
+        x0, x1, y0, y1 = extent_wm
+        map_plane = pv.Plane(
+            center=((x0 + x1) / 2, (y0 + y1) / 2, z_map),
+            direction=(0, 0, 1),
+            i_size=x1 - x0,
+            j_size=y1 - y0,
+            i_resolution=1,
+            j_resolution=1,
+        )
+        map_texture = pv.Texture(img)
+
+        cx_map, cy_map = tf.transform(aabb_center[0], aabb_center[1])
     else:
-        actor = pl.add_mesh(pv.Cylinder(center=cent, radius=r, direction=dir, height=len), color='red')
-# actor = pl.add_point_labels(
-#     np.array(points),
-#     labels,
-#     italic=True,
-#     font_size=10,
-#     point_color='red',
-#     point_size=10,
-#     render_points_as_spheres=True,
-#     always_visible=True,
-#     shadow=True,
-# )
-pl.add_axes_at_origin()
-pl.show()
+        # No tile — plain grey plane centred on center_utm
+        map_plane = pv.Plane(
+            center=(cx, cy, z_map),
+            direction=(0, 0, 1),
+            i_size=map_pad_m * 2,
+            j_size=map_pad_m * 2,
+            i_resolution=1,
+            j_resolution=1,
+        )
+        map_texture = None
+
+        cx_map, cy_map = aabb_center[0], aabb_center[1]
+
+
+    aabb_marker = pv.PolyData(np.array([[cx_map, cy_map, z_map + 2]]))
+    # ── Plotter ───────────────────────────────────────────────────────────────────
+    pl = pv.Plotter(window_size=window_size)
+    pl.set_background('black')
+
+    # ── Main 3D view (layer 0, full window) ───────────────────────────────────────
+    if color_by == 'hit':
+        tubes.cell_data['hit'] = hit_mask[cyl_ids].astype(float)
+        pl.add_mesh(tubes, scalars='hit', clim=[0, 1],
+                    cmap=[color_miss, color_hit], show_scalar_bar=False)
+    elif color_by == 'diameter':
+        tubes.cell_data['diameter'] = cyls[cyl_ids, 3] * 2
+        pl.add_mesh(tubes, scalars='diameter', cmap='viridis',
+                    scalar_bar_args={'title': 'Diameter (m)', 'color': 'white'})
+    else:
+        pl.add_mesh(tubes, color=color_hit)
+
+    pl.add_mesh(aabb_surface, color=aabb_color, opacity=aabb_opacity)
+    pl.add_mesh(aabb_wireframe, color=aabb_color, line_width=2)
+    pl.add_axes(color='white')
+    pl.add_text('3D View  |  red = intersects AABB  |  blue = miss',
+                font_size=9, color='white', position='upper_left')
+    pl.add_text(f"Query point: X {round(aabb_center[0],2)} Y {round(aabb_center[1],2)} Z {round(aabb_center[2],2)} ",
+                font_size=9, color='white', position='upper_right')
+    # ── Minimap (layer 1, bottom-left inset, overlaid on top) ────────────────────
+    minimap = vtk.vtkRenderer()
+    minimap.SetViewport(0.0, 0.0, 0.27, 0.27)  # (x_min, y_min, x_max, y_max) normalised
+    minimap.SetLayer(1)  # draw on top of the main view
+    minimap.SetBackground(0.08, 0.08, 0.08)
+
+    pl.ren_win.SetNumberOfLayers(2)
+    pl.ren_win.AddRenderer(minimap)
+
+    def _add_to_minimap(mesh, **kwargs):
+        """Wrap pv.Actor so we can add PyVista meshes to a raw vtkRenderer."""
+        actor = pv.Actor(mapper=pv.DataSetMapper(dataset=mesh))
+        for k, v in kwargs.items():
+            setattr(actor.prop, k, v)
+        minimap.AddActor(actor)
+
+    if have_tile:
+        # Textured plane needs a texture actor
+        tex_actor = vtk.vtkActor()
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(map_plane)
+        tex_actor.SetMapper(mapper)
+        tex_actor.SetTexture(map_texture)
+        minimap.AddActor(tex_actor)
+    else:
+        _add_to_minimap(map_plane, color='darkgray', opacity=0.8)
+
+
+    _add_to_minimap(aabb_marker, color='yellow', point_size=14,
+                    render_points_as_spheres=True)
+
+    # Top-down camera for minimap
+    minimap.ResetCamera()
+    cam = minimap.GetActiveCamera()
+    cam.SetPosition(cx_map, cy_map, 1e6)
+    cam.SetFocalPoint(cx_map, cy_map, z_map)
+    cam.SetViewUp(0, 1, 0)
+    cam.ParallelProjectionOn()
+    minimap.ResetCameraClippingRange()
+    pl.view_xy()
+    pl.camera.up = (0, 1, 0)
+    pl.show()
+
+#cylinders=mergeCylinderFiles(r'../Dataset/EcomodelCylinders_3_2_2025')
+# queryPoint=[5.731325400760621997e+05,2.840063605150410440e+06,-2.509709902458836694e+01]
+queryPoint=[5.731031857598150382e+05,2.840123000221467111e+06,-1.848659356832329337e+01]
+AABBSize=5
+AABB=getAABB(queryPoint,AABBSize)
+#visualize(cylinders,AABB)
+cylinders=np.loadtxt(r"C:\Users\kaipo\Documents\Dev\Dev2\PyTLidar\results_treelearn\retile_573088_2840115_1_0\retile_573088_2840115_1_0_cylinders.txt")
+#cylinders=np.loadtxt(r"..\results\tile_573150_2840110.laz_cylinders.txt")
+#cylinders=np.loadtxt(r"..\results\tile_573150_2840110.laz_cylinders_debug.txt")
+#AABB=np.array([[-3,-3,-3],[2,2,2]])
+visualize(cylinders,AABB,10)
+# results,histogram=cylinderDiameterHistogramInBox(cylinders,AABB)
+# #
+# AABBCenter=[AABB[0][0]+(AABB[1][0]-AABB[0][0])/2,AABB[0][1]+(AABB[1][1]-AABB[0][1])/2,AABB[0][2]+(AABB[1][2]-AABB[0][2])/2]
+# mesh = pv.Cube(center=AABBCenter,x_length=AABB[1][0]-AABB[0][0], y_length=AABB[1][1]-AABB[0][1], z_length=AABB[1][2]-AABB[0][2])
+# pl = pv.Plotter()
+# actor = pl.add_mesh(mesh, color='red', style='wireframe', line_width=4)
+# points=[]
+# labels=[]
+# for i,cyl in enumerate(cylinders):
+#     dir = cyl[4:7]
+#     r = cyl[3]
+#     len = cyl[7]
+#     ori = cyl[0:3]
+#     cent = ori + dir * len / 2
+#     points.append(cent)
+#     labels.append(results[i]['index'])
+#     if results[i]['intersects']:
+#         actor = pl.add_mesh(pv.Cylinder(center=cent,radius=r,direction=dir,height=len), color='green')
+#     else:
+#         actor = pl.add_mesh(pv.Cylinder(center=cent, radius=r, direction=dir, height=len), color='red')
+# pl.add_axes_at_origin()
+# pl.show()
