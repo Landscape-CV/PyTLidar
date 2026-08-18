@@ -97,9 +97,7 @@ def uniform_cover(P, inputs, np_points, qsm =True, device = 'cpu', full_point_da
     nb = 0  # number of sets generated
 
     # random permutation of points, produces different covers for the same inputs:
-    # np.random.seed(0)
-    rg = np.random.Generator(np.random.Philox(0))
-    RandPerm = rg.permutation(np_points)
+    RandPerm = np.random.permutation(np_points)
     # Generate the balls
     Radius_sq = BallRad ** 2
     MaxDist_sq = (PatchDiamMax) ** 2
@@ -178,7 +176,7 @@ def variable_cover(P, inputs, RelSize, np_points):
         NE = 1 + int(np.ceil(BallRad / r))
 
     # Partition, CC, Info, Cubes = Utils.cubical_partition(P, r, NE, return_cubes = True)
-    Partition, CC, Info = Utils.cubical_partition(P, BallRad,return_cubes=False)
+    Partition, CC, Info = Utils.cubical_partition(P, r, NE, return_cubes=False)
     Partition = np.array(Partition, dtype = 'object')
     NotExa = np.ones(np_points, dtype=bool)
     NotExa[RelSize == 0] = False
@@ -188,10 +186,19 @@ def variable_cover(P, inputs, RelSize, np_points):
     Cen = []  # the center points of the balls/cover sets
     nb = 0  # number of sets generated
 
-     # Simplified permutation for small sets first
-    
-
-    RandPerm = np.argsort(RelSize) 
+    # Define random permutation of points (results in different covers for
+    # same input) so that first small sets are generated. The order is
+    # randomized within three RelSize buckets (<=32, 33-128, >128).
+    RelSizeArr = np.asarray(RelSize)
+    ind = np.arange(np_points)
+    I1 = ind[RelSizeArr <= 32]
+    I2 = ind[(RelSizeArr <= 128) & (RelSizeArr > 32)]
+    I3 = ind[RelSizeArr > 128]
+    RandPerm = np.concatenate([
+        np.random.permutation(I1),
+        np.random.permutation(I2),
+        np.random.permutation(I3),
+    ]).astype(np.int64)
     e = BallRad - PatchDiamMax
     ind = 0
     for i in RandPerm:
