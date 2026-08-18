@@ -1088,7 +1088,7 @@ def surface_coverage(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
         dis     : (nl x ns) matrix of distances where missing values are interpolated.
     """
     
-    Dis,SurfCov,Len = surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=None, Dmax=None)
+    Dis,SurfCov,Len = surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=Dmin, Dmax=Dmax)
     # If volume estimation is requested, compute interpolation for missing distances.
     # (In MATLAB: if nargout > 2)
     # Create an extended matrix D_ext by replicating D (here D = Dis)
@@ -1286,13 +1286,11 @@ def surface_coverage_filtering(P, c, lh, ns):
         p_idx += t
         k += 1
     # d_filtered: only the distances of points that pass.
+    # Pass is already in original point-cloud order because it was indexed
+    # through SortOrd when marked (selected = SortOrd[...][I]). MATLAB builds
+    # Pass in sorted order and then applies InvSortOrd to restore the original
+    # order; here that restoration is already implicit, so no re-permutation.
     d_filtered = d[Pass]
-
-    # --- Step 5. Restore the original ordering of Pass.
-    n_sort = len(SortOrd)
-    InvSortOrd = np.empty_like(SortOrd)
-    InvSortOrd[SortOrd] = np.arange(n_sort)
-    Pass = Pass[InvSortOrd]
 
     # --- Step 6. Compute final statistics.
     valid_D = Dis > 0
