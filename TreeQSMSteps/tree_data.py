@@ -9,6 +9,10 @@ try:
     from . import LSF
 except ImportError:
     import LSF
+try:
+    from .triangulation import curve_based_triangulation
+except ImportError:
+    from triangulation import curve_based_triangulation
 
 try:
     from ..plotting import PlottingUtils
@@ -89,7 +93,6 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     # Trunk volume and DBH from triangulation
     # ---------------------------------------------------------------------
     if inputs['Tria']:
-        raise Exception("Triangulation is not yet tested and is currently disabled.")   
         treedata, triangulation = triangulate_stem(treedata, cylinder, branch, trunk)
     else:
         triangulation = 0
@@ -660,7 +663,6 @@ def triangulate_stem(treedata, cylinder, branch, trunk):
         trunk (numpy.ndarray): Point cloud of the trunk.
     Returns:
         (dict, dict): Updated tree data with triangulation attributes and triangulation data."""
-    raise NotImplementedError("Triangulation is currently disabled.")
     Sta = cylinder['start']
     Rad = cylinder['radius']
     Len = cylinder['length']
@@ -675,17 +677,26 @@ def triangulate_stem(treedata, cylinder, branch, trunk):
     b = 0
     while b < n and branch['diameter'][ind[b]] < 0.1 * DBHqsm:
         b += 1
-    b = ind[b] if b < n else np.argmax(branch['diameter'])
+    b = ind[b] if b < n else int(np.argmax(branch['diameter']))
+    # Kept to match MATLAB (tree_data.m: "b = ind(b); if b > n, [~,b] = max(branch.diameter)"):
+    # it compares the selected branch's id with the number of first-order branches and, when
+    # the id is larger, uses the thickest branch in the tree instead. Branch ids are 0-based
+    # here, so the 1-based test "b > n" is "b + 1 > n". This decides where the triangulated
+    # stem section stops, so leaving it out shifts the section height against MATLAB.
+    if b + 1 > n:
+        b = int(np.argmax(branch['diameter']))
 
     # Determine suitable cylinders up to the first major branch but keep the stem diameter above one quarter (25%) of dbh
     C = 0
     nc = Sta.shape[0]
     while C < nc and cylinder['branch'][C] < b:
         C += 1
-    n = np.sum(cylinder['branch'] == 1)
+    n = np.sum(cylinder['branch'] == 0)   # trunk cylinders (branch ids are 0-based here; MATLAB: branch == 1)
     i = 1
     while i < n and Sta[i, 2] < Sta[C, 2] and Rad[i] > 0.125 * DBHqsm:
         i += 1
+    # CylInd is a 0-based cylinder index here (MATLAB: CylInd = max(i,3), 1-based), i.e.
+    # Sta[CylInd] is the first cylinder kept and cylinders [0, CylInd) are replaced by the mesh.
     CylInd = max(i, 2)
     TrunkLenTri = Sta[CylInd, 2] - Sta[0, 2]
 
@@ -694,8 +705,8 @@ def triangulate_stem(treedata, cylinder, branch, trunk):
     if trunk.shape[0] > 1000 and TrunkLenTri >= 1:
         # Set the parameters for triangulation
         # Compute point density, which is used to increase the triangle size if the point density is very small
-        PointDensity = np.zeros(CylInd - 1)
-        for i in range(CylInd - 1):
+        PointDensity = np.zeros(CylInd)
+        for i in range(CylInd):
             I = (trunk[:, 2] >= Sta[i, 2]) & (trunk[:, 2] < Sta[i + 1, 2])
             PointDensity[i] = np.pi * Rad[i] * Len[i] / np.sum(I)
         PointDensity = PointDensity[PointDensity < np.inf]
@@ -716,32 +727,37 @@ def triangulate_stem(treedata, cylinder, branch, trunk):
         I = trunk[:, 2] <= Sta[CylInd, 2]
         Stem = trunk[I, :]
 
-        # Do the triangulation
+        # Do the triangulation.
+        # curve_based_triangulation returns a non-empty dict on success or an empty
+        # array on failure; test with an isempty()-equivalent (MATLAB semantics) rather
+        # than truthiness, since bool() of an empty array raises.
+        def _done(t):
+            return isinstance(t, dict) and len(t) > 0
         triangulation = {}
         l = 0
-        while not triangulation and l < 4 and CylInd > 2:
+        while not _done(triangulation) and l < 4 and CylInd > 1:   # MATLAB: CylInd > 2 (1-based)
             l += 1
             TriaHeight = TriaHeight0
             TriaWidth = TriaHeight
             k = 0
-            while not triangulation and k < 3:
+            while not _done(triangulation) and k < 3:
                 k += 1
                 j = 0
-                while not triangulation and j < 5:
+                while not _done(triangulation) and j < 5:
                     triangulation = curve_based_triangulation(Stem, TriaHeight, TriaWidth)
                     j += 1
                 # Try different triangle sizes if necessary
-                if not triangulation and k < 3:
+                if not _done(triangulation) and k < 3:
                     TriaHeight += 0.03
                     TriaWidth = TriaHeight
             # Try different length of stem sections if necessary
-            if not triangulation and l < 4 and CylInd > 2:
+            if not _done(triangulation) and l < 4 and CylInd > 1:
                 CylInd -= 1
                 I = trunk[:, 2] <= Sta[CylInd, 2]
                 Stem = trunk[I, :]
 
-        if triangulation:
-            triangulation['cylind'] = CylInd
+        if _done(triangulation):
+            triangulation['cylind'] = CylInd + 1   # report 1-based like MATLAB (index of first cylinder kept)
             # Dbh from triangulation
             Vert = triangulation['vert']
             h = Vert[:, 2] - triangulation['bottom']
@@ -754,11 +770,12 @@ def triangulate_stem(treedata, cylinder, branch, trunk):
             treedata['DBHtri'] = np.sum(d) / np.pi
             # Volumes from the triangulation
             treedata['TriaTrunkVolume'] = triangulation['volume']
+            # cylinders [0, CylInd) are the ones replaced by the mesh (MATLAB: Rad(1:CylInd-1))
             TrunkVolMix = treedata['TrunkVolume'] - \
-                          1000 * np.pi * np.sum(Rad[:CylInd - 1] ** 2 * Len[:CylInd - 1]) + \
+                          1000 * np.pi * np.sum(Rad[:CylInd] ** 2 * Len[:CylInd]) + \
                           triangulation['volume']
             TrunkAreaMix = treedata['TrunkArea'] - \
-                           2 * np.pi * np.sum(Rad[:CylInd - 1] * Len[:CylInd - 1]) + \
+                           2 * np.pi * np.sum(Rad[:CylInd] * Len[:CylInd]) + \
                            triangulation['SideArea']
             treedata['MixTrunkVolume'] = TrunkVolMix
             treedata['MixTotalVolume'] = TrunkVolMix + treedata['BranchVolume']
