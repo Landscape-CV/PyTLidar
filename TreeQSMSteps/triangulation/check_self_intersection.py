@@ -31,66 +31,81 @@ def check_self_intersection(Curve):
     if Curve.size > 0:
         dim = Curve.shape[1]  # 2 or 3 dimensional curve
         n = Curve.shape[0]  # number of points in the curve
-        V = Curve[1:, :] - Curve[:-1, :]  # line elements forming the curve
-        V = np.vstack([V, Curve[0, :] - Curve[-1, :]])  # Wrap around for last line
+        # line elements forming the curve (with wrap-around for the last one)
+        V = Curve[np.concatenate([np.arange(1, n), [0]]), :] - Curve
         L = np.sqrt(np.sum(V**2, axis=1))  # the lengths of the line elements
-        Ind = np.arange(n)  # indexes of the line elements
-        
+        Ind = np.arange(n)  # 0-based indexes of the line elements
+
+        # Cell-array analogue: column 0 holds intersecting line indices,
+        # column 1 holds distances along the line to the intersection points.
+        IntersectLines = np.empty((n, 2), dtype=object)
+        for r in range(n):
+            IntersectLines[r, 0] = np.array([], dtype=int)
+            IntersectLines[r, 1] = np.array([], dtype=float)
+        Intersect = False
+
         if dim == 2:  # 2d curves
             # directions (unit vectors) of the line elements
-            DirLines = np.hstack([V[:, 0][:, np.newaxis] / L[:, np.newaxis], 
-                                  V[:, 1][:, np.newaxis] / L[:, np.newaxis]])
-            Intersect = False
-            IntersectLines = None
-            
-            while not Intersect:
-                for i in range(n-1):
-                    if i > 0:
-                        I = np.logical_or(Ind > i+1, Ind < i-1)
-                    else:
-                        I = np.logical_and(Ind > i+1, Ind < n)
-                    ind = Ind[I]
-                    
-                    for j in ind:
-                        A = np.array([DirLines[j, :], -DirLines[i, :]])
-                        b = Curve[i, :] - Curve[j, :]
-                        Ainv = np.linalg.inv(A.T @ A) @ A.T
-                        x = Ainv @ b  # signed length along the line elements to the crossing
-                        
-                        if 0 <= x[0] <= L[j] and 0 <= x[1] <= L[i]:
-                            Intersect = True
-                            break
-                if Intersect:
-                    break
+            DirLines = np.column_stack([V[:, 0] / L, V[:, 1] / L])
+            for i in range(n - 1):
+                # Select the line elements that can intersect element i
+                if i > 0:
+                    I = np.logical_or(Ind > i + 1, Ind < i - 1)
+                else:
+                    I = np.logical_and(Ind > i + 1, Ind < n - 1)
+                ind = Ind[I]
+                for j in ind:
+                    # Solve for the crossing point of the two line elements
+                    A = np.column_stack([DirLines[j, :], -DirLines[i, :]])
+                    b = Curve[i, :] - Curve[j, :]
+                    det = A[0, 0] * A[1, 1] - A[0, 1] * A[1, 0]
+                    Ainv = (1.0 / det) * np.array([[A[1, 1], -A[0, 1]],
+                                                   [-A[1, 0], A[0, 0]]])
+                    x = Ainv @ b  # signed lengths along the line elements to the crossing
+                    if x[0] >= 0 and x[0] <= L[j] and x[1] >= 0 and x[1] <= L[i]:
+                        Intersect = True
+                        IntersectLines[i, 0] = np.append(IntersectLines[i, 0], j)
+                        IntersectLines[j, 0] = np.append(IntersectLines[j, 0], i)
+                        IntersectLines[i, 1] = np.append(IntersectLines[i, 1], x[0])
+                        IntersectLines[j, 1] = np.append(IntersectLines[j, 1], x[1])
+            # remove possible multiple values
+            for r in range(n):
+                IntersectLines[r, 0] = np.unique(IntersectLines[r, 0])
+                if IntersectLines[r, 1].size > 0:
+                    IntersectLines[r, 1] = np.array([np.min(IntersectLines[r, 1])])
             return Intersect, IntersectLines
+
         elif dim == 3:  # 3d curves
             # directions (unit vectors) of the line elements
-            DirLines = np.hstack([V[:, 0][:, np.newaxis] / L[:, np.newaxis], 
-                                  V[:, 1][:, np.newaxis] / L[:, np.newaxis],
-                                  V[:, 2][:, np.newaxis] / L[:, np.newaxis]])
-            Intersect = False
-            IntersectLines = None
-            
-            while not Intersect:
-                for i in range(n-1):
-                    if i > 0:
-                        I = np.logical_or(Ind > i+1, Ind < i-1)
-                    else:
-                        I = np.logical_and(Ind > i+1, Ind < n)
+            DirLines = np.column_stack([V[:, 0] / L, V[:, 1] / L, V[:, 2] / L])
+            for i in range(n - 1):
+                # Select the line elements that can intersect element i
+                if i > 0:
+                    I = np.logical_or(Ind > i + 1, Ind < i - 1)
+                else:
+                    I = np.logical_and(Ind > i + 1, Ind < n - 1)
+                # Solve for possible intersection points
+                D, DistOnRay, DistOnLines = distances_between_lines(
+                    Curve[i, :], DirLines[i, :], Curve[I, :], DirLines[I, :]
+                )
+                mask = ((DistOnRay >= 0) & (DistOnRay <= L[i]) &
+                        (DistOnLines > 0) & (DistOnLines <= L[I]))
+                if np.any(mask):
+                    Intersect = True
                     ind = Ind[I]
-                    
-                    # Solve for possible intersection points (this assumes the function exists)
-                    D, DistOnRay, DistOnLines = distances_between_lines(
-                        Curve[i, :], DirLines[i, :], Curve[ind, :], DirLines[ind, :]
-                    )
-                    
-                    if np.any((DistOnRay >= 0) & (DistOnRay <= L[i]) & 
-                               (DistOnLines > 0) & (DistOnLines <= L[I])):
-                        Intersect = True
-                        break
-                if Intersect:
-                    break
+                    ind = ind[mask]
+                    DistOnLines = DistOnLines[mask]
+                    IntersectLines[i, 0] = ind
+                    IntersectLines[i, 1] = DistOnRay[mask]
+                    for j in range(len(ind)):
+                        IntersectLines[ind[j], 0] = np.append(IntersectLines[ind[j], 0], i)
+                        IntersectLines[ind[j], 1] = np.append(IntersectLines[ind[j], 1], DistOnLines[j])
+            # remove possible multiple values
+            for r in range(n):
+                IntersectLines[r, 0] = np.unique(IntersectLines[r, 0])
+                if IntersectLines[r, 1].size > 0:
+                    IntersectLines[r, 1] = np.array([np.min(IntersectLines[r, 1])])
             return Intersect, IntersectLines
     else:
         # Empty curve
-        return False, []
+        return False, np.empty((1, 1), dtype=object)

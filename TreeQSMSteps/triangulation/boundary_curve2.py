@@ -60,7 +60,7 @@ def boundary_curve2(P, Curve0, rball, dmax):
     p = 0
     while p < np_points:
         t = 1
-        while p + t <= np_points and S[p] == S[p + t]:
+        while p + t < np_points and S[p] == S[p + t]:
             t += 1
         q = I[p]
         partition[tuple(CC[q, :])] = I[p:p + t]
@@ -75,17 +75,26 @@ def boundary_curve2(P, Curve0, rball, dmax):
     Radius = rball ** 2
 
     for i in range(nc):
-        points = partition.get(tuple(CC[i, :]), [])
+        cx = int(CC[i, 0])
+        cy = int(CC[i, 1])
+        # Gather points from the 3x3 cube neighborhood (MATLAB column-major order)
+        points = []
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                points.extend(partition.get((cx + dx, cy + dy), []))
+        points = np.array(points, dtype=int)
+        if points.size == 0:
+            continue
         V = np.hstack([P[points, 0:2] - Curve0[i, 0:2]])
         dist = np.sum(V**2, axis=1)
         PointsInBall = dist < Radius
-        points = np.array(points)[PointsInBall]
+        points = points[PointsInBall]
         dist = dist[PointsInBall]
         D = Dist[points]
         L = dist < D
         I = points[L]
         Dist[I] = dist[L]
-        SoP[I] = i
+        SoP[I] = i + 1  # 1-based segment id so 0 stays the 'unassigned' sentinel
 
     # Finalize the segments
     Num = np.zeros(nc)
@@ -93,8 +102,8 @@ def boundary_curve2(P, Curve0, rball, dmax):
     
     for i in range(np_points):
         if SoP[i] > 0:
-            Num[int(SoP[i])] += 1
-            IndPoints[i] = Num[int(SoP[i])]
+            Num[int(SoP[i]) - 1] += 1
+            IndPoints[i] = Num[int(SoP[i]) - 1]
 
     if np.count_nonzero(Num) > 0.05 * nc:
         # Initialize the "Seg"
@@ -103,7 +112,7 @@ def boundary_curve2(P, Curve0, rball, dmax):
         # Define the "Seg"
         for i in range(np_points):
             if SoP[i] > 0:
-                Seg[int(SoP[i])].append(i)
+                Seg[int(SoP[i]) - 1].append(i)
 
         # Define the new curve points as the average of the segments
         Curve = np.zeros((nc, 3))
@@ -117,7 +126,7 @@ def boundary_curve2(P, Curve0, rball, dmax):
                 Curve[i, :] = Curve0[i, :]
 
         # Add new points if the distances are too large
-        V = Curve[np.arange(1, nc), :] - Curve[0:nc, :]
+        V = np.roll(Curve, -1, axis=0) - Curve
         d = np.sum(V**2, axis=1)
         Large = d > dmax**2
         m = np.count_nonzero(Large)
@@ -127,18 +136,18 @@ def boundary_curve2(P, Curve0, rball, dmax):
             t = 0
             for i in range(nc):
                 if Large[i]:
-                    t += 1
                     Curve0[t, :] = Curve[i, :]
                     t += 1
                     Curve0[t, :] = Curve[i, :] + 0.5 * V[i, :]
-                else:
                     t += 1
+                else:
                     Curve0[t, :] = Curve[i, :]
+                    t += 1
             Curve = Curve0
 
         # Remove new points if distances are too small
         nc = len(Curve)
-        V = Curve[np.arange(1, nc), :] - Curve[0:nc, :]
+        V = np.roll(Curve, -1, axis=0) - Curve
         d = np.sum(V**2, axis=1)
         Small = d < (0.333 * dmax)**2
         m = np.count_nonzero(Small)

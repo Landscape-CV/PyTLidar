@@ -36,29 +36,22 @@ def boundary_curve(P,Curve0,rball,dmax):
     # % cube coordinates of the section points
     CC = np.floor((P[:, :2] - Min) / rball).astype(int) + 3
     # % Sorts the points according a lexicographical order
-    #tried to replicate the math, not 100% sure what it's doing
-    #[CC(:,1) CC(:,2)-1]*[1 N(1)]';
-    CC[:,1] = CC[:,1]-1
-    S = np.dot(CC[:,:2],[1,N[0]])
-    I = np.argsort(S)
-    S = np.sort(S)
-   
+    # MATLAB: S = [CC(:,1) CC(:,2)-1]*[1 N(1)]';
+    S = CC[:, 0] + (CC[:, 1] - 1) * N[0]
+    I = np.argsort(S, kind='stable')
+    S = S[I]
 
-    # [S,I] = sort(S);
-    # % Define "partition"
-    nump = np.size(P,1)
-    partition = {tuple(c): [] for c in np.ndindex(N[0], N[1])}
-    p = 1;              #% The index of the point under comparison
-    while p <= nump:
+    # % Define "partition" (dict keyed by cube coordinate tuple)
+    nump = np.size(P, 0)
+    partition = {}
+    p = 0              # % The index of the point under comparison
+    while p < nump:
         t = 1
-        while (p+t <= nump) and (S[p] == S[p+t]):
-            t = t+1
-            
+        while (p + t < nump) and (S[p] == S[p + t]):
+            t = t + 1
         q = I[p]
-        partition[(CC[q,1],CC[q,2])] = I[p:p+t-1]
-        p = p+t
-        
-
+        partition[(int(CC[q, 0]), int(CC[q, 1]))] = I[p:p + t]
+        p = p + t
 
     # %% Define segments using the previous points
     # % cube coordinates of the seed points:
@@ -69,8 +62,16 @@ def boundary_curve(P,Curve0,rball,dmax):
     SoP = np.zeros(nump)#  % the segment the points belong to
     Radius = rball**2
     for i in range(nc):
-        points = partition[CC(i,1)-2:CC(i,1)+2,CC(i,2)-2:CC(i,2)+2]
-        points = np.reshape(points,shape = (points.size(),))#vertcat(points{:});
+        cx = int(CC[i, 0])
+        cy = int(CC[i, 1])
+        # Gather points from the 5x5 cube neighborhood (MATLAB CC-2:CC+2)
+        points = []
+        for dy in (-2, -1, 0, 1, 2):
+            for dx in (-2, -1, 0, 1, 2):
+                points.extend(partition.get((cx + dx, cy + dy), []))
+        points = np.array(points, dtype=int)
+        if points.size == 0:
+            continue
         V = P[points, :2] - Curve0[i, :2]#[P(points,1)-Curve0(i,1) P(points,2)-Curve0(i,2)];
         dist = np.sum(V ** 2, axis=1)
         PointsInBall = dist < Radius
@@ -80,8 +81,8 @@ def boundary_curve(P,Curve0,rball,dmax):
         L = dist < D
         I = points[L]
         Dist[I] = dist[L]
-        SoP[I] = i
-    
+        SoP[I] = i + 1  # store 1-based segment id so 0 stays the 'unassigned' sentinel
+
 
     # %% Finalise the segments
     # % Number of points in each segment and index of each point in its segment
@@ -89,13 +90,13 @@ def boundary_curve(P,Curve0,rball,dmax):
     IndPoints = np.zeros(nump,dtype=int)
     for i in range(nump):
         if SoP[i] > 0:
-            Num[SoP[i]] = Num[SoP[i]]+1
-            IndPoints[i] = Num[SoP[i]]
+            Num[int(SoP[i]) - 1] = Num[int(SoP[i]) - 1] + 1
+            IndPoints[i] = Num[int(SoP[i]) - 1]
 
     # % Continue if enough non-emtpy segments
     if np.count_nonzero(Num) > 0.05 * nc:
         # % Initialization of the "Seg"
-        Seg = {i: np.zeros(Num[i]) for i in range(nc)}
+        Seg = {i: np.zeros(int(Num[i])) for i in range(nc)}
         
         for i in range(nump):
             if SoP[i] > 0:
@@ -165,27 +166,28 @@ def boundary_curve(P,Curve0,rball,dmax):
         j = 0
         while Intersect and j < 5:
             n = Curve.shape[0]
-            InterLines = np.arange(1, n + 1)
-            NumberOfIntersections = [len(line) for line in IntersectLines[:, 1]]
+            InterLines = np.arange(n)  # 0-based line-element indices
+            NumberOfIntersections = [len(line) for line in IntersectLines[:, 0]]
             I = np.array(NumberOfIntersections) > 0
             InterLines = InterLines[I]
-            CrossLen = np.vstack(IntersectLines[I, 2])
+            CrossLen = np.concatenate(list(IntersectLines[I, 1])) if np.any(I) else np.array([])
             if len(CrossLen) == len(InterLines):
                 LineEle = np.vstack([Curve[1:, :] - Curve[:-1, :], Curve[0, :] - Curve[-1, :]])
                 d = np.linalg.norm(LineEle, axis=1)
                 m = len(InterLines)
                 for i in range(0, m, 2):
-                    if InterLines[i] != n:
-                        Curve[InterLines[i] + 1, :] = Curve[InterLines[i], :] + 0.9 * CrossLen[i] / d[InterLines[i]] * LineEle[InterLines[i], :]
+                    li = InterLines[i]
+                    if li != n - 1:
+                        Curve[li + 1, :] = Curve[li, :] + 0.9 * CrossLen[i] / d[li] * LineEle[li, :]
                     else:
-                        Curve[0, :] = Curve[InterLines[i], :] + 0.9 * CrossLen[i] / d[InterLines[i]] * LineEle[InterLines[i], :]
+                        Curve[0, :] = Curve[li, :] + 0.9 * CrossLen[i] / d[li] * LineEle[li, :]
                 Intersect, IntersectLines = check_self_intersection(Curve[:, :2])
                 j += 1
             else:
                 j = 6
 
         # %% Add new points if too large distances
-        LineEle = Curve[1:, :] - Curve[:-1, :]
+        LineEle = np.vstack([Curve[1:, :] - Curve[:-1, :], Curve[0, :] - Curve[-1, :]])
         d = np.sum(LineEle ** 2, axis=1)
         Large = d > dmax ** 2
         m = np.count_nonzero(Large)
@@ -196,24 +198,28 @@ def boundary_curve(P,Curve0,rball,dmax):
             t = 0
             for i in range(nc):
                 if Large[i]:
-                    t += 1
                     Curve0_new[t, :] = Curve[i, :]
-                    Ind[t, :] = [i, i + 1] if i < nc - 1 else [i, 0]
+                    # 1-based ring indices (wrap -> 1) to match MATLAB
+                    Ind[t, :] = [i + 1, i + 2] if i < nc - 1 else [i + 1, 1]
                     t += 1
                     Curve0_new[t, :] = Curve[i, :] + 0.5 * LineEle[i, :]
-                    Ind[t, :] = [i + 1, 0] if i < nc - 1 else [0, 0]
-                else:
+                    # midpoint: second connection is the sentinel 0
+                    Ind[t, :] = [i + 2, 0] if i < nc - 1 else [1, 0]
                     t += 1
+                else:
                     Curve0_new[t, :] = Curve[i, :]
-                    Ind[t, :] = [i, i + 1] if i < nc - 1 else [i, 0]
+                    Ind[t, :] = [i + 1, i + 2] if i < nc - 1 else [i + 1, 1]
+                    t += 1
             Curve = Curve0_new
         else:
-            Ind = np.vstack([np.arange(nc), np.arange(1, nc + 1) % nc])
+            # MATLAB: Ind = [(1:nc)' [(2:nc)'; 1]]  (1-based ring, wrap -> 1)
+            Ind = np.column_stack([np.arange(1, nc + 1),
+                                   np.concatenate([np.arange(2, nc + 1), [1]])])
 
 
         # %% Remove new points if too small distances
         nc = len(Curve)
-        LineEle = Curve[1:, :] - Curve[:-1, :]
+        LineEle = np.vstack([Curve[1:, :] - Curve[:-1, :], Curve[0, :] - Curve[-1, :]])
         d = np.sum(LineEle ** 2, axis=1)
         Small = d < (0.333 * dmax) ** 2
         m = np.count_nonzero(Small)
@@ -236,7 +242,9 @@ def boundary_curve(P,Curve0,rball,dmax):
             Curve = Curve[~Small, :]
 
     else:
-        Ind = np.vstack([np.arange(nc), np.roll(np.arange(nc), -1)]).T
+        # MATLAB: Ind = [(1:nc)' [(2:nc)'; 1]]  (1-based ring, wrap -> 1)
+        Ind = np.column_stack([np.arange(1, nc + 1),
+                               np.concatenate([np.arange(2, nc + 1), [1]])])
         Curve = Curve0
 
     return Curve, Ind
