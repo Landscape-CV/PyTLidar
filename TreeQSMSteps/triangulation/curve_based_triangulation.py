@@ -67,6 +67,10 @@ def _triangulate_polygon(pts):
     if sa < 0:
         idx = idx[::-1]
 
+    # Tolerance for "collinear" in cross-product (area) units, relative to the polygon size.
+    span = float(np.max(np.ptp(pts, axis=0))) if n else 1.0
+    eps = 1e-10 * max(span, 1e-12) ** 2
+
     tris = []
     guard = 0
     while len(idx) > 3 and guard < 100000:
@@ -78,7 +82,7 @@ def _triangulate_polygon(pts):
             i1 = idx[k]
             i2 = idx[(k + 1) % L]
             a, b, c = pts[i0], pts[i1], pts[i2]
-            if cross(a, b, c) <= 0:  # reflex or degenerate
+            if cross(a, b, c) <= eps:  # reflex or degenerate
                 continue
             good = True
             for j in idx:
@@ -92,6 +96,22 @@ def _triangulate_polygon(pts):
                 del idx[k]
                 ear = True
                 break
+        if not ear:
+            # No strict ear left. Exactly-collinear vertex runs (boundary_curve's
+            # linear interpolation of empty segments produces them) are not ears by
+            # the strict test above, yet the polygon is still simple; MATLAB's
+            # constrained Delaunay triangulates such caps without complaint. Clip a
+            # collinear vertex as a zero-area ear: it does not change the covered
+            # region and the downstream Ag > 0 filter drops the degenerate facet.
+            for k in range(L):
+                i0 = idx[(k - 1) % L]
+                i1 = idx[k]
+                i2 = idx[(k + 1) % L]
+                if abs(cross(pts[i0], pts[i1], pts[i2])) <= eps:
+                    tris.append([i0, i1, i2])
+                    del idx[k]
+                    ear = True
+                    break
         if not ear:
             break
     if len(idx) == 3:
@@ -119,7 +139,7 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     np_points = len(P)
     I = np.argsort(P[:, 2])[::-1]
     P = P[I, :]
-    
+
     Hbot = np.mean(P[-101:, 2])
     Htop = P[0, 2]
     N = int(np.ceil((Htop - Hbot) / TriaHeight))
@@ -175,7 +195,7 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     nv0 = 0
     LayerBottom = Htop - i * TriaHeight
 
-    while i <= N and pe < np_points:
+    while i <= N and pe < np_points - 1:
         ps = pe + 1
         k = 1
         while ps + k < np_points and P[ps + k, 2] > LayerBottom:
@@ -187,7 +207,7 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
             nv0 = nv1
         # Define seed points
         Curve[:, 2] = Curve[:, 2] - TriaHeight
-        Curve0 = Curve
+        Curve0 = Curve.copy()
 
         # Create new boundary curve
         Curve, Ind = boundary_curve(PSection, Curve, 2 * TriaWidth, 1.5 * TriaWidth)
@@ -406,7 +426,7 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
 
     for j in range(nt - 1):
         if Keep[j]:
-            nbr = part[CC[j, 0] - 1:CC[j, 0] + 2, CC[j, 1] - 1:CC[j, 1] + 2, CC[j, 2] - 1:CC[j, 2] + 2]
+            nbr = part[CC[j, 0] - 2:CC[j, 0] + 1, CC[j, 1] - 2:CC[j, 1] + 1, CC[j, 2] - 2:CC[j, 2] + 1]
             cells = [c for c in nbr.ravel() if c is not None and len(c) > 0]
             if not cells:
                 continue
