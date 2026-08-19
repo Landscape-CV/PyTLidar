@@ -39,6 +39,9 @@ def initial_boundary_curve(P, TriaWidth):
     Curve      - The boundary curve as an ndarray (m x 3), where m is the number of curve points.
     """
 
+    # Work on a copy so the caller's point cloud is not mutated (MATLAB value semantics)
+    P = P.copy()
+
     # Define suitable center
     Top = np.max(P[:, 2])
     P[:, 2] = Top * np.ones(len(P))
@@ -127,7 +130,7 @@ def initial_boundary_curve(P, TriaWidth):
         t = 0
         for i in range(n):
             if D[i] > 1.25 * TriaWidth:
-                d, _, hc, _ = distances_to_line(P[Curve, :], N[i, :], M[i, :])
+                d, _, hc, _ = distances_to_line(P[Curve1, :], N[i, :], M[i, :])
                 I = (hc > 0.01) & (d < D[i] / 2)
                 if np.any(I):
                     H = np.min(hc[I])
@@ -166,7 +169,7 @@ def initial_boundary_curve(P, TriaWidth):
         t = 0
         for i in range(n):
             if D[i] > 0.5 * TriaWidth:
-                d, _, hc, _ = distances_to_line(P[Curve, :], N[i, :], M[i, :])
+                d, _, hc, _ = distances_to_line(P[Curve1, :], N[i, :], M[i, :])
                 I = (hc > 0.01) & (d < D[i] / 2)
                 if np.any(I):
                     H = np.min(hc[I])
