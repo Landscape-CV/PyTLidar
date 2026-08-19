@@ -135,27 +135,31 @@ def boundary_curve(P,Curve0,rball,dmax):
                             Curve[i:i + k, :2] = Curve0[i:i + k, :2]
                             Curve[i:i + k, 2] = Curve0[i:i + k, 2]
                     elif i == 0:
+                        # Wrap-around gap: a trailing empties + b leading empties (rows 0..b-1).
+                        # Here b is the 0-based index of the first non-empty row, so it equals
+                        # MATLAB's b-1; the loop bounds below are written for that convention.
                         a = 0
                         while Empty[-(a + 1)]:
                             a += 1
                         b = 1
                         while Empty[b]:
                             b += 1
-                        LineEle = Curve[b, :] - Curve[nc - a, :]
-                        n = a + b - 1
+                        LineEle = Curve[b, :] - Curve[nc - a - 1, :]
+                        n = a + b            # MATLAB: n = a+b-1 with 1-based b
                         if n < 5:
                             for j in range(a - 1):
-                                Curve[nc - a + 1 + j, :] = Curve[nc - a, :] + (j + 1) / n * LineEle
-                            for j in range(b - 1):
-                                Curve[j, :] = Curve[nc - a, :] + (j + a) / n * LineEle
+                                Curve[nc - a + 1 + j, :] = Curve[nc - a - 1, :] + (j + 1) / n * LineEle
+                            for j in range(b):   # MATLAB: for j = 1:b-1 (1-based b)
+                                Curve[j, :] = Curve[nc - a - 1, :] + (j + a) / n * LineEle
                         else:
-                            Curve[nc - a + 2:nc, :2] = Curve0[nc - a + 2:nc, :2]
-                            Curve[nc - a + 2:nc, 2] = Curve0[nc - a + 2:nc, 2]
-                            Curve[0:b - 1, :2] = Curve0[0:b - 1, :2]
-                            Curve[0:b - 1, 2] = Curve0[0:b - 1, 2]
+                            Curve[nc - a + 1:nc, :2] = Curve0[nc - a + 1:nc, :2]
+                            Curve[nc - a + 1:nc, 2] = Curve0[nc - a + 1:nc, 2]
+                            Curve[0:b, :2] = Curve0[0:b, :2]   # MATLAB: Curve(1:b-1,:) with 1-based b
+                            Curve[0:b, 2] = Curve0[0:b, 2]
                     elif i == nc - 1:
-                        LineEle = Curve[0, :] - Curve[nc - 1, :]
-                        Curve[i, :] = Curve[nc - 1, :] + 0.5 * LineEle
+                        LineEle = Curve[0, :] - Curve[nc - 2, :]
+                        Curve[i, :] = Curve[nc - 2, :] + 0.5 * LineEle
+
 
         Curve[:, 2] = np.min(Curve[:, 2])
 
