@@ -39,6 +39,9 @@ def initial_boundary_curve(P, TriaWidth):
     Curve      - The boundary curve as an ndarray (m x 3), where m is the number of curve points.
     """
 
+    # Work on a copy so the caller's point cloud is not mutated (MATLAB value semantics)
+    P = P.copy()
+
     # Define suitable center
     Top = np.max(P[:, 2])
     P[:, 2] = Top * np.ones(len(P))
@@ -59,7 +62,9 @@ def initial_boundary_curve(P, TriaWidth):
         V = P[:, :2] - Center[:2]
         angle = np.degrees(np.arctan2(V[:, 1], V[:, 0])) + 180
 
-        A = np.zeros(70, dtype=bool)
+        # angle is in (0, 360], so ceil(angle/5) can reach 72; MATLAB grows the
+        # 70-long logical array to fit that index, so size it to hold index 72.
+        A = np.zeros(73, dtype=bool)
         a = np.ceil(angle / 5).astype(int)
         I = a > 0
         A[a[I]] = True
@@ -90,7 +95,7 @@ def initial_boundary_curve(P, TriaWidth):
 
     Ind = np.arange(np_points)
     t = 0
-    for i in range(1, 19):
+    for i in range(2, 19):
         J = (angle > 12.5 + 20 * (i - 2)) & (angle < 27.5 + 20 * (i - 2))
         if not np.any(J):  # If no points, try 18-degree sector
             J = (angle > 11 + 20 * (i - 2)) & (angle < 29 + 20 * (i - 2))
@@ -98,10 +103,10 @@ def initial_boundary_curve(P, TriaWidth):
             D = PointDist[J]
             ind = Ind[J]
             closest = np.argmin(D)
-            t += 1
             Curve[t] = ind[closest]
+            t += 1
 
-    Curve = Curve[:t+1]
+    Curve = Curve[:t]
     if len(Curve) == 0:
         return Curve
 
@@ -110,7 +115,9 @@ def initial_boundary_curve(P, TriaWidth):
     Ind = Ind[I]
 
     # Adapt the initial curve to the data
-    V = P[Curve[1:t], :] - P[Curve[:t], :]
+    # MATLAB: V = P(Curve([(2:t)'; 1]),:)-P(Curve,:)  (length t, wrap-around)
+    nxt = np.concatenate([np.arange(1, t), [0]])
+    V = P[Curve[nxt], :] - P[Curve, :]
     D = np.linalg.norm(V[:, :2], axis=1)
     n = t
     n0 = 1
@@ -123,13 +130,13 @@ def initial_boundary_curve(P, TriaWidth):
         t = 0
         for i in range(n):
             if D[i] > 1.25 * TriaWidth:
-                d, _, hc = distances_to_line(P[Curve, :], N[i, :], M[i, :])
+                d, _, hc, _ = distances_to_line(P[Curve1, :], N[i, :], M[i, :])
                 I = (hc > 0.01) & (d < D[i] / 2)
                 if np.any(I):
                     H = np.min(hc[I])
                 else:
                     H = 1
-                d, _, h = distances_to_line(P[Ind, :], N[i, :], M[i, :])
+                d, _, h, _ = distances_to_line(P[Ind, :], N[i, :], M[i, :])
                 I = (d < D[i] / 3) & (h > -TriaWidth / 2) & (h < H)
                 if np.any(I):
                     ind = Ind[I]
@@ -148,7 +155,8 @@ def initial_boundary_curve(P, TriaWidth):
         Curve = Curve1[:t]
         n0 = n
         n = len(Curve)
-        V = P[Curve[1:n], :] - P[Curve[:n], :]
+        # MATLAB: V = P(Curve([(2:n)'; 1]),:)-P(Curve,:)  (length n, wrap-around)
+        V = P[Curve[np.concatenate([np.arange(1, n), [0]])], :] - P[Curve, :]
         D = np.linalg.norm(V[:, :2], axis=1)
 
     # Refine the curve for longer edges if far away points
@@ -161,19 +169,21 @@ def initial_boundary_curve(P, TriaWidth):
         t = 0
         for i in range(n):
             if D[i] > 0.5 * TriaWidth:
-                d, _, hc = distances_to_line(P[Curve, :], N[i, :], M[i, :])
+                d, _, hc, _ = distances_to_line(P[Curve1, :], N[i, :], M[i, :])
                 I = (hc > 0.01) & (d < D[i] / 2)
                 if np.any(I):
                     H = np.min(hc[I])
                 else:
                     H = 1
-                d, _, h = distances_to_line(P[Ind, :], N[i, :], M[i, :])
+                d, _, h, _ = distances_to_line(P[Ind, :], N[i, :], M[i, :])
                 I = (d < D[i] / 3) & (h > -TriaWidth / 3) & (h < H)
                 ind = Ind[I]
                 h = h[I]
-                closest = np.argmin(h)
+                if h.size > 0:
+                    closest = np.argmin(h)
+                    h = h[closest]  # reduce h to its minimum before the threshold test
 
-                if h > TriaWidth / 10:
+                if h.size > 0 and h > TriaWidth / 10:
                     I = ind[closest]
                     t += 1
                     Curve1 = np.insert(Curve1, t, I)
@@ -187,7 +197,8 @@ def initial_boundary_curve(P, TriaWidth):
         Curve = Curve1[:t]
         n0 = n
         n = len(Curve)
-        V = P[Curve[1:n], :] - P[Curve[:n], :]
+        # MATLAB: V = P(Curve([(2:n)'; 1]),:)-P(Curve,:)  (length n, wrap-around)
+        V = P[Curve[np.concatenate([np.arange(1, n), [0]])], :] - P[Curve, :]
         D = np.linalg.norm(V[:, :2], axis=1)
 
     # Smooth the curve by defining the points by means of neighbors
@@ -198,7 +209,8 @@ def initial_boundary_curve(P, TriaWidth):
 
     # Add points for too long edges
     n = len(Curve)
-    V = Curve[1:n, :] - Curve[:n - 1, :]
+    # MATLAB: V = Curve([(2:n)'; 1],:)-Curve  (length n, wrap-around)
+    V = np.vstack([Curve[1:, :] - Curve[:-1, :], Curve[0, :] - Curve[-1, :]])
     D = np.linalg.norm(V[:, :2], axis=1)
     Curve1 = Curve.copy()
     t = 0
@@ -217,28 +229,29 @@ def initial_boundary_curve(P, TriaWidth):
 
     # Define the curve again by equalizing the point distances along the curve
     n = len(Curve)
-    V = Curve[1:n, :] - Curve[:n - 1, :]
+    # MATLAB: V = Curve([(2:n)'; 1],:)-Curve  (length n, wrap-around)
+    V = np.vstack([Curve[1:, :] - Curve[:-1, :], Curve[0, :] - Curve[-1, :]])
     D = np.linalg.norm(V[:, :2], axis=1)
     L = np.cumsum(D)
     m = int(np.ceil(L[-1] / TriaWidth))
     TriaWidth = L[-1] / m
     Curve1 = np.zeros((m, 3))
     Curve1[0, :] = Curve[0, :]
-    b = 1
+    b = 0
     for i in range(1, m):
-        while L[b] < (i - 1) * TriaWidth:
+        while L[b] < i * TriaWidth:
             b += 1
-        if b > 1:
-            a = ((i - 1) * TriaWidth - L[b - 1]) / D[b]
+        if b > 0:
+            a = (i * TriaWidth - L[b - 1]) / D[b]
             Curve1[i, :] = Curve[b, :] + a * V[b, :]
         else:
-            a = (L[b] - (i - 1) * TriaWidth) / D[b]
+            a = (L[b] - i * TriaWidth) / D[b]
             Curve1[i, :] = Curve[b, :] + a * V[b, :]
 
     Curve = Curve1
 
     # Check if the curve intersects itself
-    Intersect = check_self_intersection(Curve[:, :2])
+    Intersect, _ = check_self_intersection(Curve[:, :2])
     if Intersect:
         Curve = np.zeros((0, 3))
 

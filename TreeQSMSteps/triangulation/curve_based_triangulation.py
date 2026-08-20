@@ -24,8 +24,103 @@ import numpy as np
 from scipy.spatial import Delaunay
 from TreeQSMSteps.triangulation import initial_boundary_curve
 from TreeQSMSteps.triangulation import boundary_curve
-from triangulation import check_self_intersection
+from TreeQSMSteps.triangulation import check_self_intersection
 from Utils.Utils import cubical_partition
+
+
+def _polyarea(x, y):
+    """Shoelace area of the polygon defined by the ordered vertices (x, y)."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    return 0.5 * np.abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+
+
+def _triangulate_polygon(pts):
+    """Ear-clipping triangulation of a simple polygon given by ordered 2D
+    vertices ``pts`` (n x 2). Returns an (k x 3) array of 0-based indices into
+    ``pts`` (the original vertex order) and a boolean ``ok`` that is True when
+    the polygon was fully triangulated into n-2 triangles (i.e. it is a simple,
+    non self-intersecting polygon). This replaces MATLAB's constrained
+    delaunayTriangulation + isInterior for the horizontal cap layers; the
+    covered region and hence the enclosed volume are identical even though the
+    individual facets differ from MATLAB's Delaunay result."""
+    pts = np.asarray(pts, dtype=float)
+    n = len(pts)
+    if n < 3:
+        return np.zeros((0, 3), dtype=int), False
+
+    def cross(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    def point_in_tri(p, a, b, c):
+        d1 = cross(a, b, p)
+        d2 = cross(b, c, p)
+        d3 = cross(c, a, p)
+        has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
+        has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
+        return not (has_neg and has_pos)
+
+    idx = list(range(n))
+    # Ensure counter-clockwise orientation so that convex (ear) vertices have
+    # a positive cross product.
+    sa = np.dot(pts[:, 0], np.roll(pts[:, 1], -1)) - np.dot(pts[:, 1], np.roll(pts[:, 0], -1))
+    if sa < 0:
+        idx = idx[::-1]
+
+    # Tolerance for "collinear" in cross-product (area) units, relative to the polygon size.
+    span = float(np.max(np.ptp(pts, axis=0))) if n else 1.0
+    eps = 1e-10 * max(span, 1e-12) ** 2
+
+    tris = []
+    guard = 0
+    while len(idx) > 3 and guard < 100000:
+        guard += 1
+        ear = False
+        L = len(idx)
+        for k in range(L):
+            i0 = idx[(k - 1) % L]
+            i1 = idx[k]
+            i2 = idx[(k + 1) % L]
+            a, b, c = pts[i0], pts[i1], pts[i2]
+            if cross(a, b, c) <= eps:  # reflex or degenerate
+                continue
+            good = True
+            for j in idx:
+                if j == i0 or j == i1 or j == i2:
+                    continue
+                if point_in_tri(pts[j], a, b, c):
+                    good = False
+                    break
+            if good:
+                tris.append([i0, i1, i2])
+                del idx[k]
+                ear = True
+                break
+        if not ear:
+            # No strict ear left. Exactly-collinear vertex runs (boundary_curve's
+            # linear interpolation of empty segments produces them) are not ears by
+            # the strict test above, yet the polygon is still simple; MATLAB's
+            # constrained Delaunay triangulates such caps without complaint. Clip a
+            # collinear vertex as a zero-area ear: it does not change the covered
+            # region and the downstream Ag > 0 filter drops the degenerate facet.
+            for k in range(L):
+                i0 = idx[(k - 1) % L]
+                i1 = idx[k]
+                i2 = idx[(k + 1) % L]
+                if abs(cross(pts[i0], pts[i1], pts[i2])) <= eps:
+                    tris.append([i0, i1, i2])
+                    del idx[k]
+                    ear = True
+                    break
+        if not ear:
+            break
+    if len(idx) == 3:
+        tris.append([idx[0], idx[1], idx[2]])
+    Tri = np.array(tris, dtype=int) if tris else np.zeros((0, 3), dtype=int)
+    ok = (Tri.shape[0] == n - 2)
+    return Tri, ok
+
+
 def curve_based_triangulation(P, TriaHeight, TriaWidth):
     """
     Reconstructs a triangulation for the stem-buttress surface based on boundary curves
@@ -44,8 +139,8 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     np_points = len(P)
     I = np.argsort(P[:, 2])[::-1]
     P = P[I, :]
-    
-    Hbot = np.mean(P[-100:, 2])
+
+    Hbot = np.mean(P[-101:, 2])
     Htop = P[0, 2]
     N = int(np.ceil((Htop - Hbot) / TriaHeight))
 
@@ -69,7 +164,7 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
         while P[ps + k, 2] > Htop - i * TriaHeight:
             k += 1
         pe = ps + k - 1
-        PSection = P[ps:pe, :]
+        PSection = P[ps:pe + 1, :]
 
         # Create initial boundary curve
         iter = 0
@@ -100,19 +195,19 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     nv0 = 0
     LayerBottom = Htop - i * TriaHeight
 
-    while i <= N and pe < np_points:
+    while i <= N and pe < np_points - 1:
         ps = pe + 1
         k = 1
-        while ps + k <= np_points and P[ps + k, 2] > LayerBottom:
+        while ps + k < np_points and P[ps + k, 2] > LayerBottom:
             k += 1
         pe = ps + k - 1
-        PSection = P[ps:pe, :]
+        PSection = P[ps:pe + 1, :]
 
         if i > i0+1:
             nv0 = nv1
         # Define seed points
         Curve[:, 2] = Curve[:, 2] - TriaHeight
-        Curve0 = Curve
+        Curve0 = Curve.copy()
 
         # Create new boundary curve
         Curve, Ind = boundary_curve(PSection, Curve, 2 * TriaWidth, 1.5 * TriaWidth)
@@ -131,18 +226,18 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
         j = 1
         while Intersect and j <= 10:
             n = len(Curve)
-            CrossLines = np.arange(1, n + 1)
+            CrossLines = np.arange(n)
             NumberOfIntersections = np.array([len(x) for x in IntersectLines[:, 0]])
             I = NumberOfIntersections > 0
             CrossLines = CrossLines[I]
-            CrossLen = np.concatenate([IntersectLines[I, 1]])
+            CrossLen = np.concatenate(list(IntersectLines[I, 1])) if np.any(I) else np.array([])
 
             if len(CrossLen) == len(CrossLines):
                 LineEle = np.roll(Curve, -1, axis=0) - Curve
                 d = np.linalg.norm(LineEle, axis=1)
                 m = len(CrossLines)
                 for k in range(0, m, 2):
-                    if CrossLines[k] != n:
+                    if CrossLines[k] != n - 1:
                         Curve[CrossLines[k] + 1, :] = Curve[CrossLines[k], :] + 0.9 * CrossLen[k] / d[CrossLines[k]] * LineEle[CrossLines[k], :]
                     else:
                         Curve[0, :] = Curve[CrossLines[k], :] + 0.9 * CrossLen[k] / d[CrossLines[k]] * LineEle[CrossLines[k], :]
@@ -164,7 +259,11 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
             Curve[:, 2] = Curve[:, 2] - TriaHeight
             Nadd = int(np.floor(H / TriaHeight) + 1)
             m = len(Curve)
-            Ind = np.column_stack((np.arange(m), np.roll(np.arange(m), -1)))
+            # 1-based curve-point indices so that the sentinel 0 (no second
+            # connection) and -1 (removed point) do not collide with a valid
+            # wrap-around target.
+            Ind = np.column_stack((np.arange(1, m + 1),
+                                   np.concatenate([np.arange(2, m + 1), [1]])))
 
             T = H / Nadd
             for k in range(1, Nadd + 1):
@@ -176,51 +275,51 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
 
                 nv1 = nv
                 nv += m
-                t0 = t + 1
+                t0 = t
                 pass_flag = False
                 for j in range(m):
-                    if Ind[j,1] > 0 and j < m:
+                    if Ind[j,1] > 0 and j < m-1:
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,0]-1, nv0+Ind[j,1]-1]
                         t = t+1
-                        Tria[t,:] = [nv1+j ,nv0+Ind[j,:]]
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,1]-1, nv1+j+1]
                         t = t+1
-                        Tria[t,:] = [nv1+j ,nv0+Ind[j,1], nv1+j+1]
                     elif Ind[j,1] > 0 and not pass_flag:
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,0]-1, nv0+Ind[j,1]-1]
                         t = t+1
-                        Tria[t,:] = [nv1+j, nv0+Ind[j,:]]
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,1]-1, nv1]
                         t = t+1
-                        Tria[t,:] = [nv1+j, nv0+Ind[j,1], nv1+1]
-                    elif Ind[j,1] == 0 and j < m:
+                    elif Ind[j,1] == 0 and j < m-1:
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,0]-1, nv1+j+1]
+                        t = t+1
+                    elif Ind[j,1] == 0 and not pass_flag:
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,0]-1, nv1]
+                        t = t+1
+                    elif j == 0 and Ind[j,1] == -1:
+                        Tria[t,:] = [nv-1, nv1-1, nv0]
+                        t = t+1
+                        Tria[t,:] = [nv-1, nv0, nv1]
+                        t = t+1
+                        Tria[t,:] = [nv0, nv0+1, nv1]
+                        t = t+1
+                        Tria[t,:] = [nv1, nv0+1, nv0+2]
+                        t = t+1
+                        Tria[t,:] = [nv1, nv0+2, nv1+1]
+                        t = t+1
+                        pass_flag = True
+                    elif Ind[j,1] == -1 and j < m-1:
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,0]-1, nv0+Ind[j,0]]
                         t = t+1
                         Tria[t,:] = [nv1+j, nv0+Ind[j,0], nv1+j+1]
-                    elif Ind[j,1] == 0 and not pass_flag:
                         t = t+1
-                        Tria[t,:] = [nv1+j, nv0+Ind[j,0], nv1+1]
-                    elif j == 1 and Ind[j,1] == -1:
+                        Tria[t,:] = [nv0+Ind[j,0], nv0+Ind[j,0]+1, nv1+j+1]
                         t = t+1
-                        Tria[t,:] = [nv, nv1, nv0+1]
-                        t = t+1
-                        Tria[t,:] = [nv, nv0+1 ,nv1+1]
-                        t = t+1
-                        Tria[t,:] = [nv0+1 ,nv0+2 ,nv1+1]
-                        t = t+1
-                        Tria[t,:] = [nv1+1, nv0+2, nv0+3]
-                        t = t+1
-                        Tria[t,:] = [nv1+1, nv0+3 ,nv1+2]
-                        pass_flag = True
-                    elif Ind[j,1] == -1 and j < m:
-                        t = t+1
-                        Tria[t,:] = [nv1+j ,nv0+Ind[j,0], nv0+Ind[j,0]+1]
-                        t = t+1
-                        Tria[t,:] = [nv1+j, nv0+Ind[j,0]+1 ,nv1+j+1]
-                        t = t+1
-                        Tria[t,:] = [nv0+Ind[j,1]+1, nv0+Ind[j,1]+2 ,nv1+j+1]
                     elif Ind[j,1] == -1 and not pass_flag:
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,0]-1, nv0+Ind[j,0]]
                         t = t+1
-                        Tria[t,:] = [nv1+j ,nv0+Ind[j,0] ,nv0+Ind[j,0]+1]
+                        Tria[t,:] = [nv1+j, nv0+Ind[j,0], nv1]
                         t = t+1
-                        Tria[t,:] = [nv1+j ,nv0+Ind[j,0]+1 ,nv1+1]
+                        Tria[t,:] = [nv0+Ind[j,0], nv0, nv1]
                         t = t+1
-                        Tria[t,:] = [nv0+Ind[j,0]+1, nv0+1 ,nv1+1]
                 TriaLay[t0:t] = i
                 i += 1
                 nv0 = nv1
@@ -229,8 +328,14 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
 
         else:
             # Handle no self-intersection cases
-            C = np.intersect1d(Curve0, Curve, axis=0)
-            if C.shape[0] > 0.7 * Curve.shape[0]:
+            # Save the new curve's vertices
+            Vert[nv:nv + m, :] = Curve
+            VertLay[nv:nv + m] = i
+
+            # If little change between Curve and Curve0, stop the reconstruction
+            set0 = set(map(tuple, Curve0))
+            nC = sum(1 for r in set(map(tuple, Curve)) if r in set0)
+            if nC > 0.7 * Curve.shape[0]:
                 N = i
 
             # If the boundary curve has grown much longer than originally, decrease the triangle height
@@ -242,51 +347,51 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
             # Define the triangulation between two boundary curves
             nv1 = nv
             nv = nv + m
-            t0 = t + 1
+            t0 = t
             pass_ = False
             for j in range(m):
                 if Ind[j, 1] > 0 and j < m - 1:
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0] - 1, nv0 + Ind[j, 1] - 1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, :]]
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 1] - 1, nv1 + j + 1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 1], nv1 + j + 1]
                 elif Ind[j, 1] > 0 and not pass_:
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0] - 1, nv0 + Ind[j, 1] - 1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, :]]
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 1] - 1, nv1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 1], nv1 + 1]
                 elif Ind[j, 1] == 0 and j < m - 1:
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0] - 1, nv1 + j + 1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0], nv1 + j + 1]
                 elif Ind[j, 1] == 0 and not pass_:
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0] - 1, nv1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0], nv1 + 1]
                 elif j == 0 and Ind[j, 1] == -1:
+                    Tria[t, :] = [nv - 1, nv1 - 1, nv0]
                     t = t + 1
-                    Tria[t, :] = [nv, nv1, nv0 + 1]
+                    Tria[t, :] = [nv - 1, nv0, nv1]
                     t = t + 1
-                    Tria[t, :] = [nv, nv0 + 1, nv1 + 1]
+                    Tria[t, :] = [nv0, nv0 + 1, nv1]
                     t = t + 1
-                    Tria[t, :] = [nv0 + 1, nv0 + 2, nv1 + 1]
+                    Tria[t, :] = [nv1, nv0 + 1, nv0 + 2]
                     t = t + 1
-                    Tria[t, :] = [nv1 + 1, nv0 + 2, nv0 + 3]
+                    Tria[t, :] = [nv1, nv0 + 2, nv1 + 1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + 1, nv0 + 3, nv1 + 2]
                     pass_ = True
                 elif Ind[j, 1] == -1 and j < m - 1:
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0] - 1, nv0 + Ind[j, 0]]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0], nv0 + Ind[j, 0] + 1]
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0], nv1 + j + 1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0] + 1, nv1 + j + 1]
+                    Tria[t, :] = [nv0 + Ind[j, 0], nv0 + Ind[j, 0] + 1, nv1 + j + 1]
                     t = t + 1
-                    Tria[t, :] = [nv0 + Ind[j, 0] + 1, nv0 + Ind[j, 0] + 2, nv1 + j + 1]
                 elif Ind[j, 1] == -1 and not pass_:
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0] - 1, nv0 + Ind[j, 0]]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0], nv0 + Ind[j, 0] + 1]
+                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0], nv1]
                     t = t + 1
-                    Tria[t, :] = [nv1 + j, nv0 + Ind[j, 0] + 1, nv1 + 1]
+                    Tria[t, :] = [nv0 + Ind[j, 0], nv0, nv1]
                     t = t + 1
-                    Tria[t, :] = [nv0 + Ind[j, 0] + 1, nv0 + 1, nv1 + 1]
 
             # Update TriaLay array
             TriaLay[t0:t] = i
@@ -317,12 +422,15 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     Scoord = Vert[Tria[:, 0], :] + Vert[Tria[:, 1], :] + Vert[Tria[:, 2], :]
     S = np.sum(Scoord, axis=1)
 
-    part, CC = cubical_partition(Scoord, 2 * TriaWidth)
+    part, CC, _ = cubical_partition(Scoord, 2 * TriaWidth, return_cubes=False)
 
     for j in range(nt - 1):
         if Keep[j]:
-            points = part[CC[j, 0] - 1:CC[j, 0] + 1, CC[j, 1] - 1:CC[j, 1] + 1, CC[j, 2] - 1:CC[j, 2] + 1]
-            points = np.vstack(points)
+            nbr = part[CC[j, 0] - 2:CC[j, 0] + 1, CC[j, 1] - 2:CC[j, 1] + 1, CC[j, 2] - 2:CC[j, 2] + 1]
+            cells = [c for c in nbr.ravel() if c is not None and len(c) > 0]
+            if not cells:
+                continue
+            points = np.concatenate(cells).astype(int)
             I = S[j] == S[points]
             J = points != j
             I = I & J & Keep[points]
@@ -339,32 +447,26 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     N = float(np.max(VertLay))
     I = VertLay == N
     Vert[I, 2] = Hbot
-    ind = np.arange(1, nv + 1)
+    ind = np.arange(nv)
     ind = ind[I]
     Curve = Vert[I, :]  # Boundary curve of the bottom
     n = len(Curve)
     if n < 10:
         triangulation = np.zeros((0, 1))
         print('No triangulation: Ground layer boundary curve too small')
-        return
-    
-    C = np.zeros((n, 2), dtype=int)
-    C[:, 0] = np.arange(1, n + 1)
-    C[:-1, 1] = np.arange(2, n + 1)
-    C[-1, 1] = 1
-    dt = Delaunay(Curve[:, :2])  # Delaunay triangulation for the bottom
-    In = dt.is_interior
-    GroundTria = dt.simplices[In]#may need to check on this
-    Points = dt.points
-    if Points.shape[0] > Curve.shape[0]:
+        return triangulation
+
+    # Triangulate the interior of the (simple, closed) bottom boundary polygon
+    GroundTria, ok = _triangulate_polygon(Curve[:, :2])
+    if not ok:
         print('No triangulation: Problem with Delaunay in the bottom layer')
         triangulation = np.zeros((0, 1))
-        return
-    
-    GroundTria0 = GroundTria
-    GroundTria[:, 0] = ind[GroundTria[:, 0]]
-    GroundTria[:, 1] = ind[GroundTria[:, 1]]
-    GroundTria[:, 2] = ind[GroundTria[:, 2]]
+        return triangulation
+
+    GroundTria0 = GroundTria.copy()
+    GroundTria[:, 0] = ind[GroundTria0[:, 0]]
+    GroundTria[:, 1] = ind[GroundTria0[:, 1]]
+    GroundTria[:, 2] = ind[GroundTria0[:, 2]]
 
     # Compute the normals and areas
     U = Curve[GroundTria0[:, 1], :] - Curve[GroundTria0[:, 0], :]
@@ -388,36 +490,29 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     TriaLay = np.concatenate([TriaLay, (N + 1) * np.ones(GroundTria.shape[0], dtype=int)])
 
     # Check triangulation validity
-    if np.abs(np.sum(Ag) - np.polyarea(Curve[:, 0], Curve[:, 1])) > 0.001 * np.sum(Ag):
+    if np.abs(np.sum(Ag) - _polyarea(Curve[:, 0], Curve[:, 1])) > 0.001 * np.sum(Ag):
         print('No triangulation: Problem with Delaunay in the bottom layer')
         triangulation = np.zeros((0, 1))
-        return
+        return triangulation
 
     # Triangles of the top layer
     N = float(np.min(VertLay))
     I = VertLay == N
-    ind = np.arange(1, nv + 1)
+    ind = np.arange(nv)
     ind = ind[I]
     Curve = Vert[I, :]
     CenterTop = np.mean(Curve, axis=0)
 
     n = len(Curve)
-    C = np.zeros((n, 2), dtype=int)
-    C[:, 0] = np.arange(1, n + 1)
-    C[:-1, 1] = np.arange(2, n + 1)
-    C[-1, 1] = 1
-    dt = Delaunay(Curve[:, :2])
-    Points = dt.points
-    if dt.vertices.shape[0] == 0 or Points.shape[0] > Curve.shape[0]:
+    TopTria, ok = _triangulate_polygon(Curve[:, :2])
+    if TopTria.shape[0] == 0 or not ok:
         print('No triangulation: Problem with Delaunay in the top layer')
         triangulation = np.zeros((0, 1))
-        return
-    In = dt.is_interior
-    TopTria = dt.simplices[In]
-    TopTria0 = TopTria
-    TopTria[:, 0] = ind[TopTria[:, 0]]
-    TopTria[:, 1] = ind[TopTria[:, 1]]
-    TopTria[:, 2] = ind[TopTria[:, 2]]
+        return triangulation
+    TopTria0 = TopTria.copy()
+    TopTria[:, 0] = ind[TopTria0[:, 0]]
+    TopTria[:, 1] = ind[TopTria0[:, 1]]
+    TopTria[:, 2] = ind[TopTria0[:, 2]]
 
     # Compute the normals and areas
     U = Curve[TopTria0[:, 1], :] - Curve[TopTria0[:, 0], :]
@@ -440,6 +535,11 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     Tria = np.vstack([Tria, TopTria])
     TriaLay = np.concatenate([TriaLay, N * np.ones(TopTria.shape[0], dtype=int)])
 
+    if np.abs(np.sum(At) - _polyarea(Curve[:, 0], Curve[:, 1])) > 0.001 * np.sum(At):
+        print('No triangulation: Problem with Delaunay in the top layer')
+        triangulation = np.zeros((0, 1))
+        return triangulation
+
     # Triangles of the side
     B = (TriaLay <= np.max(VertLay)) & (TriaLay > 1)
     U = Vert[Tria[B, 1], :] - Vert[Tria[B, 0], :]
@@ -460,6 +560,7 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     if VTotal < 0:
         print('No triangulation: Problem with volume')
         triangulation = np.zeros((0, 1))
+        return triangulation
 
     # Final triangulation output
     V = Vert[Tria[:, 0], :2] - CenterTop[:2]
