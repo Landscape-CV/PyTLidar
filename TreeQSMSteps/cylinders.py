@@ -242,7 +242,7 @@ def cylinders(P,cover,segment,inputs):
     for i in range(NumOfSeg):
         cyls = CiS[i]
         if cyls:
-            PiB[cyls] = np.arange(0, len(cyls))
+            PiB[cyls] = np.arange(1, len(cyls) + 1)
     cylinder['PositionInBranch'] = PiB
 
     # Growth volume correction
@@ -402,9 +402,9 @@ def cylinder_fitting(P, Points, Ind, nl, si):
                 # (but always fit at least three cylinders)
                 RL = c['length'] / c['radius']
                 if again and c['rel'] and c['conv'] and RL > 2:
-                    if si == 1 and c['SurfCov'] > 0.7:
+                    if si == 0 and c['SurfCov'] > 0.7:
                         again = False
-                    elif si > 1 and c['SurfCov'] > 0.5:
+                    elif si > 0 and c['SurfCov'] > 0.5:
                         again = False
 
             ## Select the best of the fitted cylinders
@@ -719,7 +719,7 @@ def parent_cylinder(SPar, SChi, CiS, cylinder, cyl, si):
                         len_cyl[0] -= x2
                         ParentFound = True
                     elif len_cyl[0] - x2 > 0:
-                        X[j] = [x2, abs(h2) if h2 < 0 else h2 - current_parent_length, 0]
+                        X[j] = [x2, abs(h2) if h1 < 0 else h2 - current_parent_length, 0]
                     else:
                         X[j] = [x2, h2, 1]
 
@@ -908,17 +908,17 @@ def adjustments(cyl, parcyl, inputs, Regs):
         MaxR = 1.25 * np.max(cyl['radius'][:a] if nc > 1 else cyl['radius'])
         #print(cyl['radius'])
     if nc > 1:
-        MinR = np.min(cyl['radius'][SC >= 0.7]) if np.any(SC >= 0.7) else None
+        MinR = np.min(cyl['radius'][SC > 0.7]) if np.any(SC > 0.7) else None
         if not (MinR is None) and np.min(cyl['radius']) < MinR / 2:
-            MinR = np.min(cyl['radius'][SC >= 0.4]) if np.any(SC >= 0.4) else None
+            MinR = np.min(cyl['radius'][SC > 0.4]) if np.any(SC > 0.4) else None
         elif MinR is None:
-            MinR = np.min(cyl['radius'][SC >= 0.4]) if np.any(SC >= 0.4) else None
+            MinR = np.min(cyl['radius'][SC > 0.4]) if np.any(SC > 0.4) else None
             if MinR is None:
                 MinR = inputs['MinCylRad']
     else:
-        MinR = cyl['radius'] if SC >= 0.7 else None
+        MinR = cyl['radius'] if SC > 0.7 else None
         if MinR is None:
-            MinR = cyl['radius'] if SC >= 0.4 else None
+            MinR = cyl['radius'] if SC > 0.4 else None
             if MinR is None:
                 MinR = inputs['MinCylRad']
     #print(MaxR, MinR)

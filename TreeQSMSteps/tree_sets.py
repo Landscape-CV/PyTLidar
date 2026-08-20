@@ -86,8 +86,8 @@ def define_base_forb(P, cover, aux, inputs, segment=None):
         Forb = aux['Fal']
 
         # Ensure the base is not in multiple parts
-        Wb = np.max(np.max(Ce[Base, :2]) - np.min(Ce[Base, :2]))
-        Wt = np.max(np.max(Ce[:, :2]) - np.min(Ce[:, :2]))
+        Wb = np.max(np.max(Ce[Base, :2], axis=0) - np.min(Ce[Base, :2], axis=0))
+        Wt = np.max(np.max(Ce[:, :2], axis=0) - np.min(Ce[:, :2], axis=0))
         k = 1
         while k <= 5 and Wb > 0.3 * Wt:
             BaseHeight -= 0.05
@@ -97,7 +97,7 @@ def define_base_forb(P, cover, aux, inputs, segment=None):
             else:
                 I = np.argmin(Ce[:, 2])  # Find the index of the minimum height
             Base = aux['Ind'][I]
-            Wb = np.max(np.max(Ce[Base, :2]) - np.min(Ce[Base, :2]))
+            Wb = np.max(np.max(Ce[Base, :2], axis=0) - np.min(Ce[Base, :2], axis=0))
             k += 1
 
     elif inputs['OnlyTree']:
@@ -106,11 +106,7 @@ def define_base_forb(P, cover, aux, inputs, segment=None):
         SoP = segment['SegmentOfPoint'][cover['center']]
         stem = aux['Ind'][SoP == 0]
         I = Ce[stem, 2] < aux['Hmin'] + BaseHeight
-        if np.any(I):
-            Base = stem[I]
-            
-        else:
-            Base = stem[np.argmin(Ce[stem, 2])]
+        Base = stem[I]
         Forb = aux['Fal']
 
     
@@ -137,7 +133,7 @@ def define_trunk(cover, aux, Base, Forb, inputs):
     Exp = Utils.unique_elements_array(np.concatenate([Nei[i] for i in Exp]),np.array(aux['Fal'])).astype(int)
     I = Trunk[Exp]
     J = Forb[Exp]
-    Exp = Exp[~(I | J)]  # Only non-forbidden sets that are not already in Trunk
+    Exp = Exp[~I | ~J]  # keep TreeQSM's literal ~I|~J condition (not the intuitive ~I & ~J)
     Trunk[Exp] = True  # Add the expansion Exp to Trunk
     
     L = 0.25  # maximum height difference in Exp from its top to bottom
@@ -257,7 +253,7 @@ def define_trunk(cover, aux, Base, Forb, inputs):
                     elif n == 1 and m > 1:
                         _, J = np.min(Dist, axis=1), np.argmin(Dist, axis=1)[0]
                         I = 0
-                    elif m == 1 and n > 1:
+                    elif m == 1 and n < 1:
                         _, I = np.min(Dist, axis=0), np.argmin(Dist, axis=0)[0]
                         J = 0
                     else:

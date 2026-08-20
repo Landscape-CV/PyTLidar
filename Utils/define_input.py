@@ -139,6 +139,12 @@ def define_input(clouds, nPD1=1, nPD2Min=1, nPD2Max=1):
             'savetxt': 1, 'plot': 2, 'disp': 2, 'savepdf': 1,
         })
 
+        # For multiple point clouds, disable per-tree display/save (MATLAB define_input.m:75-85)
+        if nt > 1:
+            input_params.update({
+                'plot': 0, 'savetxt': 0, 'savemat': 0, 'disp': 0,
+            })
+
         inputs.append(input_params)
 
     return inputs

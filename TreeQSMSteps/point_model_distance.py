@@ -58,7 +58,7 @@ def point_model_distance(P, cylinder):
     np0 = P.shape[0]
     if np0 == 0:
         return {}
-    a = min(int(0.25 * np0), 1000000)
+    a = min(0.25 * np0, 1000000)
     if a < np0:
         scale = 0.5 / (1 - a / np0)
         I = np.round(scale * np.random.rand(np0)).astype(bool)
@@ -88,8 +88,8 @@ def point_model_distance(P, cylinder):
     # Correct N based on CC and dims, so that cube indexes are not too small or large
     for i in range(n_cylinders):
         for dim in range(3):
-            if CC[i, dim] < N[i] + 1:
-                N[i] = CC[i, dim] - 1
+            if CC[i, dim] < N[i]:
+                N[i] = CC[i, dim]
             if CC[i, dim] + N[i] + 1 > dims[dim]:
                 N[i] = dims[dim] - CC[i, dim] - 1
         N[i] = max(N[i], 0)
@@ -139,7 +139,7 @@ def point_model_distance(P, cylinder):
         if Data[i] is None:
             continue
         d, h, points = Data[i]
-        valid = ((h >= -0.1) & (h < 0)) | ((h >= Len[i]) & (h <= Len[i] + 0.1)) & (d < 0.5)
+        valid = (((h >= -0.1) & (h <= 0)) | ((h >= Len[i]) & (h <= Len[i] + 0.1))) & (d < 0.5)
         improved = d < Dist[points, 0]
         mask = valid & improved
         improved_points = points[mask]
@@ -191,7 +191,7 @@ def point_model_distance(P, cylinder):
         'median': float(np.median(DistCyl)),
         'mean': float(np.mean(DistCyl)),
         'max': float(np.max(DistCyl)),
-        'std': float(np.std(DistCyl, ddof=1))  # Use sample standard deviation
+        'std': float(np.std(DistCyl, ddof=1)) if DistCyl.size > 1 else 0.0  # sample std; MATLAB std of <2 elems is 0
     }
 
     # Trunk and branch statistics
@@ -208,21 +208,21 @@ def point_model_distance(P, cylinder):
     pmdistance['TrunkMedian'] = float(np.median(trunk_dists)) if trunk_dists.size > 0 else 0.0
     pmdistance['TrunkMean'] = float(np.mean(trunk_dists)) if trunk_dists.size > 0 else 0.0
     pmdistance['TrunkMax'] = float(np.max(trunk_dists)) if trunk_dists.size > 0 else 0.0
-    pmdistance['TrunkStd'] = float(np.std(trunk_dists)) if trunk_dists.size > 0 else 0.0
+    pmdistance['TrunkStd'] = float(np.std(trunk_dists, ddof=1)) if trunk_dists.size > 1 else 0.0
 
     pmdistance['BranchMedian'] = float(np.median(branch_dists)) if branch_dists.size > 0 else 0.0
     pmdistance['BranchMean'] = float(np.mean(branch_dists)) if branch_dists.size > 0 else 0.0
     pmdistance['BranchMax'] = float(np.max(branch_dists)) if branch_dists.size > 0 else 0.0
-    pmdistance['BranchStd'] = float(np.std(branch_dists)) if branch_dists.size > 0 else 0.0
+    pmdistance['BranchStd'] = float(np.std(branch_dists, ddof=1)) if branch_dists.size > 1 else 0.0
 
     pmdistance['Branch1Median'] = float(np.median(branch1_dists)) if branch1_dists.size > 0 else 0.0
     pmdistance['Branch1Mean'] = float(np.mean(branch1_dists)) if branch1_dists.size > 0 else 0.0
     pmdistance['Branch1Max'] = float(np.max(branch1_dists)) if branch1_dists.size > 0 else 0.0
-    pmdistance['Branch1Std'] = float(np.std(branch1_dists)) if branch1_dists.size > 0 else 0.0
+    pmdistance['Branch1Std'] = float(np.std(branch1_dists, ddof=1)) if branch1_dists.size > 1 else 0.0
 
     pmdistance['Branch2Median'] = float(np.median(branch2_dists)) if branch2_dists.size > 0 else 0.0
     pmdistance['Branch2Mean'] = float(np.mean(branch2_dists)) if branch2_dists.size > 0 else 0.0
     pmdistance['Branch2Max'] = float(np.max(branch2_dists)) if branch2_dists.size > 0 else 0.0
-    pmdistance['Branch2Std'] = float(np.std(branch2_dists)) if branch2_dists.size > 0 else 0.0
+    pmdistance['Branch2Std'] = float(np.std(branch2_dists, ddof=1)) if branch2_dists.size > 1 else 0.0
 
     return pmdistance

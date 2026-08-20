@@ -57,7 +57,7 @@ def segments(cover, Base, Forb,qsm=True):
 
     # Initialize SChi
     SChi[0] = np.zeros(5000, dtype=np.uint32)
-    C = np.zeros(1000, dtype=np.uint32)
+    C = np.zeros(200, dtype=np.uint32)
     for i in range(1, a):
         SChi[i] = C.copy()
     NChi = np.zeros(a, dtype=np.uint32)  # Number of child segments found for each segment
@@ -81,7 +81,7 @@ def segments(cover, Base, Forb,qsm=True):
 
     # Segmenting stops when there are no more segments to be found
     ind = 0
-    while Continue and (b < nb):
+    while Continue and (b < nb - 1):  # b is 0-based here; MATLAB uses 1-based b < nb
         ind+=1
         # Update the forbidden sets
         
@@ -131,6 +131,12 @@ def segments(cover, Base, Forb,qsm=True):
                     SBas[b] = Base
                     SPar[b, :] = [s, nl]
                     NChi[s] += 1
+                    # MATLAB auto-grows SChi{s} when NChi(s) exceeds its length
+                    if NChi[s] > SChi[s].shape[0]:
+                        SChi[s] = np.concatenate(
+                            [SChi[s],
+                             np.zeros(NChi[s] - SChi[s].shape[0], dtype=np.uint32)]
+                        )
                     SChi[s][NChi[s] - 1] = b
 
             # Define the new cut.

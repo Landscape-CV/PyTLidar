@@ -203,7 +203,7 @@ def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
             Seg = Segs[0].copy()
             spar = SPar.copy()
             Segment = [None] * 3000
-            if StemTops[j] != 1:
+            if StemTops[j] != 0:
                 # Tip point was not in the current segment, modify segments
                 SubSegs[0] = StemTops[j]
                 nsegs = 0
@@ -221,38 +221,37 @@ def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
                 # Modify stem
                 a = len(Seg)
                 Segment[:a] = Seg.copy()
-                a +=1
 
                 for i in range(nsegs - 1):
-                    I = SubSegs[nsegs - i -1]  # Segment to be combined to the first segment
-                    J = SubSegs[nsegs - i - 2]  # Above segment's child to be combined next
-                    SP = spar[I , 1]  # Layer index of the child in the parent
-                    SegC = Segs[I ]
-                    sp = spar[J , 1]  # Layer index of the child's child in the child
+                    I = int(SubSegs[nsegs - i - 1])  # Segment to be combined to the first segment
+                    J = int(SubSegs[nsegs - i - 2])  # Above segment's child to be combined next
+                    SP = int(spar[I, 1])  # Layer index of the child in the parent
+                    SegC = Segs[I]
+                    sp = int(spar[J, 1])  # Layer index of the child's child in the child
 
-                    if SP >= a - 1:  # Use the whole parent
-                        Segment[a:a + sp] = SegC[:sp]
-                        spar[J , 1] = a + sp 
+                    if SP >= a - 2:  # Use the whole parent
+                        Segment[a:a + sp + 1] = SegC[:sp + 1]
+                        spar[J, 1] = a + sp
                         a = a + sp + 1
                     else:  # Use only bottom part of the parent
-                        Segment[SP + 1:SP + sp + 1] = SegC[:sp]
+                        Segment[SP + 1:SP + sp + 2] = SegC[:sp + 1]
                         a = SP + sp + 2
-                        spar[J , 1] = SP + sp 
+                        spar[J, 1] = SP + sp + 1
 
-                    SubSegs[nsegs - i -1] = 0
+                    SubSegs[nsegs - i - 1] = 0
 
                 # Combine the last segment to the branch
-                I = SubSegs[0]
-                SP = spar[I , 1]
-                SegC = Segs[I ]
+                I = int(SubSegs[0])
+                SP = int(spar[I, 1])
+                SegC = Segs[I]
                 nc = len(SegC)
 
-                if SP >= a - 1:  # Use the whole parent
+                if SP >= a - 2:  # Use the whole parent
                     Segment[a:a + nc] = SegC
-                    a = a + nc 
+                    a = a + nc
                 else:  # Divide the parent segment into two parts
                     Segment[SP + 1:SP + nc + 1] = SegC
-                    a = SP + nc +1
+                    a = SP + nc + 1
 
 
 
@@ -582,7 +581,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
 
                     if SP >= N - 3:  # Use the whole parent
                         Segs[SegInd] = np.array([seg for seg in SegP]+[seg for seg in SegC[:sp+1]],dtype = 'object')#np.concatenate([SegP, np.concatenate([seg for seg in SegC[:sp+1]])])
-                        if sp < len(SegC):  # Use only part of the child segment
+                        if sp < len(SegC) - 1:  # Use only part of the child segment
                             Segs[I] = SegC[sp+1:]
                             SPar[I, 1] = N + sp
 
@@ -603,7 +602,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
 
                             ChildSegs = SChi[I].copy()
                             SChi[I] = np.zeros(0, dtype=int)
-                            c = np.Utils.set_difference(SChi[SegInd], I,Fal)
+                            c = Utils.set_difference(SChi[SegInd], I,Fal)
                             SChi[SegInd] = np.hstack([c, ChildSegs])
                             SPar[ChildSegs, 0] = SegInd
                             SPar[ChildSegs, 1] = N + SPar[ChildSegs, 1] 

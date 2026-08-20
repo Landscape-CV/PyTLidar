@@ -391,9 +391,9 @@ def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
         T_points = trunk[IJ]
         # Initial cylinder parameters from the identified trunk cylinder
         cyl0 = {
-            'radius': cylinder['radius'][T[i]],
-            'axis': cylinder['axis'][T[i]],
-            'start': cylinder['start'][T[i]]
+            'radius': cylinder['radius'][i],
+            'axis': cylinder['axis'][i],
+            'start': cylinder['start'][i]
         }
         
         cyl = LSF.least_squares_cylinder(T_points, cyl0)
@@ -401,7 +401,7 @@ def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
         # Check conditions
         radius_cyl = 2 * cyl['radius']
         RadiusOK = (0.8 * DBHqsm < radius_cyl < 1.2 * DBHqsm)
-        axis_alignment = np.abs(np.dot(cylinder['axis'][T[i]], cyl['axis'])) > 0.9
+        axis_alignment = np.abs(np.dot(cylinder['axis'][i], cyl['axis'])) > 0.9
         if RadiusOK and axis_alignment and cyl['conv'] and cyl['rel']:
             treedata['DBHcyl'] = radius_cyl
         else:
@@ -456,7 +456,7 @@ def crown_measures(treedata, cylinder, branch):
                     U = R @ U
                 t += 1
                 P[t-1, :] = M + U.T
-    P = P[:t+1, :]
+    P = P[:t, :]
     P = P[~np.isnan(P[:, 0]), :]
     P = np.vstack((P, Sta, Tip))
     P = np.unique(P, axis=0)
@@ -482,6 +482,9 @@ def crown_measures(treedata, cylinder, branch):
             # Compute center of gravity for the convex hull
             x = X[K, 0]
             y = X[K, 1]
+            # Close the hull polygon (MATLAB convhull returns K with K(1)==K(end))
+            x = np.append(x, x[0])
+            y = np.append(y, y[0])
             CX = np.sum((x[:-1] + x[1:]) * (x[:-1] * y[1:] - x[1:] * y[:-1])) / (6 * A)
             CY = np.sum((y[:-1] + y[1:]) * (x[:-1] * y[1:] - x[1:] * y[:-1])) / (6 * A)
             V = X[:, :2] - np.array([CX, CY])
@@ -504,6 +507,9 @@ def crown_measures(treedata, cylinder, branch):
     A = hull.volume
     x = X[K, 0]
     y = X[K, 1]
+    # Close the hull polygon (MATLAB convhull returns K with K(1)==K(end))
+    x = np.append(x, x[0])
+    y = np.append(y, y[0])
     CX = np.sum((x[:-1] + x[1:]) * (x[:-1] * y[1:] - x[1:] * y[:-1])) / (6 * A)
     CY = np.sum((y[:-1] + y[1:]) * (x[:-1] * y[1:] - x[1:] * y[:-1])) / (6 * A)
     V = Tip[:, :2] - np.array([CX, CY])
@@ -527,12 +533,16 @@ def crown_measures(treedata, cylinder, branch):
         L = np.max(np.sqrt(np.sum(V ** 2, axis=1)))
         if L > MaxDiam:
             MaxDiam = L
-    treedata['CrownDiamMax'] = MaxDiam
+    # MATLAB assigns the last-iteration L (from the closing/first hull vertex),
+    # not the accumulated global maximum.
+    treedata['CrownDiamMax'] = L
 
     # Crown areas from convex hull and alpha shape:
     treedata['CrownAreaConv'] = A
     alp = max(0.5, treedata['CrownDiamAve'] / 10)
-    shp = alphashape(X, alp)
+    # MATLAB alphaShape's alpha is an alpha-radius; the Python alphashape library
+    # uses the inverse convention (alpha ~ 1/radius), so pass 1/alp.
+    shp = alphashape(X, 1.0 / alp)
     treedata['CrownAreaAlpha'] = shp.area
 
     # Crown base
@@ -614,7 +624,9 @@ def crown_measures(treedata, cylinder, branch):
         shp = None
         while alp<=max_alp:
             try:
-                shp = alphashape(adj_X, alp)
+                # alp is the MATLAB alpha-radius; the Python alphashape library
+                # uses the inverse convention (alpha ~ 1/radius), so pass 1/alp.
+                shp = alphashape(adj_X, 1.0 / alp)
                 break
             except:
                 alp+=max_alp/10
@@ -941,10 +953,10 @@ def branch_distribution(treedata, branch, dist):
         (dict): Updated dictionary with branch distribution results.
     """
     
-    BOrd = branch['order']#[1:]
-    BVol = branch['volume']#[1:]
-    BAre = branch['area']#[1:]
-    BLen = branch['length']#[1:]
+    BOrd = branch['order'][1:]
+    BVol = branch['volume'][1:]
+    BAre = branch['area'][1:]
+    BLen = branch['length'][1:]
     if len(BOrd) == 0:
         treedata[f'VolBranch{dist}'] = np.array([0])
         treedata[f'VolBranch1{dist}'] = np.array([0])
@@ -957,23 +969,23 @@ def branch_distribution(treedata, branch, dist):
         return treedata
     # Determine parameters based on distribution type
     if dist == 'Dia':
-        Par = branch['diameter']#[1:]  # Diameter distribution
-        n = int(np.ceil(100 * np.max(Par)))*2  # Number of bins
+        Par = branch['diameter'][1:]  # Diameter distribution
+        n = int(np.ceil(100 * np.max(Par)))  # Number of bins
         a = 0.005  # Diameter bin size (1 cm classes)
     elif dist == 'Hei':
-        Par = branch['height']#[1:]  # Height distribution
+        Par = branch['height'][1:]  # Height distribution
         n = int(np.ceil(treedata['TreeHeight']))  # Number of bins
         a = 1  # Height bin size (1 m classes)
     elif dist == 'Ang':
-        Par = branch['angle']#[1:]  # Angle distribution
+        Par = branch['angle'][1:]  # Angle distribution
         n = 18  # Number of bins
         a = 10  # Angle bin size (10-degree classes)
     elif dist == 'Zen':
-        Par = branch['zenith']#[1:]  # Zenith angle distribution
+        Par = branch['zenith'][1:]  # Zenith angle distribution
         n = 18  # Number of bins
         a = 10  # Zenith bin size (10-degree classes)
     elif dist == 'Azi':
-        Par = branch['azimuth']+180#[1:] + 180  # Azimuth angle distribution
+        Par = branch['azimuth'][1:] + 180  # Azimuth angle distribution
         n = 36  # Number of bins
         a = 10  # Azimuth bin size (10-degree classes)
     else:
@@ -1027,15 +1039,15 @@ def branch_order_distribution(treedata, branch):
     BO = int(np.max(branch['order']))
 
     # Initialize distribution array
-    BranchOrdDist = np.zeros((BO, 4))
+    BranchOrdDist = np.zeros((max(1, BO), 4))
 
-    # Compute distributions for each branch order
-    for i in range(0, BO):
+    # Compute distributions for each branch order (orders 1..BO; trunk is order 0)
+    for i in range(1, max(1, BO) + 1):
         I = branch['order'] == i  # Filter branches of the current order
-        BranchOrdDist[i, 0] = np.sum(branch['volume'][I])  # Volume
-        BranchOrdDist[i, 1] = np.sum(branch['area'][I])    # Area
-        BranchOrdDist[i, 2] = np.sum(branch['length'][I])  # Length
-        BranchOrdDist[i, 3] = np.sum(I)                    # Number of branches
+        BranchOrdDist[i - 1, 0] = np.sum(branch['volume'][I])  # Volume
+        BranchOrdDist[i - 1, 1] = np.sum(branch['area'][I])    # Area
+        BranchOrdDist[i - 1, 2] = np.sum(branch['length'][I])  # Length
+        BranchOrdDist[i - 1, 3] = np.sum(I)                    # Number of branches
 
     # Store results in treedata
     treedata['VolBranchOrd'] = BranchOrdDist[:, 0]
