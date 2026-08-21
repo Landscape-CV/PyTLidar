@@ -507,6 +507,9 @@ def crown_measures(treedata, cylinder, branch):
     X = np.unique(P[:, :2], axis=0)
     hull = ConvexHull(X)
     K = hull.vertices
+    # Start the hull at the smallest point index like MATLAB's convhull does.
+    # CrownDiamMax below reads from the closing vertex, so the start must match.
+    K = np.roll(K, -int(np.argmin(K)))
     A = hull.volume
     x = X[K, 0]
     y = X[K, 1]
