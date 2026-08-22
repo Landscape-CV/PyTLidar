@@ -2058,7 +2058,7 @@ def save_fit(cyl_dist,filename):
 def parse_args(argv):
     """
         Define run values based on command line args. Options for params are:
-        --intensity: filter point cloud based on intensity
+        --threshold: filter point cloud based on intensity
         --custominput: user sets specific patch diameters to test
         --ipd: initial patch diameter
         --minpd: min patch diameter
@@ -2076,7 +2076,7 @@ def parse_args(argv):
     current_arg = "Invalid Arg"
     args = {"Custom":False,"Verbose":False,"Parallel":False,"Normalize":False,"Intensity":0, "PatchDiam1":1,"PatchDiam2Min":1,"PatchDiam2Max":1,"Name":"","Cores":1,"Optimum":[],"Directory":None}
     help= """List of valid arguments. Filename must be first, followed by the below arguments
-    --intensity: filter point cloud based on intensity: 
+    --threshold: filter point cloud based on intensity:
         Must be followed with a valid integer
     --normalize: recenter point cloud locations. Use this if your point cloud location values are very large
     --custominput: user sets specific patch diameters to test
