@@ -22,10 +22,13 @@ This derivative work is released under the GNU General Public License (GPL)."""
 
 import numpy as np
 from scipy.spatial import Delaunay
-from TreeQSMSteps.triangulation import initial_boundary_curve
-from TreeQSMSteps.triangulation import boundary_curve
-from TreeQSMSteps.triangulation import check_self_intersection
-from Utils.Utils import cubical_partition
+from . import initial_boundary_curve
+from . import boundary_curve
+from . import check_self_intersection
+try:
+    from ...Utils.Utils import cubical_partition
+except ImportError:
+    from Utils.Utils import cubical_partition
 
 
 def _polyarea(x, y):
