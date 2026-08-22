@@ -12,11 +12,9 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from TreeQSMSteps.triangulation import curve_based_triangulation
-from TreeQSMSteps.triangulation.boundary_curve import boundary_curve
-from TreeQSMSteps.triangulation.curve_based_triangulation import _triangulate_polygon, _polyarea
+from PyTLidar.TreeQSMSteps.triangulation import curve_based_triangulation
+from PyTLidar.TreeQSMSteps.triangulation.boundary_curve import boundary_curve
+from PyTLidar.TreeQSMSteps.triangulation.curve_based_triangulation import _triangulate_polygon, _polyarea
 
 
 def _cylinder_surface(radius, height, n_theta=180, n_z=200, seed=0):

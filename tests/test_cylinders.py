@@ -1,11 +1,8 @@
 import numpy as np
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
-from TreeQSMSteps.cylinders import cylinders
-from TreeQSMSteps.cover_sets import cover_sets
-from TreeQSMSteps.tree_sets import tree_sets
-from TreeQSMSteps.segments import segments
+from PyTLidar.TreeQSMSteps.cylinders import cylinders
+from PyTLidar.TreeQSMSteps.cover_sets import cover_sets
+from PyTLidar.TreeQSMSteps.tree_sets import tree_sets
+from PyTLidar.TreeQSMSteps.segments import segments
 
 
 

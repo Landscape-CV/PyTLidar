@@ -1,12 +1,9 @@
 import os
-import sys
-from pathlib import Path
 
 import numpy as np
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import pipeline
+from PyTLidar import pipeline
 
 
 def _cloud(n=50, seed=0):

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PyTLidar"
+version = "1.0.3"
+description = "Python implementation of TreeQSM for terrestrial lidar tree models"
+readme = "README.md"
+license = "GPL-3.0-only"
+authors = [{ name = "John Hagood" }]
+requires-python = ">=3.8, <3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "alphashape",
+    "laspy[lazrs,laszip]",
+    "matplotlib",
+    "numba==0.61.2",
+    "numpy>=2.0",
+    "plotly",
+    "PySide6==6.8.3",
+    "scipy",
+]
+
+[project.optional-dependencies]
+viz = ["open3d"]
+
+[project.scripts]
+pytlidar-gui = "PyTLidar.main:run"
+pytlidar-batch = "PyTLidar.treeqsm_batch:main"
+pytlidar-qsm = "PyTLidar.treeqsm:main"
+
+[project.urls]
+Homepage = "https://github.com/Landscape-CV/PyTLidar"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
