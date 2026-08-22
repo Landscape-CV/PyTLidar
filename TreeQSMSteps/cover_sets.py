@@ -18,7 +18,6 @@ except ImportError:
     import Utils.Utils as Utils
 # import csv
 import time
-import torch 
 
 def cover_sets(P, inputs, RelSize=None, qsm = True, device = 'cpu', full_point_data = None):
     """

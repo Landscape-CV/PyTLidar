@@ -26,7 +26,6 @@ setuptools.setup(
         'pandas>=2.0',
         'plotly',
         'PySide6==6.8.3',
-        'python-dotenv',
         'igraph',
         'scikit_learn',
         'scipy'
