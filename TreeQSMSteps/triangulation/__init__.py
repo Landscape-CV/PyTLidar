@@ -6,11 +6,11 @@ function (not just the submodule). Imports are ordered by dependency to
 avoid circular-import problems.
 """
 
-from TreeQSMSteps.triangulation.check_self_intersection import check_self_intersection
-from TreeQSMSteps.triangulation.boundary_curve2 import boundary_curve2
-from TreeQSMSteps.triangulation.boundary_curve import boundary_curve
-from TreeQSMSteps.triangulation.initial_boundary_curve import initial_boundary_curve
-from TreeQSMSteps.triangulation.curve_based_triangulation import curve_based_triangulation
+from .check_self_intersection import check_self_intersection
+from .boundary_curve2 import boundary_curve2
+from .boundary_curve import boundary_curve
+from .initial_boundary_curve import initial_boundary_curve
+from .curve_based_triangulation import curve_based_triangulation
 
 __all__ = [
     "check_self_intersection",

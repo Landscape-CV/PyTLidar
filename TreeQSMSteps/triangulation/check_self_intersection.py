@@ -23,9 +23,10 @@ Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Gro
 This derivative work is released under the GNU General Public License (GPL).
 """
 import numpy as np
-# import sys
-# sys.path.append('../')
-from Utils.Utils import distances_between_lines
+try:
+    from ...Utils.Utils import distances_between_lines
+except ImportError:
+    from Utils.Utils import distances_between_lines
 def check_self_intersection(Curve):
     # Check if the curve intersects itself
     if Curve.size > 0:
