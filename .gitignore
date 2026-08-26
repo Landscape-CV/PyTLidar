@@ -6,6 +6,7 @@ results*
 *.html
 /build
 /dist
+*.egg-info
 *.nbi
 *.nbc
 *DS_Store
@@ -15,6 +16,7 @@ results*
 .env
 Dataset/*
 !Dataset/.gitkeep
+!Dataset/example_pine.las
 .idea/
 test.py
 cloth_nodes.txt

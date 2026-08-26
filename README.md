@@ -1,17 +1,19 @@
 # PyTLidar
 
-PyTLidar is a python module designed for manipulating and calculating metrics from terrestrial lidar data. Version 1 makes the TreeQSM[link] capabilites available through Python, eliminating the need for proprietary tools. Development of version 2.0 is in progress to enhance the capabilities with tree segmentation, calculation of digital elevation models, and detailed environmental measurements at scale.
+PyTLidar is a python module designed for manipulating and calculating metrics from terrestrial lidar data. Version 1 makes the [TreeQSM](https://github.com/InverseTampere/TreeQSM) capabilities available through Python, eliminating the need for proprietary tools. Development of version 2.0 is in progress to enhance the capabilities with tree segmentation, calculation of digital elevation models, and detailed environmental measurements at scale.
 
 
 
 # Installation
 
-The release version of PyTLidar can be installed as a standard python package.
-
-**Note**: Due to Open3d dependency. Python version must be between Python 3.8 and 3.11 (inclusive)
+The release version of PyTLidar can be installed as a standard python package (Python 3.8 to 3.12).
 
 ```
 pip install PyTLidar
+```
+The latest code can be installed straight from GitHub the same way:
+```
+pip install git+https://github.com/Landscape-CV/PyTLidar
 ```
 # Development Installation
 
@@ -22,19 +24,20 @@ In your terminal navigate to the folder you want to clone this repo into and clo
 git clone https://github.com/Landscape-CV/PyTLidar.git
 cd PyTLidar
 ```
-## Create a .venv & requirements installed
+## Create a .venv and install the package in editable mode
 ### Mac
 ```
 python -m venv .venv
 . .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 ```
 ### Windows
 ```
 python -m venv .venv
 . .venv/Scripts/activate
-pip install -r requirements.txt
+pip install -e .
 ```
+The code lives under `src/PyTLidar`; the editable install means edits there are picked up without reinstalling. To run the tests, `pip install pytest` then `pytest`.
 
 # TreeQSM
 
@@ -44,8 +47,9 @@ Below is a quick start guide to using PyTLidar. For further detail, see [Docs](D
 
 To launch the GUI application run
 ```
-python -m PyTLidar.main
+pytlidar-gui
 ```
+(`python -m PyTLidar.main` does the same.)
 
 
 The below interface will appear, with instructions for generating your QSM models.
@@ -55,7 +59,7 @@ You may choose to run a single file or multiple, with the ability to view the po
 ![Software interface for user input and data selection. \label{fig:pc1}](paper/figs/fig1.jpg)
 
 
-We also provide multiple command line interface options using PyTLidar.treeqsm and PyTLidar.treeqsm_batch
+We also provide multiple command line interface options using PyTLidar.treeqsm and PyTLidar.treeqsm_batch (installed as the `pytlidar-qsm` and `pytlidar-batch` commands, which take the same arguments)
 
 You may run the following your terminal
 
@@ -139,34 +143,17 @@ This will run all the test cases under the tests/ directory. The tests include b
 
 You can also run specific tests by passing the test file or function name:
 
-pytest tests/test_calculate.py
+pytest tests/test_cover_sets.py
 
-Due to the complex nature of inputs and outputs of the algorithm, manual tests are also recommended. Using Dataset/example_pine.las run:
-
+For a manual check, run the example pine that ships with the repo:
 ```
-python -m PyTLidar.treeqsm example_pine.las --normalize --verbose 
+pytlidar-qsm Dataset/example_pine.las --normalize --verbose
 ```
-
-Compare the tree_data_Tree1_t1_m1.txt file that is generated to Dataset/results/example_pine_tree_data.txt. The algorithm is randomized, so many values will not match, but no value should be significantly different. 
-
-This test can also be run using the GUI, and a visual check can also be done as a sanity check on the resulting numbers.
+The algorithm is randomised, so two runs on the same file give slightly different models; when checking a change by hand, compare results against the spread of several reference runs rather than expecting identical numbers.
 # Under Development
 
-Below are functionalities that are under active development to be included in future pip versions.
-## Tree Segmentation
+Under active development for future releases: tree segmentation, graph-based and region-growing leaf separation, and Ecomodel, an experimental module for detailed metrics of complex environments.
 
-## Graph-Based Leaf Separation
-
-## Region Growing Leaf Separation
-
-## Ecomodel
-Ecomodel is an experimental module intended to provide detailed metrics for complex environments
-
-### Create a .env file
-make a file in your parent director named `.env` and paste the following into it replace the ... with the filepath to your data
-```
-DATA_FOLDER_FILEPATH = ...
-```
 # Contributing
 ## Reporting Bugs
 
