@@ -417,7 +417,7 @@ def calculate_optimal(models,metric):
     metrics = []
     for i in range(len(models)):
         metrics.append(Utils.compute_metric_value(Utils.select_metric(metric), i,metric_data[0],metric_data[3]))
-    best = np.argmax(np.array(metrics))
+    best = np.argmin(np.array(metrics))
     return best,metrics[best],metric_data
 
 
