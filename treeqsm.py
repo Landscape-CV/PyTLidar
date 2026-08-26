@@ -441,29 +441,24 @@ if __name__ == "__main__":
     
     if parsed_args not in ["ERROR","Help"]:
         print(parsed_args)
-        threshold = parsed_args["Intensity"]
-
-        points = Utils.load_point_cloud(filename,threshold)
-        if points is not None:
-            sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.\n")
-        # Step 3: Define inputs for TreeQSM
-        if parsed_args["Normalize"]:
-            points = points - np.mean(points,axis = 0)
-        if parsed_args["Custom"]:
-            inputs = define_input(points, 1, 1, 1)[0]
-            inputs["PatchDiam1"] = parsed_args["PatchDiam1"]
-            inputs["PatchDiam2Min"] = parsed_args["PatchDiam2Min"]
-            inputs["PatchDiam2Max"] = parsed_args["PatchDiam2Max"]
-            inputs['BallRad1'] = [d +.01 for d in parsed_args["PatchDiam1"]]
-            inputs['BallRad2'] = [d +.01 for d in parsed_args["PatchDiam2Max"]]
-            
-            
+        if __package__:
+            from .pipeline import load_cloud, centre, build_inputs, run_qsm
         else:
-            inputs = define_input(points,parsed_args["PatchDiam1"],parsed_args["PatchDiam2Min"],parsed_args["PatchDiam2Max"])[0]
+            from pipeline import load_cloud, centre, build_inputs, run_qsm
+
+        points = load_cloud(filename, parsed_args["Intensity"])
+        sys.stdout.write(f"Loaded point cloud with {points.shape[0]} points.\n")
+        if parsed_args["Normalize"]:
+            points = centre(points, z=False)
+        patch = (parsed_args["PatchDiam1"], parsed_args["PatchDiam2Min"], parsed_args["PatchDiam2Max"])
+        # This entry point has always kept define_input's savemat=1, so the .npz model file is written.
+        settings = dict(savemat=1, savetxt=1, plot=0, disp=2 if parsed_args["Verbose"] else 0)
+        if parsed_args["Custom"]:
+            inputs = build_inputs(points, custom=patch, **settings)[0]
+        else:
+            inputs = build_inputs(points, n_patchdiam=patch, **settings)[0]
             inputs["name"] = parsed_args["Name"]+inputs["name"]
-        inputs["disp"] = 2 if parsed_args["Verbose"] else 0
-        inputs["plot"] = 0
-        models, cyl_htmls = treeqsm(points,inputs,results_location=parsed_args["Directory"])
+        models, cyl_htmls = run_qsm(points, inputs, results_dir=parsed_args["Directory"])
         saved_files = []
         for metric in parsed_args["Optimum"]:
             optimum,value,metric_data = calculate_optimal(models,metric)

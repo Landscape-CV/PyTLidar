@@ -15,7 +15,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     packages=['PyTLidar.Utils', 'PyTLidar.plotting', 'PyTLidar.TreeQSMSteps', 'PyTLidar.TreeQSMSteps.triangulation'],
-    py_modules=['PyTLidar.main', 'PyTLidar.treeqsm', 'PyTLidar.treeqsm_batch'],
+    py_modules=['PyTLidar.main', 'PyTLidar.treeqsm', 'PyTLidar.treeqsm_batch', 'PyTLidar.pipeline'],
     python_requires=">=3.8, <3.13",
     install_requires=[
         'alphashape',
