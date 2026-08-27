@@ -1053,9 +1053,9 @@ def adjustments(cyl, parcyl, inputs, Regs):
             else:
                 cyl_start = cyl['start'][0]
                 cyl_axis = cyl['axis'][0]
-                cyl_mad = cyl['mad']
+                cyl_mad = cyl['mad'][0]
                 cyl_length = cyl['length'][0]
-                cyl_radius = cyl['radius']
+                cyl_radius = cyl['radius'][0]
             #print(cyl_radius)
             radius = cyl['radius'][i] if np.size(cyl['radius']) > 1 else cyl['radius']
             radius0 = cyl['radius0'][i] if np.size(cyl['radius0']) > 1 else cyl['radius0']
