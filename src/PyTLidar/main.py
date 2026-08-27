@@ -726,7 +726,7 @@ class BatchProcessingWindow(QMainWindow):
         metrics = []
         for i in range(len(self.file_data[index]['QSM'])):
             metrics.append(Utils.compute_metric_value(Utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[index][0],self.metric_data[index][3]))
-        return np.argmax(np.array(metrics))
+        return np.argmin(np.array(metrics))
     
 
 class SingleFileProcessingWindow(QMainWindow):
@@ -1112,7 +1112,7 @@ class SingleFileProcessingWindow(QMainWindow):
         metrics = []
         for i in range(len(self.data)):
             metrics.append(Utils.compute_metric_value(Utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[0],self.metric_data[3]))
-        return np.argmax(np.array(metrics))
+        return np.argmin(np.array(metrics))
 
         
 
