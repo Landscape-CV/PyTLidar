@@ -53,6 +53,10 @@ def cover_sets(P, inputs, RelSize=None, qsm = True, device = 'cpu', full_point_d
     else:
         np_points = len(P)
 
+    # Empty input would crash cubical_partition's np.min
+    if np_points == 0:
+        return {'ball': [], 'center': np.array([], dtype=np.int64), 'sets': np.array([], dtype=np.int64)}
+
     if RelSize is None:
         return uniform_cover(P, inputs, np_points, qsm, device, full_point_data)
     else:
