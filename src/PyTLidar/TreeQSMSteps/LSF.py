@@ -255,7 +255,7 @@ def func_grad_circle_centre(P, par, weight=None):
 
 
 @numba.jit()
-def func_grad_cylinder(par, P, weight=None):
+def func_grad_cylinder(par, P, weight=None, need_jac=True):
     """
     Function and gradient calculation for least-squares cylinder fit.
 
@@ -294,6 +294,9 @@ def func_grad_cylinder(par, P, weight=None):
     if weight is not None:
         weight = weight.flatten()
         dist = weight * dist
+
+    if not need_jac:
+        return dist, np.zeros((1, 1))
 
     # Build the Jacobian matrix.
     # Compute unit vector N = [xt, yt] / rt.
@@ -397,9 +400,9 @@ def nlssolver(par, P, weight=None):
 
         # Check convergence by comparing norm of distances.
         if NoWeights:
-            d_new, _ = func_grad_cylinder(par, P)
+            d_new, _ = func_grad_cylinder(par, P, need_jac=False)
         else:
-            d_new, _ = func_grad_cylinder(par, P, weight)
+            d_new, _ = func_grad_cylinder(par, P, weight, need_jac=False)
         SS1 = np.linalg.norm(d_new)
         if abs(SS0 - SS1) < 1e-4:
             conv = True
@@ -774,22 +777,23 @@ def least_squares_cylinder(P, cyl0, weight=None, Q=None):
         except np.linalg.LinAlgError:
             rel = False
             if NoWeights:
-                dist_new, _ = func_grad_cylinder(par, Pt)
+                dist_new, _ = func_grad_cylinder(par, Pt, need_jac=False)
             else:
-                dist_new, _ = func_grad_cylinder(par, Pt, weight)
+                dist_new, _ = func_grad_cylinder(par, Pt, weight, need_jac=False)
             break
         par = par + p_update
 
         # Check convergence: compute new distances.
         if NoWeights:
-            dist_new, _ = func_grad_cylinder(par, Pt)
+            dist_new, _ = func_grad_cylinder(par, Pt, need_jac=False)
         else:
-            dist_new, _ = func_grad_cylinder(par, Pt, weight)
+            dist_new, _ = func_grad_cylinder(par, Pt, weight, need_jac=False)
         SS1 = np.linalg.norm(dist_new)
         if abs(SS0 - SS1) < 1e-4:
             conv = True
         # Check reliability via the condition number of A.
-        if np.linalg.cond(-A) != 0 and (1.0 / np.linalg.cond(-A)) < 10000 * np.finfo(float).eps:
+        condA = np.linalg.cond(-A)
+        if condA != 0 and (1.0 / condA) < 10000 * np.finfo(float).eps:
             rel = False
         iter_count += 1
 
