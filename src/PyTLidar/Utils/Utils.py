@@ -329,15 +329,15 @@ def display_time(T1, T2, string, display):
 
         if tmin < 60 and Tmin < 60:
             if tmin < 1 and Tmin < 1:
-                result = f"{string} {tsec} sec.   Total: {Tsec} sec"
+                result = f"{string} {tsec:.2f} sec.   Total: {Tsec:.2f} sec"
             elif tmin < 1:
-                result = f"{string} {tsec} sec.   Total: {Tmin} min {Tsec} sec"
+                result = f"{string} {tsec:.2f} sec.   Total: {Tmin} min {Tsec:.2f} sec"
             else:
-                result = f"{string} {tmin} min {tsec} sec.   Total: {Tmin} min {Tsec} sec"
+                result = f"{string} {tmin} min {tsec:.2f} sec.   Total: {Tmin} min {Tsec:.2f} sec"
         elif tmin < 60:
             Thour = Tmin // 60
             Tmin %= 60
-            result = f"{string} {tmin} min {tsec} sec.   Total: {Thour} hours {Tmin} min"
+            result = f"{string} {tmin} min {tsec:.2f} sec.   Total: {Thour} hours {Tmin} min"
         else:
             thour = tmin // 60
             tmin %= 60
