@@ -58,7 +58,7 @@ class QSMWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         # self.stacked_widget = QStackedWidget(self)
-        self.setWindowTitle("TreeQSM")
+        self.setWindowTitle("PyTLidar (TreeQSM)")
         self.setGeometry(100, 100, 750, 500)
         # layout.addWidget(self.stacked_widget)
 
@@ -274,7 +274,7 @@ MaxPatchDiam separated by commas for the values you would like to test
 class BatchProcessingWindow(QMainWindow):
     def __init__(self,root,folder,inputs, generate_values, show_only_optimal=False,metric = None):
         super().__init__()
-        self.setWindowTitle("Batch Processing")
+        self.setWindowTitle("PyTLidar (TreeQSM) - Batch Processing")
         self.setGeometry(100, 100, 1600, 900)  
         self.root = root
         self.folder = folder
@@ -732,7 +732,7 @@ class BatchProcessingWindow(QMainWindow):
 class SingleFileProcessingWindow(QMainWindow):
     def __init__(self,root,file,inputs,generate_values, show_only_optimal=False,metric = None):
         super().__init__()
-        self.setWindowTitle("Single File Processing")
+        self.setWindowTitle("PyTLidar (TreeQSM) - Single File Processing")
         self.setGeometry(100, 100, 1600, 900)  
         self.root = root
         self.args = inputs
