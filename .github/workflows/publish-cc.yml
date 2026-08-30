@@ -1,4 +1,4 @@
-name: Publish to PyPI
+name: Publish pytlidar-cc to PyPI
 
 on:
   release:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    if: "!startsWith(github.event.release.tag_name, 'cc-')"
+    if: startsWith(github.event.release.tag_name, 'cc-v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,11 +14,11 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install build
-      - run: python -m build
+      - run: python -m build pytlidar_cc
       - uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist/
+          name: dist-cc
+          path: pytlidar_cc/dist/
 
   publish:
     needs: build
@@ -29,6 +29,6 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: dist-cc
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
