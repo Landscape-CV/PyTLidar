@@ -313,6 +313,11 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                         if z_offset != 0.0:
                             cylinder['start'][:, 2] = cylinder['start'][:, 2] + z_offset
                             treedata['location'] = np.array(cylinder['start'][0, :])
+                            if isinstance(triangulation, dict) and np.size(triangulation.get('vert', [])) > 0:
+                                triangulation['vert'] = triangulation['vert'].astype(np.float64)
+                                triangulation['vert'][:, 2] = triangulation['vert'][:, 2] + z_offset
+                                triangulation['bottom'] = triangulation['bottom'] + z_offset
+                                triangulation['top'] = triangulation['top'] + z_offset
                             P_out = P.copy()
                             P_out[:, 2] = P_out[:, 2] + z_offset
                         else:
