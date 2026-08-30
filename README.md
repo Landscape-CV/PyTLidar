@@ -150,6 +150,15 @@ For a manual check, run the example pine that ships with the repo:
 pytlidar-qsm Dataset/example_pine.las --normalize --verbose
 ```
 The algorithm is randomised, so two runs on the same file give slightly different models; when checking a change by hand, compare results against the spread of several reference runs rather than expecting identical numbers.
+# CloudCompare Plugin
+
+The pytlidar_cc/ folder holds a CloudCompare plugin that runs TreeQSM on selected point clouds and puts the models back into the scene. It needs CloudCompare with the PythonRuntime plugin. Install into the Python environment CloudCompare uses:
+
+```
+python -m pip install PyTLidar ./pytlidar_cc
+```
+
+See pytlidar_cc/README.md for usage.
 # Under Development
 
 Under active development for future releases: tree segmentation, graph-based and region-growing leaf separation, and Ecomodel, an experimental module for detailed metrics of complex environments.

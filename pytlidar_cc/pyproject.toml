@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytlidar-cc"
+version = "0.1.0"
+description = "CloudCompare plugin that runs PyTLidar TreeQSM on a selected point cloud"
+readme = "README.md"
+license = "GPL-3.0-only"
+authors = [{ name = "John Hagood" }]
+requires-python = ">=3.10, <3.13"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "PyTLidar>=1.0.6",
+]
+
+[project.entry-points."cloudcompare.plugins"]
+PyTLidar = "pytlidar_cc.plugin:PyTLidarPlugin"
+
+[project.urls]
+Homepage = "https://github.com/Landscape-CV/PyTLidar"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pytlidar_cc = ["assets/*.png"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
