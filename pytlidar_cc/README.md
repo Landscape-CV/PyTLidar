@@ -28,7 +28,7 @@ Everything is in the source cloud's frame and carries its global shift.
 With the Python environment CloudCompare uses:
 
 ```
-python -m pip install PyTLidar ./pytlidar_cc
+python -m pip install pytlidar-cc
 ```
 
 ## Usage

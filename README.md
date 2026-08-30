@@ -155,7 +155,7 @@ The algorithm is randomised, so two runs on the same file give slightly differen
 The pytlidar_cc/ folder holds a CloudCompare plugin that runs TreeQSM on selected point clouds and puts the models back into the scene. It needs CloudCompare with the PythonRuntime plugin. Install into the Python environment CloudCompare uses:
 
 ```
-python -m pip install PyTLidar ./pytlidar_cc
+python -m pip install pytlidar-cc
 ```
 
 See pytlidar_cc/README.md for usage.
