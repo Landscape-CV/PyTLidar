@@ -353,6 +353,111 @@ def func_grad_cylinder(par, P, weight=None, need_jac=True):
     return dist, J
 
 
+@numba.jit(nopython=True)
+def _cylinder_gauss_newton(par, Pt, weight, has_weight):
+    """The Gauss-Newton iterations of least_squares_cylinder. Returns
+    (par, dist, conv, rel). J.T @ J is left to numpy: it uses the symmetric
+    BLAS kernel there, and a plain matmul gives different last bits."""
+    maxiter = 50
+    iter_count = 0
+    conv = False
+    rel = True
+    thr = 10000 * np.finfo(np.float64).eps
+    dist_new = np.zeros(Pt.shape[0])
+    while iter_count < maxiter and (not conv) and rel:
+        if has_weight:
+            d0, J = func_grad_cylinder(par, Pt, weight)
+        else:
+            d0, J = func_grad_cylinder(par, Pt)
+        SS0 = np.sqrt(np.dot(d0, d0))
+        with numba.objmode(A='float64[:, ::1]'):
+            A = J.T @ J
+        b = J.T @ d0
+        singular = False
+        p_update = np.zeros(5)
+        try:
+            p_update = -np.linalg.solve(A, b)
+        except Exception:
+            singular = True
+        if singular:
+            rel = False
+            if has_weight:
+                dist_new, _ = func_grad_cylinder(par, Pt, weight, need_jac=False)
+            else:
+                dist_new, _ = func_grad_cylinder(par, Pt, need_jac=False)
+            break
+        par = par + p_update
+        if has_weight:
+            dist_new, _ = func_grad_cylinder(par, Pt, weight, need_jac=False)
+        else:
+            dist_new, _ = func_grad_cylinder(par, Pt, need_jac=False)
+        SS1 = np.sqrt(np.dot(dist_new, dist_new))
+        if abs(SS0 - SS1) < 1e-4:
+            conv = True
+        condA = np.linalg.cond(-A)
+        if condA != 0 and (1.0 / condA) < thr:
+            rel = False
+        iter_count += 1
+    return par, dist_new, conv, rel
+
+
+@numba.jit(nopython=True)
+def _circle_centre_dist_jac(P, x0, y0, r):
+    Vx = P[:, 0] - x0
+    Vy = P[:, 1] - y0
+    rt = np.sqrt(Vx ** 2 + Vy ** 2)
+    dist = rt - r
+    J = np.empty((P.shape[0], 2))
+    J[:, 0] = -(Vx / rt)
+    J[:, 1] = -(Vy / rt)
+    for i in range(P.shape[0]):
+        if not np.isfinite(J[i, 0]):
+            J[i, 0] = 0.0
+        if not np.isfinite(J[i, 1]):
+            J[i, 1] = 0.0
+    return dist, J
+
+
+@numba.jit(nopython=True)
+def _circle_centre_gauss_newton(P, par):
+    """The Gauss-Newton iterations of least_squares_circle_centre. Returns
+    (par, conv, rel). J.T @ J stays in numpy for the same reason as above."""
+    maxiter = 200
+    iter_count = 0
+    conv = False
+    rel = True
+    thr = 10000 * np.finfo(np.float64).eps
+    while iter_count < maxiter and (not conv) and rel:
+        dist, J = _circle_centre_dist_jac(P, par[0], par[1], par[2])
+        SS0 = np.sqrt(np.dot(dist, dist))
+        with numba.objmode(A='float64[:, ::1]'):
+            A = J.T @ J
+        b = J.T @ dist
+        singular = False
+        p = np.zeros(2)
+        try:
+            p = -np.linalg.solve(A, b)
+        except Exception:
+            singular = True
+        if singular:
+            rel = False
+            break
+        par[0:2] = par[0:2] + p
+        dist, _ = _circle_centre_dist_jac(P, par[0], par[1], par[2])
+        SS1 = np.sqrt(np.dot(dist, dist))
+        if SS1 > SS0:
+            par[0:2] = par[0:2] - 0.95 * p
+            dist, _ = _circle_centre_dist_jac(P, par[0], par[1], par[2])
+            SS1 = np.sqrt(np.dot(dist, dist))
+        condA = np.linalg.cond(A)
+        if condA != 0 and (1.0 / condA) < thr:
+            rel = False
+        if abs(SS0 - SS1) < 1e-5:
+            conv = True
+        iter_count += 1
+    return par, conv, rel
+
+
 def nlssolver(par, P, weight=None):
     """
     Nonlinear least squares solver for cylinders using Gauss–Newton iterations.
@@ -667,36 +772,10 @@ def least_squares_circle_centre(P, Point0, Rad0):
     """
     # Initialize parameter vector: [x0, y0, r]
     par = np.concatenate((np.array(Point0, dtype=float).flatten(), [float(Rad0)]))
-    maxiter = 200
-    iter_count = 0
-    conv = False
-    rel = True
 
-    # Gauss–Newton iterations
-    while iter_count < maxiter and (not conv) and rel:
-        # Compute distances and Jacobian (for centre only, using func_grad_circle_centre)
-        dist, J = func_grad_circle_centre(P, par)
-        SS0 = np.linalg.norm(dist)
-        A = J.T @ J
-        b = J.T @ dist
-        try:
-            p = -np.linalg.solve(A, b)
-        except np.linalg.LinAlgError:
-            rel = False
-            break
-        # Update only the centre (first two elements); radius remains fixed.
-        par[0:2] = par[0:2] + p
-        dist, _ = func_grad_circle_centre(P, par)
-        SS1 = np.linalg.norm(dist)
-        if SS1 > SS0:
-            par[0:2] = par[0:2] - 0.95 * p
-            dist, _ = func_grad_circle_centre(P, par)
-            SS1 = np.linalg.norm(dist)
-        if np.linalg.cond(A) != 0 and (1.0 / np.linalg.cond(A)) < 10000 * np.finfo(float).eps:
-            rel = False
-        if abs(SS0 - SS1) < 1e-5:
-            conv = True
-        iter_count += 1
+    # Gauss-Newton iterations
+    P2 = np.ascontiguousarray(np.asarray(P, dtype=np.float64)[:, :2])
+    par, conv, rel = _circle_centre_gauss_newton(P2, par)
 
     # Compute output: centre, mad, and arc coverage.
     Point = par[0:2]
@@ -750,52 +829,20 @@ def least_squares_cylinder(P, cyl0, weight=None, Q=None):
                 - 'rel'     : True if the system was well conditioned.
     """
     res = 0.03  # Resolution level for computing surface coverage
-    maxiter = 50
-    iter_count = 0
-    conv = False
-    rel = True
-    NoWeights = (weight is None)
 
     # Transform the data to nearly standard position.
     # Rot0 rotates cyl0.axis to the positive z-axis.
     Rot0, _, _ = rotate_to_z_axis(cyl0['axis'])
-    Pt = (P - np.array(cyl0['start'])) @ Rot0.T
+    Pt = np.ascontiguousarray((P - np.array(cyl0['start'])) @ Rot0.T)
     # Initial estimates: translation and rotation angles are zero; radius is from cyl0.
     par = np.array([0, 0, 0, 0, cyl0['radius']], dtype=float)
 
-    # Gauss–Newton iterations to fit rotation-translation and radius parameters
-    while iter_count < maxiter and (not conv) and rel :
-        if NoWeights:
-            d0, J = func_grad_cylinder(par, Pt)
-        else:
-            d0, J = func_grad_cylinder(par, Pt, weight)
-        SS0 = np.linalg.norm(d0)
-        A = J.T @ J
-        b = J.T @ d0
-        try:
-            p_update = -np.linalg.solve(A, b)
-        except np.linalg.LinAlgError:
-            rel = False
-            if NoWeights:
-                dist_new, _ = func_grad_cylinder(par, Pt, need_jac=False)
-            else:
-                dist_new, _ = func_grad_cylinder(par, Pt, weight, need_jac=False)
-            break
-        par = par + p_update
-
-        # Check convergence: compute new distances.
-        if NoWeights:
-            dist_new, _ = func_grad_cylinder(par, Pt, need_jac=False)
-        else:
-            dist_new, _ = func_grad_cylinder(par, Pt, weight, need_jac=False)
-        SS1 = np.linalg.norm(dist_new)
-        if abs(SS0 - SS1) < 1e-4:
-            conv = True
-        # Check reliability via the condition number of A.
-        condA = np.linalg.cond(-A)
-        if condA != 0 and (1.0 / condA) < 10000 * np.finfo(float).eps:
-            rel = False
-        iter_count += 1
+    # Gauss-Newton iterations to fit rotation-translation and radius parameters
+    if weight is None:
+        par, dist_new, conv, rel = _cylinder_gauss_newton(par, Pt, np.ones(1), False)
+    else:
+        w = np.ascontiguousarray(np.asarray(weight, dtype=np.float64).ravel())
+        par, dist_new, conv, rel = _cylinder_gauss_newton(par, Pt, w, True)
 
     # Compute final cylinder parameters.
     cyl_out = {}
