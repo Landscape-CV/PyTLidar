@@ -29,6 +29,29 @@ def test_uniform_cover_simple_grid():
     assert all(len(neighbors) > 0 for neighbors in cover['neighbor'])
 
 
+def test_downstream_keyword_call_matches_default():
+    """cover_sets accepts qsm, device and full_point_data (Ecomodel calls it
+    this way) and gives the same cover as the default call."""
+    x = np.linspace(0, 1, 3)
+    X, Y, Z = np.meshgrid(x, x, x)
+    P = np.vstack([X.ravel(), Y.ravel(), Z.ravel()]).T
+
+    inputs = {
+        'BallRad1': 0.6,
+        'PatchDiam1': 0.4,
+        'nmin1': 1
+    }
+
+    np.random.seed(0)
+    default = cover_sets(P, inputs)
+    np.random.seed(0)
+    keyword = cover_sets(P, inputs, qsm=False, device='cpu', full_point_data=P)
+
+    assert np.array_equal(default['center'], keyword['center'])
+    assert np.array_equal(default['sets'], keyword['sets'])
+    assert all(np.array_equal(a, b) for a, b in zip(default['ball'], keyword['ball']))
+
+
 def test_variable_cover_line():
     """Test variable cover on a line with varying RelSize"""
     # Create 10 points along a line

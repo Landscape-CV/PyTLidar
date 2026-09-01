@@ -18,7 +18,7 @@ warnings.filterwarnings('ignore')
 
 class BatchQSM():
     """
-    Runs TreeQSM over every .las/.laz file in a folder, several trees at a time in worker processes.
+    Runs TreeQSM over every .las/.laz/.ply file in a folder, several trees at a time in worker processes.
     """
     def __init__(self, folder,files,args):
         self.folder = folder
@@ -70,7 +70,7 @@ class BatchQSM():
         clouds = [load_cloud(os.path.join(self.folder, file), self.intensity_threshold) for file in self.files]
         if self.normalize:
             clouds = [centre(cloud, z=False) for cloud in clouds]
-        names = [file.replace(".las","").replace(".laz","")+self.runname for file in self.files]
+        names = [os.path.splitext(file)[0]+self.runname for file in self.files]
         patch = (self.inputs['PatchDiam1'], self.inputs['PatchDiam2Min'], self.inputs['PatchDiam2Max'])
         settings = dict(names=names, savemat=0, savetxt=1, plot=0, disp=2 if self.verbose else 0)
         if self.generate_values:
@@ -137,7 +137,7 @@ def main(argv=None):
         print(parsed_args)
         files = os.listdir(folder)
 
-        files = [f for f in files if f.endswith('.las') or f.endswith('.laz')]
+        files = [f for f in files if f.lower().endswith(('.las', '.laz', '.ply'))]
 
         batch_process = BatchQSM(folder,files,parsed_args)
         batch_process.run()

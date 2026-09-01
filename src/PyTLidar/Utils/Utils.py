@@ -35,36 +35,176 @@ from scipy.interpolate import griddata
     
     
 
-def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
+def _read_ply_vertex(file_path):
     """
-    Load a point cloud from LAS or LAZ files.
+    The vertex element of a PLY file. plyfile is an optional dependency, so
+    it is imported here.
+    """
+    try:
+        from plyfile import PlyData
+    except ImportError as e:
+        raise ImportError("Reading PLY files needs the plyfile package: pip install plyfile") from e
+    ply = PlyData.read(file_path)
+    names = [el.name for el in ply.elements]
+    if "vertex" not in names:
+        raise ValueError(f"No vertex element in {file_path}. Elements: {names}")
+    return ply["vertex"]
+
+
+def list_scalar_fields(file_path):
+    """
+    Return the per-point field names in a LAS/LAZ or PLY file, in file order.
+    Empty list for other input or on error.
+    """
+    p = file_path.lower()
+    try:
+        if p.endswith(".las") or p.endswith(".laz"):
+            with laspy.open(file_path) as las:
+                return list(las.header.point_format.dimension_names)
+        if p.endswith(".ply"):
+            return list(_read_ply_vertex(file_path).data.dtype.names)
+    except Exception:
+        return []
+    return []
+
+
+list_las_scalar_fields = list_scalar_fields  # earlier name
+
+
+def _resolve_scalar_field(las_pts, scalar_field, file_path):
+    """
+    Fetch the named dimension from a laspy point record as float64. The match
+    is case-insensitive; an unknown name raises a ValueError listing what the
+    file has.
+    """
+    names = list(las_pts.point_format.dimension_names)
+    if scalar_field in names:
+        chosen = scalar_field
+    else:
+        lower = {n.lower(): n for n in names}
+        if scalar_field.lower() in lower:
+            chosen = lower[scalar_field.lower()]
+        else:
+            raise ValueError(
+                f"Scalar field {scalar_field!r} not found in {file_path}. "
+                f"Available fields: {names}"
+            )
+    return np.asarray(las_pts[chosen], dtype=np.float64)
+
+
+def _resolve_ply_field(vertex, names, scalar_field, file_path):
+    """
+    Fetch the named vertex property as float64. Matches case-insensitively,
+    then with a scalar_ prefix (CloudCompare exports fields that way). Returns
+    None when "intensity" is asked for and the file has none.
+    """
+    lower = {n.lower(): n for n in names}
+    chosen = lower.get(scalar_field.lower()) or lower.get("scalar_" + scalar_field.lower())
+    if chosen is None:
+        if scalar_field.lower() == "intensity":
+            return None
+        raise ValueError(
+            f"Scalar field {scalar_field!r} not found in {file_path}. "
+            f"Available fields: {names}"
+        )
+    return np.asarray(vertex[chosen], dtype=np.float64)
+
+
+def _normalize_scalar_to_intensity_range(vals):
+    """
+    Rescale a field to the 0-65535 intensity range so negative or fractional
+    units (reflectance in dB, say) work with the intensity thresholds. Per
+    file, not a calibration. A constant or empty field comes back as zeros.
+    NaN entries are left out of the range and stay NaN.
+    """
+    if vals.size == 0 or not np.any(np.isfinite(vals)):
+        return np.zeros_like(vals)
+    vmin = float(np.nanmin(vals))
+    vmax = float(np.nanmax(vals))
+    if not np.isfinite(vmin) or not np.isfinite(vmax) or vmax <= vmin:
+        return np.zeros_like(vals)
+    return (vals - vmin) / (vmax - vmin) * 65535.0
+
+
+def load_point_cloud(file_path, intensity_threshold = 0, full_data = False,
+                     scalar_field = "intensity", normalize_scalar = False):
+    """
+    Load a point cloud from LAS, LAZ or PLY files.
 
     Args:
     file_path : str
-        Path to the LAS or LAZ file.
+        Path to the LAS, LAZ, PLY, .xyz or .txt file.
+    intensity_threshold : float
+        Points whose working scalar value is < this are dropped.
+    full_data : bool
+        When True, also return the Nx4 point_data array.
+    scalar_field : str
+        LAS dimension or PLY vertex field loaded into column 3, the working
+        intensity column. Case-insensitive; ignored for .xyz/.txt input.
+    normalize_scalar : bool
+        Rescale the chosen field to 0-65535 before the threshold filter.
 
     Returns:
     point_cloud : ndarray
         Nx3 matrix of point coordinates (x, y, z).
+    point_data : ndarray (when full_data=True)
+        Nx4 matrix - columns 0-2 are x, y, z, column 3 is the chosen scalar.
     """
-    if ".xyz" in file_path:
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext in (".xyz", ".txt"):
         # Load point cloud from an XYZ file
         point_data = np.loadtxt(file_path, dtype=np.float64)
         if point_data.shape[1] == 3:
             point_cloud = point_data
-        elif point_data.shape[1] == 4:
+        elif point_data.shape[1] >= 4:
             I = point_data[:, 3] >= intensity_threshold
             point_cloud = point_data[I, :3]
         else:
-            raise ValueError("Unsupported format in XYZ file.")
+            raise ValueError("Unsupported format in .xyz or .txt file.")
         return point_cloud if not full_data else (point_cloud, point_data)
+
+    if ext == ".ply":
+        vertex = _read_ply_vertex(file_path)
+        names = list(vertex.data.dtype.names)
+        lower = {n.lower(): n for n in names}
+        if not all(a in lower for a in "xyz"):
+            raise ValueError(f"No x, y, z vertex fields in {file_path}. "
+                             f"Available fields: {names}")
+        point_data = np.empty((vertex.count, 4), dtype=np.float64)
+        for col, axis in enumerate("xyz"):
+            point_data[:, col] = np.asarray(vertex[lower[axis]], dtype=np.float64)
+        scalar = _resolve_ply_field(vertex, names, scalar_field, file_path)
+        if scalar is None:
+            if intensity_threshold > 0:
+                raise ValueError(f"{file_path} has no intensity field, so intensity_threshold="
+                                 f"{intensity_threshold} cannot be applied. Available fields: {names}")
+            scalar = np.zeros(vertex.count, dtype=np.float64)
+        if normalize_scalar:
+            scalar = _normalize_scalar_to_intensity_range(scalar)
+        point_data[:, 3] = scalar
+        mask = point_data[:, 3] >= intensity_threshold
+        point_data = point_data[mask]
+        point_cloud = point_data[:, 0:3]
+        return point_cloud if not full_data else (point_cloud, point_data)
+
     with laspy.open(file_path) as las:
-        point_data = las.read()
-        point_data = np.vstack((point_data.x, point_data.y, point_data.z,point_data.intensity)).T.astype('float64')
-        I = point_data[:,3]>=intensity_threshold
-        point_data = point_data[I]
-        point_cloud = point_data[:,0:3]
-    return point_cloud if not full_data else (point_cloud,point_data)
+        las_pts = las.read()
+        # fill one preallocated array; vstack + astype doubles peak memory
+        n = len(las_pts.x)
+        point_data = np.empty((n, 4), dtype=np.float64)
+        point_data[:, 0] = las_pts.x
+        point_data[:, 1] = las_pts.y
+        point_data[:, 2] = las_pts.z
+        scalar = _resolve_scalar_field(las_pts, scalar_field, file_path)
+        if normalize_scalar:
+            scalar = _normalize_scalar_to_intensity_range(scalar)
+        point_data[:, 3] = scalar
+        del las_pts
+        mask = point_data[:, 3] >= intensity_threshold
+        point_data = point_data[mask]
+        point_cloud = point_data[:, 0:3]
+
+    return point_cloud if not full_data else (point_cloud, point_data)
 
 
 

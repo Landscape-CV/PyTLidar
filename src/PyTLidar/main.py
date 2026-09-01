@@ -223,7 +223,7 @@ MaxPatchDiam separated by commas for the values you would like to test
         if not self.check_inputs(inputs):
             return
 
-        file, _ = QFileDialog.getOpenFileName(self, "Select File", "", "LAS/XYZ Files (*.las *.laz *.xyz)")
+        file, _ = QFileDialog.getOpenFileName(self, "Select File", "", "Point clouds (*.las *.laz *.ply *.xyz)")
         if not file:
             QMessageBox.warning(self, "No File Selected", "Please select a LAS or LAZ file.")
             return
@@ -285,7 +285,7 @@ class BatchProcessingWindow(QMainWindow):
 
         files = os.listdir(folder)
         
-        files = [f for f in files if f.endswith('.las') or f.endswith('.laz')]
+        files = [f for f in files if f.lower().endswith(('.las', '.laz', '.ply'))]
         self.file_table = QTableWidget()
         self.file_table.setRowCount(len(files))
         if self.show_only_optimal:

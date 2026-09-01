@@ -8,16 +8,28 @@ This document provides API documentation for the core functions in the core Tree
 
 ### Utils.load_point_cloud
 
-Loads a point cloud from LAS or LAZ files and converts it to numpy format
+Loads a point cloud from a LAS, LAZ, PLY, .xyz or .txt file and converts it to numpy format
 
 **Args:**
-- `file_path` (`str`): Path to the LAS or LAZ file.
-- `intensity_threshold` (`int`, optional): Threshold for filtering points based on intensity. Default is 0.
-- `full_data` (`bool`, optional): If `True`, returns both the point cloud and additional point data. Default is `False`.
+- `file_path` (`str`): Path to the file.
+- `intensity_threshold` (`float`, optional): Points whose scalar value is below this are dropped. Default is 0.
+- `full_data` (`bool`, optional): If `True`, returns both the point cloud and the Nx4 point data. Default is `False`.
+- `scalar_field` (`str`, optional): LAS dimension or PLY vertex field used as the intensity column, matched case-insensitively (PLY also accepts a `scalar_` prefix, which is how CloudCompare exports fields). Default is `"intensity"`. Ignored for .xyz/.txt input.
+- `normalize_scalar` (`bool`, optional): Rescale the chosen field to 0-65535 before the threshold, so negative or fractional units work with intensity thresholds. Default is `False`.
 
 **Returns:**
 - `point_cloud` (`ndarray`): Nx3 matrix of point coordinates (x, y, z).
-- `(point_cloud, point_data)` (`tuple`, optional): If `full_data` is `True`, returns a tuple containing the point cloud and additional point data.
+- `(point_cloud, point_data)` (`tuple`, optional): If `full_data` is `True`, returns a tuple containing the point cloud and the Nx4 point data (x, y, z, scalar).
+
+### Utils.list_scalar_fields
+
+Returns the per-point field names of a LAS, LAZ or PLY file in file order, or an empty list for other input.
+
+**Args:**
+- `file_path` (`str`): Path to the file.
+
+**Returns:**
+- `list of str`: Field names, for use as `scalar_field` above.
 
 ---
 
