@@ -96,7 +96,7 @@ def cylinders(P,cover,segment,inputs):
         'extension': np.zeros(n_init, dtype=np.uint32),
         'added': np.zeros(n_init, dtype=bool),
         'UnmodRadius': np.zeros(n_init, dtype=np.float32),
-        'branch': np.zeros(n_init, dtype=np.uint16),
+        'branch': np.zeros(n_init, dtype=np.uint32),
         'SurfCov': np.zeros(n_init, dtype=np.float32),
         'mad': np.zeros(n_init, dtype=np.float32),
     }
@@ -238,7 +238,7 @@ def cylinders(P,cover,segment,inputs):
                 BOrd[i] = BOrd[p] + 1
     cylinder['BranchOrder'] = BOrd
     # Define the cylinder position inside the branch
-    PiB = np.ones(c, dtype=np.uint16)
+    PiB = np.ones(c, dtype=np.uint32)
     for i in range(NumOfSeg):
         cyls = CiS[i]
         if cyls:
