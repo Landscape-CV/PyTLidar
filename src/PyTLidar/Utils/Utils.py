@@ -1068,6 +1068,47 @@ def surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
 
     
 
+@jit(nopython=True)
+def _sc_volume(Dis, nl, ns, Len):
+    """Interpolate missing cell distances."""
+    D = Dis.copy()
+    dis_out = Dis.copy()
+    # rows of D reversed; negative-step slices are not supported in numba
+    D_inv = np.empty_like(D)
+    for ii in range(nl):
+        D_inv[ii, :] = D[nl - 1 - ii, :]
+    # 3x3 tiling: outer rows use D_inv, middle row uses D
+    D_ext = np.zeros((3 * nl, 3 * ns))
+    for bi in range(3):
+        blk = D if bi == 1 else D_inv
+        for bj in range(3):
+            D_ext[bi * nl:(bi + 1) * nl, bj * ns:(bj + 1) * ns] = blk
+    Df = D.ravel()
+    posD = Df[Df > 0]
+    RadMean = average(posD) if posD.size > 0 else 0.0
+    for i in range(nl):
+        for j in range(ns):
+            if D[i, j] == 0:
+                # widen the window until it holds more than one known distance
+                w = D_ext[i + nl - 1:i + nl + 2, j + ns - 1:j + ns + 2].ravel()
+                wp = w[w > 0]
+                if wp.size > 1:
+                    dis_out[i, j] = average(wp)
+                else:
+                    w = D_ext[i + nl - 2:i + nl + 3, j + ns - 2:j + ns + 3].ravel()
+                    wp = w[w > 0]
+                    if wp.size > 1:
+                        dis_out[i, j] = average(wp)
+                    else:
+                        w = D_ext[i + nl - 3:i + nl + 4, j + ns - 3:j + ns + 4].ravel()
+                        wp = w[w > 0]
+                        if wp.size > 1:
+                            dis_out[i, j] = average(wp)
+                        else:
+                            dis_out[i, j] = RadMean
+    return dis_out
+
+
 def surface_coverage(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
     """
     Computes point surface coverage measure of a cylinder.
@@ -1087,52 +1128,11 @@ def surface_coverage(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
         CylVol  : Cylinder volume estimate (in liters) computed from the mean distances.
         dis     : (nl x ns) matrix of distances where missing values are interpolated.
     """
-    
-    Dis,SurfCov,Len = surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=Dmin, Dmax=Dmax)
-    # If volume estimation is requested, compute interpolation for missing distances.
-    # (In MATLAB: if nargout > 2)
-    # Create an extended matrix D_ext by replicating D (here D = Dis)
-    CylVol = None
-    dis_out = None
-    D = Dis.copy()
-    dis_out = Dis.copy()
-    D_inv = D[::-1, :]  # reverse rows
-    D_ext = np.block([
-        [D_inv, D_inv, D_inv],
-        [D,     D,     D],
-        [D_inv, D_inv, D_inv]
-    ])
-    
-    Zero = (D == 0)
-    if np.count_nonzero(D) > 0:
-        D=D.flatten()
-        RadMean = average(D[D > 0])
-    else:
-        RadMean = 0
-    for i in range(nl):
-        for j in range(ns):
-            if Zero[i, j]:
-                # First try a 3x3 window.
-                window = D_ext[i+nl-1:i+nl+2, j+ns-1:j+ns+2].flatten()
-                if np.count_nonzero(window) > 1:
-                    dis_out[i, j] = average(window[window > 0])
-                else:
-                    # Try a 5x5 window.
-                    window = D_ext[i+nl-2:i+nl+3, j+ns-2:j+ns+3]
-                    if np.count_nonzero(window) > 1:
-                        dis_out[i, j] = average(window[window > 0])
-                    else:
-                        # Try a 7x7 window.
-                        window = D_ext[i+nl-3:i+nl+4, j+ns-3:j+ns+4]
-                        if np.count_nonzero(window) > 1:
-                            dis_out[i, j] = average(window[window > 0])
-                        else:
-                            dis_out[i, j] = RadMean
-    # Compute volume estimate.
-    r = dis_out.flatten()
-    CylVol = 1000 * np.pi * np.sum(r**2) / ns * (Len / nl)
-    
 
+    Dis, SurfCov, Len = surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=Dmin, Dmax=Dmax)
+    dis_out = _sc_volume(Dis, nl, ns, Len)
+    r = dis_out.ravel()
+    CylVol = 1000 * np.pi * np.sum(r ** 2) / ns * (Len / nl)
     return SurfCov, Dis, CylVol, dis_out
 
 
@@ -1177,6 +1177,104 @@ def surface_coverage2(axis, length, vec, height, nl, ns):
     return surf_cov
 
 
+@jit(nopython=True)
+def _surface_coverage_filtering_core(P, axis, start, length, lh, ns):
+    """Returns (Pass, R_new, SurfCov, d), d being the point distances to the axis."""
+    d, V, h, _tmp = distances_to_line(P, axis, start)
+    h = h - np.min(h)
+    Uu, Ww = orthonormal_vectors(axis)
+    V_proj = V @ np.column_stack((Uu, Ww))
+    ang = np.arctan2(V_proj[:, 1], V_proj[:, 0]) + np.pi
+    npnt = P.shape[0]
+
+    # initial partition into nl layers and ns sectors
+    nl = int(np.ceil(length / lh))
+    Layer = np.ceil(h / length * nl).astype(np.int64)
+    for i in range(npnt):
+        if Layer[i] < 1:
+            Layer[i] = 1
+        elif Layer[i] > nl:
+            Layer[i] = nl
+    Sector = np.ceil(ang / (2 * np.pi) * ns).astype(np.int64)
+    for i in range(npnt):
+        if Sector[i] < 1:
+            Sector[i] = 1
+    LexOrd = (Layer - 1) + (Sector - 1) * nl
+    SortOrd = np.argsort(LexOrd)
+    LexOrd_sorted = LexOrd[SortOrd]
+    ds = d[SortOrd]
+    Dis = np.zeros((nl, ns))
+    p_idx = 0
+    while p_idx < npnt:
+        t = 1
+        while (p_idx + t < npnt) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
+            t += 1
+        D_val = ds[p_idx]
+        for q in range(p_idx + 1, p_idx + t):
+            if ds[q] < D_val:
+                D_val = ds[q]
+        Dis.flat[LexOrd_sorted[p_idx]] = min(1.05 * D_val, D_val + 0.02)
+        p_idx += t
+
+    # radius estimate and updated partition parameters
+    df = Dis.ravel()
+    valid = df > 0
+    R_val = np.median(df[valid]) if np.any(valid) else 0.0
+    a_val = max(0.02, 0.2 * R_val)
+    ns_new = int(np.ceil(2 * np.pi * R_val / a_val))
+    if ns_new > 36:
+        ns_new = 36
+    if ns_new < 8:
+        ns_new = 8
+    nl_new = int(np.ceil(length / a_val))
+    if nl_new < 3:
+        nl_new = 3
+
+    Layer = np.ceil(h / length * nl_new).astype(np.int64)
+    for i in range(npnt):
+        if Layer[i] < 1:
+            Layer[i] = 1
+        elif Layer[i] > nl_new:
+            Layer[i] = nl_new
+    Sector = np.ceil(ang / (2 * np.pi) * ns_new).astype(np.int64)
+    for i in range(npnt):
+        if Sector[i] < 1:
+            Sector[i] = 1
+    LexOrd = (Layer - 1) + (Sector - 1) * nl_new
+    SortOrd = np.argsort(LexOrd)
+    LexOrd_sorted = LexOrd[SortOrd]
+    d_sorted = d[SortOrd]
+
+    # filter: keep the points near the axis in each cell. Marking through
+    # SortOrd fills Pass in original point order.
+    Dis = np.zeros((nl_new, ns_new))
+    Pass = np.zeros(npnt, dtype=np.bool_)
+    r_val = max(0.01, 0.05 * R_val)
+    p_idx = 0
+    k = 0
+    while p_idx < npnt:
+        t = 1
+        while (p_idx + t < npnt) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
+            t += 1
+        Dmin = d_sorted[p_idx]
+        for q in range(p_idx + 1, p_idx + t):
+            if d_sorted[q] < Dmin:
+                Dmin = d_sorted[q]
+        thr = Dmin + r_val
+        for q in range(p_idx, p_idx + t):
+            if d_sorted[q] <= thr:
+                Pass[SortOrd[q]] = True
+        Dis.flat[LexOrd_sorted[p_idx]] = min(1.05 * Dmin, Dmin + 0.02)
+        p_idx += t
+        k += 1
+
+    df2 = Dis.ravel()
+    valid2 = df2 > 0
+    R_new = np.median(df2[valid2]) if np.any(valid2) else 0.0
+    SurfCov = k / (nl_new * ns_new)
+    return Pass, R_new, SurfCov, d
+
+
 def surface_coverage_filtering(P, c, lh, ns):
     """
     Filters a 3D point cloud based on the assumption that it samples a cylinder.
@@ -1200,109 +1298,19 @@ def surface_coverage_filtering(P, c, lh, ns):
         c    : Updated cylinder dictionary with additional keys:
                     "radius", "SurfCov", "mad", "conv", "rel".
     """
-    # --- Step 1. Compute distances, projected vectors, and heights.
-    # distances_to_line returns (d, V, h, _) -- we ignore the fourth output.
-    d, V, h, _ = distances_to_line(P, c["axis"], c["start"])
-    h = h - np.min(h)
-
-    # Compute two orthonormal vectors U and W perpendicular to c.axis.
-    U, W = orthonormal_vectors(c["axis"])
-    # Project V onto the plane spanned by U and W.
-    V_proj = np.dot(V, np.column_stack((U, W)))  # shape: (n_points, 2)
-    ang = np.arctan2(V_proj[:, 1], V_proj[:, 0]) + np.pi
-
-    # --- Step 2. Initial partitioning into layers and sectors.
-    nl = int(np.ceil(c["length"] / lh))
-    # Compute layer indices (using 1-indexing in MATLAB, then converting to 0-indexing):
-    Layer = np.ceil(h / c["length"] * nl).astype(int)
-    Layer[Layer < 1] = 1
-    Layer[Layer > nl] = nl
-    # Sector indices:
-    Sector = np.ceil(ang / (2 * np.pi) * ns).astype(int)
-    Sector[Sector < 1] = 1
-    # Compute lexicographic order:
-    # In MATLAB: LexOrd = [Layer, Sector-1]*[1; nl] → Layer + (Sector-1)*nl.
-    # Convert to 0-index: subtract 1 from Layer.
-    LexOrd = (Layer - 1) + (Sector - 1) * nl  # Now in range 0 ... (nl*ns - 1)
-
-    # Sort LexOrd and apply the same permutation to d.
-    SortOrd = np.argsort(LexOrd)
-    LexOrd_sorted = LexOrd[SortOrd]
-    ds = d[SortOrd]
-    np_points = P.shape[0]
-
-    # For each cell (group of points with same LexOrd), store a distance estimate.
-    Dis = np.zeros((nl, ns))
-    p_idx = 0
-    while p_idx < np_points:
-        t = 1
-        while (p_idx + t < np_points) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
-            t += 1
-        group_d = ds[p_idx : p_idx + t]
-        D_val = np.min(group_d)
-        cell_idx = LexOrd_sorted[p_idx]  # This is a flat index (0-indexed) into Dis.
-        Dis.flat[cell_idx] = min(1.05 * D_val, D_val + 0.02)
-        p_idx += t
-
-    # --- Step 3. Estimate cylinder radius and update partition parameters.
-    valid = Dis > 0
-    R_val = np.median(Dis[valid]) if np.any(valid) else 0
-    a_val = max(0.02, 0.2 * R_val)
-    ns_new = int(np.ceil(2 * np.pi * R_val / a_val))
-    ns_new = min(36, max(ns_new, 8))
-    nl_new = int(np.ceil(c["length"] / a_val))
-    nl_new = max(nl_new, 3)
-
-    # Recompute layer and sector indices with updated nl and ns.
-    Layer = np.ceil(h / c["length"] * nl_new).astype(int)
-    Layer[Layer < 1] = 1
-    Layer[Layer > nl_new] = nl_new
-    Sector = np.ceil(ang / (2 * np.pi) * ns_new).astype(int)
-    Sector[Sector < 1] = 1
-    LexOrd = (Layer - 1) + (Sector - 1) * nl_new
-    SortOrd = np.argsort(LexOrd)
-    LexOrd_sorted = LexOrd[SortOrd]
-    d_sorted = d[SortOrd]
-
-    # --- Step 4. Filtering: for each cell, keep points close to the axis.
-    Dis = np.zeros((nl_new, ns_new))
-    Pass = np.zeros(np_points, dtype=bool)
-    p_idx = 0
-    k = 0
-    r_val = max(0.01, 0.05 * R_val)
-    while p_idx < np_points:
-        t = 1
-        while (p_idx + t < np_points) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
-            t += 1
-        ind = np.arange(p_idx, p_idx + t)
-        D_group = d_sorted[ind]
-        Dmin = np.min(D_group)
-        I = D_group <= (Dmin + r_val)
-        # Mark the corresponding original indices as passing.
-        selected = SortOrd[p_idx : p_idx + t][I]
-        Pass[selected] = True
-        cell_idx = LexOrd_sorted[p_idx]
-        Dis.flat[cell_idx] = min(1.05 * Dmin, Dmin + 0.02)
-        p_idx += t
-        k += 1
-    # d_filtered: only the distances of points that pass.
-    # Pass is already in original point-cloud order because it was indexed
-    # through SortOrd when marked (selected = SortOrd[...][I]). MATLAB builds
-    # Pass in sorted order and then applies InvSortOrd to restore the original
-    # order; here that restoration is already implicit, so no re-permutation.
+    Pass, R_new, SurfCov_val, d = _surface_coverage_filtering_core(
+        P,
+        np.ascontiguousarray(np.asarray(c["axis"], dtype=np.float64)).ravel(),
+        np.ascontiguousarray(np.asarray(c["start"], dtype=np.float64)).ravel(),
+        float(c["length"]), float(lh), int(ns))
     d_filtered = d[Pass]
-
-    # --- Step 6. Compute final statistics.
-    valid_D = Dis > 0
-    R_new = np.median(Dis[valid_D]) if np.any(valid_D) else 0
     if d_filtered.size > 0:
         mad_val = np.sum(np.abs(d_filtered - R_new)) / d_filtered.size
     else:
         mad_val = 0.0
 
-    # Update cylinder structure with new estimates.
     c["radius"] = R_new
-    c["SurfCov"] = k / (nl_new * ns_new)
+    c["SurfCov"] = SurfCov_val
     c["mad"] = mad_val
     c["conv"] = 1
     c["rel"] = 1
