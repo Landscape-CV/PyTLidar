@@ -447,6 +447,36 @@ def optimal_parallel_vector(V):
 
 
 
+def csr_neighbors(Nei):
+    """The neighbor lists as one int64 index array with offsets: (indptr, indices)."""
+    nb = len(Nei)
+    lens = np.fromiter((len(n) for n in Nei), dtype=np.int64, count=nb)
+    indptr = np.zeros(nb + 1, dtype=np.int64)
+    np.cumsum(lens, out=indptr[1:])
+    if nb > 0 and indptr[-1] > 0:
+        indices = np.concatenate(Nei).astype(np.int64)
+    else:
+        indices = np.zeros(0, dtype=np.int64)
+    return indptr, np.ascontiguousarray(indices)
+
+
+@jit(nopython=True)
+def gather_neighbors(indptr, indices, X):
+    """The neighbor lists of the sets X concatenated in the order of X, the same
+    as np.concatenate([Nei[x] for x in X])."""
+    total = 0
+    for k in range(X.shape[0]):
+        total += indptr[X[k] + 1] - indptr[X[k]]
+    out = np.empty(total, dtype=np.int64)
+    c = 0
+    for k in range(X.shape[0]):
+        a = X[k]
+        for q in range(indptr[a], indptr[a + 1]):
+            out[c] = indices[q]
+            c += 1
+    return out
+
+
 def unique_elements_array(arr,False_mask=None):
     """
     Alias for np.unique(arr) to maintain consistency with other functions.
