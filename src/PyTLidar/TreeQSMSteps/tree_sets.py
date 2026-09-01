@@ -36,7 +36,7 @@ except ImportError:
 _csr_neighbors = Utils.csr_neighbors
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def _neighbors_of(a, indptr, indices, ex_nodes, ex_targets):
     """Neighbors of set a: the stored list, then the links added later, in order."""
     lo = np.searchsorted(ex_nodes, a, side='left')
@@ -50,7 +50,7 @@ def _neighbors_of(a, indptr, indices, ex_nodes, ex_targets):
     return out
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def _components_csr(indptr, indices, ex_nodes, ex_targets, Sub, MinSize):
     """
     Utils.connected_components_array for a logical Sub, on the neighbor lists in

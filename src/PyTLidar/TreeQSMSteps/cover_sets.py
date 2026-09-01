@@ -46,7 +46,7 @@ def _cube_index(P, EL, NE):
     return CubeCoord, N, np.ascontiguousarray(order), np.ascontiguousarray(keys[order])
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def _grow_balls(P, CC, N, order, keys, RandPerm, NotExa, nmin, uniform, Radius_sq_u,
                 MaxDist_sq_u, RelSize, MRS, PatchDiamMax, e, r):
     """

@@ -39,7 +39,7 @@ def rotate_to_z_axis(Vec):
         D = np.array([1.0, 0.0, 0.0])
     return R, D, a
 
-@numba.jit()
+@numba.jit(cache=True)
 def form_rotation_matrices(theta):
     """
     Forms rotation matrices R = R2*R1 and computes the derivatives dR1 and dR2.
@@ -254,7 +254,7 @@ def func_grad_circle_centre(P, par, weight=None):
     return dist, J
 
 
-@numba.jit()
+@numba.jit(cache=True)
 def func_grad_cylinder(par, P, weight=None, need_jac=True):
     """
     Function and gradient calculation for least-squares cylinder fit.
@@ -353,7 +353,7 @@ def func_grad_cylinder(par, P, weight=None, need_jac=True):
     return dist, J
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def _cylinder_gauss_newton(par, Pt, weight, has_weight):
     """The Gauss-Newton iterations of least_squares_cylinder. Returns
     (par, dist, conv, rel). J.T @ J is left to numpy: it uses the symmetric
@@ -401,7 +401,7 @@ def _cylinder_gauss_newton(par, Pt, weight, has_weight):
     return par, dist_new, conv, rel
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def _circle_centre_dist_jac(P, x0, y0, r):
     Vx = P[:, 0] - x0
     Vy = P[:, 1] - y0
@@ -418,7 +418,7 @@ def _circle_centre_dist_jac(P, x0, y0, r):
     return dist, J
 
 
-@numba.jit(nopython=True)
+@numba.jit(nopython=True, cache=True)
 def _circle_centre_gauss_newton(P, par):
     """The Gauss-Newton iterations of least_squares_circle_centre. Returns
     (par, conv, rel). J.T @ J stays in numpy for the same reason as above."""
