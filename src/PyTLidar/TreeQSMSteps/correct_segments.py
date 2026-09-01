@@ -143,6 +143,29 @@ def correct_segments(P,cover,segment,inputs,RemSmall=False,ModBases=True,AddChil
     return segment
 
 
+class _LayerCentres:
+    """Centre of a segment layer, cached by the layer array. The candidate stems
+    and branches share their layer arrays, so each layer is averaged once."""
+
+    def __init__(self, P, Ce, Bal):
+        self.P = P
+        self.Ce = Ce
+        self.Bal = Bal
+        self.cache = {}
+
+    def __call__(self, S):
+        key = id(S)
+        hit = self.cache.get(key)
+        if hit is not None and hit[0] is S:
+            return hit[1]
+        if len(S) > 1:
+            node = np.mean(self.Ce[S.astype(int), :], axis=0)
+        else:
+            node = np.mean(self.P[self.Bal[S[0]], :], axis=0)
+        self.cache[key] = (S, node)
+        return node
+
+
 def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
     """
     Search the stem's top segment such that the resulting stem:
@@ -182,6 +205,7 @@ def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
     SearchDist = 0.5
     MaxLenDisRatio = 1.05  # The maximum acceptable length/distance ratio of segments
     SubSegs = np.zeros(100, dtype=int)-1  # Segments to be combined to form the stem
+    layer_centre = _LayerCentres(P, Ce, Bal)
 
     while LenDisRatio > MaxLenDisRatio:
         SubSegs = SubSegs.copy().astype(int)
@@ -281,12 +305,7 @@ def search_stem_top(P, Ce, Bal, Segs, SPar, dmin):
                 I = (j) * N
                 if I >= ns:
                     I = ns - 1
-                S = Seg[I]
-                if  len(S) > 1:
-                    Nodes[j, :] = np.mean(Ce[S.astype(int), :], axis=0)
-                else:
-                    S = Bal[S[0]]
-                    Nodes[j, :] = np.mean(P[S, :], axis=0)
+                Nodes[j, :] = layer_centre(Seg[I])
 
             V = Nodes[1:, :] - Nodes[:-1, :]
             Lengths[i] = np.sum(np.sqrt(np.sum(V**2, axis=1)))
@@ -433,6 +452,7 @@ def search_branch_top(P, Ce, Bal, Segs, SPar, SChi, dmin, BI):
     i = 0  # Running index for while loop
     Continue = True  # Continue while loop as long as "Continue" is True
     Lengths = np.zeros(t)  # Linear lengths of the branches
+    layer_centre = _LayerCentres(P, Ce, Bal)
 
     while i < t and Continue:
         # Approximate the length with line segments connecting nodes along the segment
@@ -450,12 +470,7 @@ def search_branch_top(P, Ce, Bal, Segs, SPar, SChi, dmin, BI):
             I = j * N
             if I >= ns:
                 I = ns - 1
-            S = Seg[I]
-            if len(S) > 1:
-                Nodes[j, :] = np.mean(Ce[S.astype(int), :], axis=0)
-            else:
-                S = Bal[S[0]]
-                Nodes[j, :] = np.mean(P[S, :], axis=0)
+            Nodes[j, :] = layer_centre(Seg[I])
 
         V = Nodes[1:, :] - Nodes[:-1, :]  # Line segments
         Lengths[i] = np.sum(np.sqrt(np.sum(V**2, axis=1)))
