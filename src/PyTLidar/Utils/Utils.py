@@ -72,7 +72,7 @@ def load_point_cloud(file_path, intensity_threshold = 0, full_data = False):
 
 
 
-@jit()
+@jit(cache=True)
 def average(X):
 
     """
@@ -195,7 +195,7 @@ def dot_product(A, B):
 
 
 
-@jit()
+@jit(cache=True)
 def distances_to_line(Q, LineDirec, LinePoint):
     """
     Calculates the distances of points to a line in 3D space.
@@ -373,7 +373,7 @@ def mat_vec_subtraction(A, v):
 
 
 
-@jit()
+@jit(cache=True)
 def rotation_matrix(A, angle):
     """
     Returns the rotation matrix for the given axis A and angle (in radians).
@@ -395,7 +395,7 @@ def rotation_matrix(A, angle):
     R[2, :] = [A[0]*A[2]*(1-c) - A[1]*s,        A[1]*A[2]*(1-c) + A[0]*s,        A[2]**2 + (1 - A[2]**2)*c]
     return R
 
-@jit
+@jit(cache=True)
 def orthonormal_vectors(U):
     """
     Generate two unit vectors (V and W) that are orthogonal to each other
@@ -460,7 +460,7 @@ def csr_neighbors(Nei):
     return indptr, np.ascontiguousarray(indices)
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def gather_neighbors(indptr, indices, X):
     """The neighbor lists of the sets X concatenated in the order of X, the same
     as np.concatenate([Nei[x] for x in X])."""
@@ -1014,7 +1014,7 @@ def growth_volume_correction(cylinder, inputs):
 
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
     """
     First half of surface coverage moved out for numba compilation
@@ -1062,12 +1062,15 @@ def surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
         # Compute lexicographic order: for 1-indexing, we use:
         # lex = (Layer - 1) + (Sector - 1)*nl, which gives indices 0...nl*ns-1.
         lexord = (Layer - 1) + (Sector - 1) * nl
-        # Build coverage matrix Cov of shape (nl, ns)
-        Cov = np.zeros((nl, ns))
-        unique_lex = np.unique(lexord)
-        for val in unique_lex:
-            Cov.flat[int(val)] = 1
-        surf_cov_array[i] = np.count_nonzero(Cov) / (nl * ns)
+        # Count the occupied cells
+        occupied = np.zeros(nl * ns, dtype=np.bool_)
+        for v in lexord:
+            occupied[v] = True
+        cnt = 0
+        for v in occupied:
+            if v:
+                cnt += 1
+        surf_cov_array[i] = cnt / (nl * ns)
         # Save lex order from final rotation for further processing.
         if i == 3:
             lexord_final = lexord.copy()
@@ -1098,7 +1101,7 @@ def surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
 
     
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def _sc_window_mean(D, nl, ns, i, j, w):
     """Mean of the positive cells in the (2w+1) square window around (i, j) of the
     3x3 tiling of D whose outer row blocks are D with the rows reversed. Summed in
@@ -1121,7 +1124,7 @@ def _sc_window_mean(D, nl, ns, i, j, w):
     return 0.0, 0
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def _sc_volume(Dis, nl, ns, Len):
     """Interpolate missing cell distances."""
     D = Dis
@@ -1226,7 +1229,7 @@ def surface_coverage2(axis, length, vec, height, nl, ns):
     return surf_cov
 
 
-@jit(nopython=True)
+@jit(nopython=True, cache=True)
 def _surface_coverage_filtering_core(P, axis, start, length, lh, ns):
     """Returns (Pass, R_new, SurfCov, d), d being the point distances to the axis."""
     d, V, h, _tmp = distances_to_line(P, axis, start)
@@ -1249,21 +1252,16 @@ def _surface_coverage_filtering_core(P, axis, start, length, lh, ns):
         if Sector[i] < 1:
             Sector[i] = 1
     LexOrd = (Layer - 1) + (Sector - 1) * nl
-    SortOrd = np.argsort(LexOrd)
-    LexOrd_sorted = LexOrd[SortOrd]
-    ds = d[SortOrd]
+    # smallest distance in each cell; the cells need no sorting for that
+    cell_min = np.full(nl * ns, np.inf)
+    for i in range(npnt):
+        if d[i] < cell_min[LexOrd[i]]:
+            cell_min[LexOrd[i]] = d[i]
     Dis = np.zeros((nl, ns))
-    p_idx = 0
-    while p_idx < npnt:
-        t = 1
-        while (p_idx + t < npnt) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
-            t += 1
-        D_val = ds[p_idx]
-        for q in range(p_idx + 1, p_idx + t):
-            if ds[q] < D_val:
-                D_val = ds[q]
-        Dis.flat[LexOrd_sorted[p_idx]] = min(1.05 * D_val, D_val + 0.02)
-        p_idx += t
+    for c in range(nl * ns):
+        D_val = cell_min[c]
+        if D_val < np.inf:
+            Dis.flat[c] = min(1.05 * D_val, D_val + 0.02)
 
     # radius estimate and updated partition parameters
     df = Dis.ravel()
@@ -1290,32 +1288,25 @@ def _surface_coverage_filtering_core(P, axis, start, length, lh, ns):
         if Sector[i] < 1:
             Sector[i] = 1
     LexOrd = (Layer - 1) + (Sector - 1) * nl_new
-    SortOrd = np.argsort(LexOrd)
-    LexOrd_sorted = LexOrd[SortOrd]
-    d_sorted = d[SortOrd]
 
-    # filter: keep the points near the axis in each cell. Marking through
-    # SortOrd fills Pass in original point order.
+    # filter: keep the points near the axis in each cell
+    ncell = nl_new * ns_new
+    cell_min = np.full(ncell, np.inf)
+    for i in range(npnt):
+        if d[i] < cell_min[LexOrd[i]]:
+            cell_min[LexOrd[i]] = d[i]
     Dis = np.zeros((nl_new, ns_new))
     Pass = np.zeros(npnt, dtype=np.bool_)
     r_val = max(0.01, 0.05 * R_val)
-    p_idx = 0
     k = 0
-    while p_idx < npnt:
-        t = 1
-        while (p_idx + t < npnt) and (LexOrd_sorted[p_idx + t] == LexOrd_sorted[p_idx]):
-            t += 1
-        Dmin = d_sorted[p_idx]
-        for q in range(p_idx + 1, p_idx + t):
-            if d_sorted[q] < Dmin:
-                Dmin = d_sorted[q]
-        thr = Dmin + r_val
-        for q in range(p_idx, p_idx + t):
-            if d_sorted[q] <= thr:
-                Pass[SortOrd[q]] = True
-        Dis.flat[LexOrd_sorted[p_idx]] = min(1.05 * Dmin, Dmin + 0.02)
-        p_idx += t
-        k += 1
+    for c in range(ncell):
+        Dmin = cell_min[c]
+        if Dmin < np.inf:
+            Dis.flat[c] = min(1.05 * Dmin, Dmin + 0.02)
+            k += 1
+    for i in range(npnt):
+        if d[i] <= cell_min[LexOrd[i]] + r_val:
+            Pass[i] = True
 
     df2 = Dis.ravel()
     valid2 = df2 > 0
