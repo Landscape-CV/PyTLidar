@@ -10,7 +10,8 @@ Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Gro
 This derivative work is released under the GNU General Public License (GPL).
 """
 
-from numba import jit
+from numba import jit, types
+from numba.typed import List
 import numpy as np
 try:
     from ..Utils import Utils
@@ -18,6 +19,122 @@ except ImportError:
     import Utils.Utils as Utils
 # import csv
 import time
+
+
+def _cube_index(P, EL, NE):
+    """
+    Cube coordinates of the points, the same way Utils.cubical_partition computes
+    them, plus the points sorted by cube and the sorted cube keys, so a cube's
+    points can be found by binary search instead of through a table of cubes.
+    Returns (CubeCoord, N, order, keys).
+    """
+    P = np.array(P, dtype=float)
+    Min = np.min(P, axis=0)
+    Max = np.max(P, axis=0)
+    N = np.ceil((Max - Min) / EL).astype(int) + 2 * NE + 1
+    t = 0
+    while t < 10 and 8 * np.prod(N) > 4e9:
+        t += 1
+        EL *= 1.1
+        N = np.ceil((Max - Min) / EL).astype(int) + 2 * NE + 1
+    if 8 * np.prod(N) > 4e9:
+        NE = 3
+        N = np.ceil((Max - Min) / EL).astype(int) + 2 * NE + 1
+    CubeCoord = np.floor((P - Min) / EL).astype(int) + NE + 1
+    order = np.lexsort((CubeCoord[:, 2], CubeCoord[:, 1], CubeCoord[:, 0]))
+    keys = (CubeCoord[:, 0] * N[1] + CubeCoord[:, 1]) * N[2] + CubeCoord[:, 2]
+    return CubeCoord, N, np.ascontiguousarray(order), np.ascontiguousarray(keys[order])
+
+
+@jit(nopython=True)
+def _grow_balls(P, CC, N, order, keys, RandPerm, NotExa, nmin, uniform, Radius_sq_u,
+                MaxDist_sq_u, RelSize, MRS, PatchDiamMax, e, r):
+    """
+    The seed loop shared by the uniform and the variable cover. For each seed
+    the candidate points are the ones in the cube window around it, in cube
+    order, and the ball is the candidates within the radius. Returns
+    (Ball, Cen, BoP, nb).
+    """
+    n = P.shape[0]
+    Dist = np.full(n, 1e8)
+    BoP = np.zeros(n, dtype=np.int64)
+    Ball = List.empty_list(types.int64[::1])
+    Cen = List.empty_list(types.int64)
+    nb = 0
+    for Q in RandPerm:
+        if not NotExa[Q]:
+            continue
+        if uniform:
+            W = 1
+            Radius_sq = Radius_sq_u
+            MaxDist_sq = MaxDist_sq_u
+        else:
+            rs = RelSize[Q] / 256 * (1 - MRS) + MRS
+            MaxDist = PatchDiamMax * rs
+            Radius = MaxDist + np.sqrt(rs) * e
+            W = int(np.ceil(Radius / r))
+            Radius_sq = Radius * Radius
+            MaxDist_sq = MaxDist * MaxDist
+        xa = max(CC[Q, 0] - W, 1)
+        xb = min(CC[Q, 0] + W, N[0])
+        ya = max(CC[Q, 1] - W, 1)
+        yb = min(CC[Q, 1] + W, N[1])
+        za = max(CC[Q, 2] - W, 1)
+        zb = min(CC[Q, 2] + W, N[2])
+        cnt = 0
+        for x in range(xa, xb + 1):
+            for y in range(ya, yb + 1):
+                for z in range(za, zb + 1):
+                    key = (x * N[1] + y) * N[2] + z
+                    cnt += np.searchsorted(keys, key, side='right') - np.searchsorted(keys, key, side='left')
+        if cnt == 0:
+            continue
+        pts = np.empty(cnt, dtype=np.int64)
+        d = np.empty(cnt)
+        k = 0
+        qx = P[Q, 0]
+        qy = P[Q, 1]
+        qz = P[Q, 2]
+        for x in range(xa, xb + 1):
+            for y in range(ya, yb + 1):
+                for z in range(za, zb + 1):
+                    key = (x * N[1] + y) * N[2] + z
+                    lo = np.searchsorted(keys, key, side='left')
+                    hi = np.searchsorted(keys, key, side='right')
+                    for s in range(lo, hi):
+                        p = order[s]
+                        dx = P[p, 0] - qx
+                        dy = P[p, 1] - qy
+                        dz = P[p, 2] - qz
+                        pts[k] = p
+                        d[k] = dx * dx + dy * dy + dz * dz
+                        k += 1
+        m = 0
+        for k in range(cnt):
+            if d[k] < Radius_sq:
+                m += 1
+        if m < nmin:
+            continue
+        ball_points = np.empty(m, dtype=np.int64)
+        dist = np.empty(m)
+        m = 0
+        for k in range(cnt):
+            if d[k] < Radius_sq:
+                ball_points[m] = pts[k]
+                dist[m] = d[k]
+                m += 1
+        for k in range(m):
+            if dist[k] < MaxDist_sq:
+                NotExa[ball_points[k]] = False
+        nb += 1
+        Ball.append(ball_points)
+        Cen.append(Q)
+        for k in range(m):
+            p = ball_points[k]
+            if dist[k] < Dist[p]:
+                BoP[p] = nb
+                Dist[p] = dist[k]
+    return Ball, Cen, BoP, nb
 
 def cover_sets(P, inputs, RelSize=None, qsm = True, device = 'cpu', full_point_data = None):
     """
@@ -88,59 +205,22 @@ def uniform_cover(P, inputs, np_points, qsm =True, device = 'cpu', full_point_da
     PatchDiamMax = float(inputs['PatchDiam1'])
     nmin = int(inputs['nmin1'])
 
-    # Partition, CC, Info, Cubes = Utils.cubical_partition(P, BallRad,return_cubes=True)  # Partition the point cloud into cubes for quick neighbor search
-    Partition, CC, Info = Utils.cubical_partition(P, BallRad,return_cubes=False)
-    Partition = np.array(Partition, dtype = 'object')
-    
+    P = np.ascontiguousarray(P, dtype=np.float64)
+    CC, N, order, keys = _cube_index(P, BallRad, 3)
+
     NotExa = np.ones(np_points, dtype=bool)  # the points not yet examined
-    Dist = np.full(np_points, 1e8)  # distance of point to the closest center
-    BoP = np.zeros(np_points, dtype=np.int64)  # the balls/cover sets the points belong
-    Ball = []  # Large balls for generation of the cover sets and their neighbors
-    Cen = []  # the center points of the balls/cover sets
-    nb = 0  # number of sets generated
 
     # random permutation of points, produces different covers for the same inputs:
-    RandPerm = np.random.permutation(np_points)
+    RandPerm = np.random.permutation(np_points).astype(np.int64)
     # Generate the balls
     Radius_sq = BallRad ** 2
     MaxDist_sq = (PatchDiamMax) ** 2
 
-    for _i,i in enumerate(RandPerm):
-        if NotExa[i]:  # point not yet examined
-            Q = i
-            cube = CC[Q]  # get cube coordinates
-
-            points = Partition[CC[Q,0]-2:CC[Q,0]+1,
-                               CC[Q,1]-2:CC[Q,1]+1,
-                               CC[Q,2]-2:CC[Q,2]+1]
-            
-            points = np.concatenate([p for p in points.flatten() if p is not None ])
-            # #print(points)
-            if len(points) == 0:
-                continue
-            # Compute distances of the points to the seed
-            V = P[points] - P[Q]
-            dist = np.sum(V ** 2, axis=1)
-            # Select the points inside the ball
-            inside = dist < Radius_sq
-            ball_points = points[inside]  # the points forming the ball
-            #print(ball_points)
-            if len(ball_points) >= nmin:
-                d = dist[inside]  # the distances of the ball's points
-                core = d < MaxDist_sq  # the core points of the cover set
-                NotExa[ball_points[core]] = False  # mark points as examined
-                # Define the new ball
-                nb += 1
-                Ball.append(ball_points)
-                Cen.append(Q)
-                # Update the cover sets the points belong to and their distances to the closest seed
-                closer = d < Dist[ball_points]
-                closer_idx = np.where(closer)[0]
-                ball_closer = ball_points[closer_idx]
-                BoP[ball_closer] = nb
-                Dist[ball_closer] = d[closer_idx]
+    Ball, Cen, BoP, nb = _grow_balls(P, CC, N, order, keys, RandPerm, NotExa, nmin, True,
+                                     Radius_sq, MaxDist_sq, np.zeros(1, dtype=np.uint8),
+                                     0.0, 0.0, 0.0, 1.0)
     # Create cover sets
-    cover = create_cover(Ball, Cen, BoP, nb, np_points)
+    cover = create_cover(list(Ball), list(Cen), BoP, nb, np_points)
     return cover
     
 
@@ -178,16 +258,10 @@ def variable_cover(P, inputs, RelSize, np_points):
         r = PatchDiamMax / 4
         NE = 1 + int(np.ceil(BallRad / r))
 
-    # Partition, CC, Info, Cubes = Utils.cubical_partition(P, r, NE, return_cubes = True)
-    Partition, CC, Info = Utils.cubical_partition(P, r, NE, return_cubes=False)
-    Partition = np.array(Partition, dtype = 'object')
+    P = np.ascontiguousarray(P, dtype=np.float64)
+    CC, N, order, keys = _cube_index(P, r, NE)
     NotExa = np.ones(np_points, dtype=bool)
     NotExa[RelSize == 0] = False
-    Dist = np.full(np_points, 1e8)  # distance of point to the closest center
-    BoP = np.zeros(np_points, dtype=np.int64)  # the balls/cover sets the points belong
-    Ball = []  # Large balls for generation of the cover sets and their neighbors
-    Cen = []  # the center points of the balls/cover sets
-    nb = 0  # number of sets generated
 
     # Define random permutation of points (results in different covers for
     # same input) so that first small sets are generated. The order is
@@ -203,49 +277,11 @@ def variable_cover(P, inputs, RelSize, np_points):
         np.random.permutation(I3),
     ]).astype(np.int64)
     e = BallRad - PatchDiamMax
-    ind = 0
-    for i in RandPerm:
-        ind+=1
-        if NotExa[i]:
-            Q = i  # the index of the center/seed point of the current cover set
-            # Compute the set size and the cubical neighborhood of the seed point
-            rs = (RelSize[Q] / 256) * (1 - MRS) + MRS  # relative radius
-            MaxDist = PatchDiamMax * rs  # diameter of the cover set
-            Radius = MaxDist + np.sqrt(rs) * e  # radius of the ball including the cover set
-            N = int(np.ceil(Radius / r))  # = number of cube cells needed to be included in the ball
-            points = Partition[CC[Q,0]-N-1:CC[Q,0]+N,
-                               CC[Q,1]-N-1:CC[Q,1]+N,
-                               CC[Q,2]-N-1:CC[Q,2]+N]
-            
-            if len(points.flatten()) == 0:
-                continue
-            points = np.concatenate([p for p in points.flatten() if p is not None ])
-            if len(points) == 0:
-                continue
-            # Compute the distance of the "points" to the seed:
-            V = P[points] - P[Q]
-            dist = np.sum(V ** 2, axis=1)
-            Radius_sq = Radius ** 2
-            # Select the points inside the ball:
-            inside = dist < Radius_sq
-            ball_points = points[inside]
-            if len(ball_points) >= nmin:
-                d = dist[inside]  # the distances of the ball's points
-                core = d < (MaxDist ** 2)  # the core points of the cover set
-                NotExa[ball_points[core]] = False  # mark points as examined
-                # define new ball:
-                nb += 1
-                Ball.append(ball_points)
-                Cen.append(Q)
-                # Select which points belong to this ball, i.e. are closer to this
-                # seed than previously tested seeds:
-                closer = d < Dist[ball_points]  # which points are closer to this seed
-                closer_idx = np.where(closer)[0]
-                ball_closer = ball_points[closer_idx]
-                BoP[ball_closer] = nb
-                Dist[ball_closer] = d[closer_idx]
+    Ball, Cen, BoP, nb = _grow_balls(P, CC, N, order, keys, RandPerm, NotExa, nmin, False,
+                                     0.0, 0.0, np.ascontiguousarray(RelSizeArr), MRS,
+                                     PatchDiamMax, e, r)
 
-    cover = create_cover(Ball, Cen, BoP, nb, np_points)
+    cover = create_cover(list(Ball), list(Cen), BoP, nb, np_points)
     return cover
 
 
