@@ -1,6 +1,9 @@
 import numpy as np
 from scipy.spatial import ConvexHull
-from alphashape import alphashape 
+try:
+    from .alpha_shape import alphashape
+except ImportError:
+    from TreeQSMSteps.alpha_shape import alphashape
 try:
     from ..Utils import Utils
 except ImportError:
@@ -414,7 +417,6 @@ def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
     
     return treedata
 
-# Requires the alphashape library
 
 def crown_measures(treedata, cylinder, branch):
     """
