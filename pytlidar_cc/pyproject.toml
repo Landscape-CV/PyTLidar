@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pytlidar-cc"
-version = "0.1.1"
+version = "0.1.2"
 description = "CloudCompare plugin that runs PyTLidar TreeQSM on a selected point cloud"
 readme = "README.md"
 license = "GPL-3.0-only"
@@ -15,7 +15,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "PyTLidar>=1.1.0",
+    "PyTLidar>=1.1.1",
 ]
 
 [project.entry-points."cloudcompare.plugins"]

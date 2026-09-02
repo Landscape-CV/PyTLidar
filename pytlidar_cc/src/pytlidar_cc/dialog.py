@@ -25,6 +25,21 @@ except ImportError:
 
 from pathlib import Path
 
+
+def check_qt_binding():
+    """Refuse to build widgets unless the imported Qt is the one CloudCompare
+    is running. A PySide6 installed into CloudCompare's Python environment
+    shadows the binding CloudCompare ships, brings its own Qt, and Qt aborts
+    the process on the first widget; that Qt has no application instance,
+    which is what this checks."""
+    if QApplication.instance() is None:
+        raise RuntimeError(
+            "The Qt binding the plugin imported is not CloudCompare's own, so the "
+            "dialog cannot open. A PySide6 installed into CloudCompare's Python "
+            "environment is the usual cause: uninstall it there "
+            "(python -m pip uninstall PySide6 shiboken6) and restart CloudCompare.")
+
+
 WARNING = (
     "TreeQSM uses randomised cover sets: every run gives a slightly "
     "different model.\nProgress appears in the console; the first run also "
@@ -55,6 +70,7 @@ class _JobProgressDialog(QProgressDialog):
 
 def make_progress_dialog(title):
     """Non-modal indeterminate progress dialog with a working Cancel."""
+    check_qt_binding()
     dlg = _JobProgressDialog(title, "Cancel", 0, 0)
     dlg.setWindowTitle("PyTLidar")
     dlg.setMinimumDuration(0)
@@ -308,6 +324,7 @@ def show_settings_dialog(clouds, metrics):
     the settings dict, or None when the user cancels. CloudCompare's Qt event
     loop is already running, so QDialog.exec() is enough; no QApplication or
     QEventLoop needed."""
+    check_qt_binding()
     dialog = _SettingsDialog(clouds, metrics)
     dialog.exec()
     return dialog.settings
