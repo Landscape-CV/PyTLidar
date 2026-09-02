@@ -113,10 +113,7 @@ def correct_segments(P,cover,segment,inputs,RemSmall=False,ModBases=True,AddChil
     ns = len(Segs)
     # Define for each point its segment
     Bal = np.array(Bal,dtype = 'object')
-    if ns <= 2**16:
-        SegmentOfPoint = np.zeros(nump, dtype=np.int16)-1
-    else:
-        SegmentOfPoint = np.zeros(nump, dtype=np.int32)-1
+    SegmentOfPoint = np.zeros(nump, dtype=np.int32)-1
     for i in range(ns):
         S = Segs[i]
         S = np.concatenate([s for s in S])

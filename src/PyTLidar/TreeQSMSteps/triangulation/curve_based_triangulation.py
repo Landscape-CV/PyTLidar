@@ -150,7 +150,7 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     Vert = np.zeros((int(1e5), 3))
     Tria = np.zeros((int(1e5), 3), dtype=int)
     TriaLay = np.zeros((int(1e5),), dtype=int)
-    VertLay = np.zeros((int(1e5),), dtype=np.uint16)
+    VertLay = np.zeros((int(1e5),), dtype=np.uint32)
     
     Curve = np.zeros((0, 3))
     i = 0  # the layer whose cross-section is under reconstruction
@@ -570,7 +570,7 @@ def curve_based_triangulation(P, TriaHeight, TriaWidth):
     fvd = np.sqrt(np.sum(V * V, axis=1))
     triangulation = {
         'vert': Vert.astype(np.float32),
-        'facet': Tria.astype(np.uint16),
+        'facet': Tria.astype(np.uint32),
         'fvd': fvd.astype(np.float32),
         'volume': VTotal,
         'SideArea': np.sum(As),
