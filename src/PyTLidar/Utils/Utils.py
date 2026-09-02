@@ -1209,42 +1209,61 @@ def surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
     
 
 @jit(nopython=True)
+def _sc_window_mean(D, nl, ns, i, j, w):
+    """Mean of the positive cells in the (2w+1) square window around (i, j) of the
+    3x3 tiling of D whose outer row blocks are D with the rows reversed. Summed in
+    row-major window order. Returns (mean, count)."""
+    s = 0.0
+    cnt = 0
+    for r in range(i + nl - w, i + nl + w + 1):
+        bi = r // nl
+        rr = r - bi * nl
+        if bi != 1:
+            rr = nl - 1 - rr
+        for c in range(j + ns - w, j + ns + w + 1):
+            cc = c % ns
+            v = D[rr, cc]
+            if v > 0:
+                s += v
+                cnt += 1
+    if cnt > 0:
+        return s / cnt, cnt
+    return 0.0, 0
+
+
+@jit(nopython=True)
 def _sc_volume(Dis, nl, ns, Len):
     """Interpolate missing cell distances."""
-    D = Dis.copy()
+    D = Dis
     dis_out = Dis.copy()
-    # rows of D reversed; negative-step slices are not supported in numba
-    D_inv = np.empty_like(D)
-    for ii in range(nl):
-        D_inv[ii, :] = D[nl - 1 - ii, :]
-    # 3x3 tiling: outer rows use D_inv, middle row uses D
-    D_ext = np.zeros((3 * nl, 3 * ns))
-    for bi in range(3):
-        blk = D if bi == 1 else D_inv
-        for bj in range(3):
-            D_ext[bi * nl:(bi + 1) * nl, bj * ns:(bj + 1) * ns] = blk
-    Df = D.ravel()
-    posD = Df[Df > 0]
-    RadMean = average(posD) if posD.size > 0 else 0.0
+    RadMean = 0.0
+    have_mean = False
     for i in range(nl):
         for j in range(ns):
             if D[i, j] == 0:
                 # widen the window until it holds more than one known distance
-                w = D_ext[i + nl - 1:i + nl + 2, j + ns - 1:j + ns + 2].ravel()
-                wp = w[w > 0]
-                if wp.size > 1:
-                    dis_out[i, j] = average(wp)
+                m, cnt = _sc_window_mean(D, nl, ns, i, j, 1)
+                if cnt > 1:
+                    dis_out[i, j] = m
                 else:
-                    w = D_ext[i + nl - 2:i + nl + 3, j + ns - 2:j + ns + 3].ravel()
-                    wp = w[w > 0]
-                    if wp.size > 1:
-                        dis_out[i, j] = average(wp)
+                    m, cnt = _sc_window_mean(D, nl, ns, i, j, 2)
+                    if cnt > 1:
+                        dis_out[i, j] = m
                     else:
-                        w = D_ext[i + nl - 3:i + nl + 4, j + ns - 3:j + ns + 4].ravel()
-                        wp = w[w > 0]
-                        if wp.size > 1:
-                            dis_out[i, j] = average(wp)
+                        m, cnt = _sc_window_mean(D, nl, ns, i, j, 3)
+                        if cnt > 1:
+                            dis_out[i, j] = m
                         else:
+                            if not have_mean:
+                                s = 0.0
+                                cnt = 0
+                                for a in range(nl):
+                                    for b in range(ns):
+                                        if D[a, b] > 0:
+                                            s += D[a, b]
+                                            cnt += 1
+                                RadMean = s / cnt if cnt > 0 else 0.0
+                                have_mean = True
                             dis_out[i, j] = RadMean
     return dis_out
 
