@@ -49,6 +49,7 @@ def segments(cover, Base, Forb,qsm=True):
 
     Nei = cover['neighbor']
     nb = len(Nei)  # The number of cover sets
+    csr = Utils.csr_neighbors(Nei)  # the neighbor lists do not change during segmentation
     a = max(200000, nb // 100)  # Estimate for maximum number of segments
     SBas = [None] * a  # The segment bases found
     Segs = [None] * a  # The segments found
@@ -88,7 +89,7 @@ def segments(cover, Base, Forb,qsm=True):
         Forb[Seg[nl]] = True
         # print(ind,nl,sum(Forb))
         # Define the study
-        Cut = define_cut(Nei, Seg[nl], Forb, Fal)
+        Cut = define_cut(Nei, Seg[nl], Forb, Fal, csr)
         CutSize = len(Cut)
 
         if NewSeg:
@@ -97,11 +98,11 @@ def segments(cover, Base, Forb,qsm=True):
 
         # Define the components of cut and study regions
         if CutSize > 0:
-            CutComps, _CompSize = cut_components(Nei, Cut, CutSize, Fal, Fal)
+            CutComps, _CompSize = cut_components(Nei, Cut, CutSize, Fal, Fal, csr)
             nc = len(CutComps)
             if nc > 1:
                 StudyComps, Bases, CompSize, Cont, BaseSize = study_components(
-                    Nei, ns, Cut, CutComps, Forb, Fal, Fal
+                    Nei, ns, Cut, CutComps, Forb, Fal, Fal, csr
                 )
                 nc = len(Cont)
         else:
@@ -213,7 +214,14 @@ def segments(cover, Base, Forb,qsm=True):
 
     return segment
 
-def define_cut(Nei,CutPre,Forb,Fal):
+def _neighbors_of_all(Nei, X, csr):
+    """np.concatenate([Nei[x] for x in X]), through the CSR table when given."""
+    if csr is None:
+        return np.concatenate([Nei[x] for x in X])
+    return Utils.gather_neighbors(csr[0], csr[1], np.asarray(X, dtype=np.int64).ravel())
+
+
+def define_cut(Nei,CutPre,Forb,Fal,csr=None):
     """% Defines the "Cut" region
 
     Args:
@@ -221,18 +229,19 @@ def define_cut(Nei,CutPre,Forb,Fal):
         CutPre (_type_): _description_
         Forb (_type_): _description_
         Fal (_type_): _description_
+        csr: (indptr, indices) form of Nei from Utils.csr_neighbors, optional
     """
     try:
         len(CutPre)
     except:
         CutPre = np.array([CutPre])
-    Cut = np.concatenate([Nei[c] for c in CutPre])
+    Cut = _neighbors_of_all(Nei, CutPre, csr)
     Cut = Utils.unique_elements_array(Cut,Fal)
     I = Forb[Cut]
     Cut = Cut[np.invert(I)]
     return Cut
 
-def cut_components(Nei, Cut, CutSize, Fal, False_mask):
+def cut_components(Nei, Cut, CutSize, Fal, False_mask, csr=None):
     """
     Defines the connected components of the Cut region.
 
@@ -304,7 +313,7 @@ def cut_components(Nei, Cut, CutSize, Fal, False_mask):
                 Comp[t : t + a] = Added
                 Fal[Added] = False
                 t += a
-                Ext = np.concatenate([Nei[a] for a in Added])
+                Ext = _neighbors_of_all(Nei, Added, csr)
                 Ext = Utils.unique_elements_array(Ext, False_mask)
                 I = Fal[Ext]
                 Added = Ext[I]
@@ -327,7 +336,7 @@ def cut_components(Nei, Cut, CutSize, Fal, False_mask):
     return Components, CompSize
 
 
-def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
+def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask, csr=None):
     """
     Defines the study region and its components.
 
@@ -363,7 +372,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
         i = 0
         while i < ns-1:
             Forb[N] = True
-            N = np.concatenate([Nei[n] for n in N])
+            N = _neighbors_of_all(Nei, N, csr)
             N = Utils.unique_elements_array(N, Fal)
             I = Forb[N]
             N = N[~I]
@@ -399,7 +408,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
             Comp[:a] = C
             Fal[C] = False
             if a > 1:
-                Add = Utils.unique_elements_array(np.concatenate([Nei[c] for c in C]), False_mask)
+                Add = Utils.unique_elements_array(_neighbors_of_all(Nei, C, csr), False_mask)
             else:
 
                 Add = Nei[C]
@@ -417,7 +426,7 @@ def study_components(Nei, ns, Cut, CutComps, Forb, Fal, False_mask):
                 Comp[t : t + a] = Add
                 Fal[Add] = False
                 t += a
-                Add = np.concatenate([Nei[a] for a in Add])
+                Add = _neighbors_of_all(Nei, Add, csr)
                 Add = Utils.unique_elements_array(Add, False_mask)
                 I = Fal[Add]
                 Add = Add[I]

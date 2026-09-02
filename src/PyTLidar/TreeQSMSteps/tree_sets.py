@@ -24,11 +24,127 @@ This derivative work is released under the GNU General Public License (GPL).
 """
 
 import numpy as np
+from numba import jit, types
+from numba.typed import List
 from scipy.spatial.distance import cdist
 try:
     from ..Utils import Utils
 except ImportError:
     import Utils.Utils as Utils
+
+
+_csr_neighbors = Utils.csr_neighbors
+
+
+@jit(nopython=True, cache=True)
+def _neighbors_of(a, indptr, indices, ex_nodes, ex_targets):
+    """Neighbors of set a: the stored list, then the links added later, in order."""
+    lo = np.searchsorted(ex_nodes, a, side='left')
+    hi = np.searchsorted(ex_nodes, a, side='right')
+    base = indices[indptr[a]:indptr[a + 1]]
+    if hi == lo:
+        return base
+    out = np.empty(base.shape[0] + hi - lo, dtype=np.int64)
+    out[:base.shape[0]] = base
+    out[base.shape[0]:] = ex_targets[lo:hi]
+    return out
+
+
+@jit(nopython=True, cache=True)
+def _components_csr(indptr, indices, ex_nodes, ex_targets, Sub, MinSize):
+    """
+    Utils.connected_components_array for a logical Sub, on the neighbor lists in
+    CSR form plus the links appended since (ex_nodes sorted, ex_targets in
+    append order). Returns (Components, CompSize).
+    """
+    nb = indptr.shape[0] - 1
+    Sub = Sub.copy()
+    ns = 0
+    for k in range(nb):
+        if Sub[k]:
+            ns += 1
+    Components = List.empty_list(types.uint32[::1])
+    CompSize = List.empty_list(types.int64)
+    m = 0
+    while m < nb and not Sub[m]:
+        m += 1
+    i = 0
+    Comp = np.zeros(ns, dtype=np.uint32)
+    while i < ns:
+        Add0 = _neighbors_of(m, indptr, indices, ex_nodes, ex_targets)
+        cnt = 0
+        for k in range(Add0.shape[0]):
+            if Sub[Add0[k]]:
+                cnt += 1
+        Add = np.empty(cnt, dtype=np.int64)
+        cnt = 0
+        for k in range(Add0.shape[0]):
+            if Sub[Add0[k]]:
+                Add[cnt] = Add0[k]
+                cnt += 1
+        a = Add.shape[0]
+        Comp[0] = m
+        Sub[m] = False
+        t = 1
+        while a > 0:
+            if t + a > Comp.shape[0]:
+                grown = np.zeros(t + a, dtype=np.uint32)
+                grown[:Comp.shape[0]] = Comp
+                Comp = grown
+            for k in range(a):
+                Comp[t + k] = Add[k]
+                Sub[Add[k]] = False
+            t += a
+            total = 0
+            for k in range(a):
+                total += indptr[Add[k] + 1] - indptr[Add[k]]
+                total += np.searchsorted(ex_nodes, Add[k], side='right') - np.searchsorted(ex_nodes, Add[k], side='left')
+            Nxt = np.empty(total, dtype=np.int64)
+            cnt = 0
+            for k in range(a):
+                nk = _neighbors_of(Add[k], indptr, indices, ex_nodes, ex_targets)
+                for q in range(nk.shape[0]):
+                    if Sub[nk[q]]:
+                        Nxt[cnt] = nk[q]
+                        cnt += 1
+            Add = np.unique(Nxt[:cnt])
+            a = Add.shape[0]
+        i += t
+        if t >= MinSize:
+            Components.append(Comp[:t].copy())
+            CompSize.append(t)
+        if i < ns:
+            while m < nb and not Sub[m]:
+                m += 1
+    return Components, CompSize
+
+
+class _Links:
+    """The neighbor links added while connecting the main branches, kept sorted
+    by set so the component search can find them by binary search."""
+
+    def __init__(self):
+        self.nodes = []
+        self.targets = []
+
+    def add(self, I, J):
+        self.nodes.append(int(I))
+        self.targets.append(int(J))
+
+    def arrays(self):
+        nodes = np.array(self.nodes, dtype=np.int64)
+        targets = np.array(self.targets, dtype=np.int64)
+        order = np.argsort(nodes, kind='stable')
+        return np.ascontiguousarray(nodes[order]), np.ascontiguousarray(targets[order])
+
+
+def _branch_components(indptr, indices, links, Sub):
+    """Connected components of the sets in Sub with MinSize 1, as a list of arrays and sizes."""
+    if not np.any(Sub):
+        return [], 0
+    ex_nodes, ex_targets = links.arrays()
+    comps, sizes = _components_csr(indptr, indices, ex_nodes, ex_targets, Sub, 1)
+    return list(comps), np.array(list(sizes))
 def tree_sets(P:np.ndarray,cover:dict,inputs:dict,segment=None):
     """
     Defines the location of the base of the trunk on the first pass, and the main branches on the second
@@ -324,11 +440,13 @@ def define_main_branches(cover, segment, aux, inputs):
     BI = np.max(MainBranches) if MainBranches.size > 0 else 0
     N = Par.shape
     ind = 0
+    indptr, indices = _csr_neighbors(Nei)
+    links = _Links()
     for i in range(BI+1):
         Sets = np.zeros(aux['nb'], dtype=np.int32)
         if MainBranchIndexes[i]:
             Branch = (MainBranches == i)
-            Comps, cs = Utils.connected_components_array(Nei, Branch, 1, Fal)
+            Comps, cs = _branch_components(indptr, indices, links, Branch)
             n_comps = len(Comps)
             
             while n_comps > 1:
@@ -409,9 +527,11 @@ def define_main_branches(cover, segment, aux, inputs):
                     J = NearSets[JU]
                     Nei[I]= np.append(Nei[I],J)
                     Nei[J]= np.append(Nei[J],I)
-                
+                    links.add(I, J)
+                    links.add(J, I)
+
                 # Recompute components after connections
-                Comps, cs = Utils.connected_components_array(Nei, Branch, 1, Fal)
+                Comps, cs = _branch_components(indptr, indices, links, Branch)
                 n_comps = len(Comps)
     
     
@@ -456,11 +576,13 @@ def define_main_branches(cover, segment, aux, inputs):
                     J = Stem[J]
                     Nei[I] = np.append(Nei[I], J)
                     Nei[J] = np.append(Nei[J], I)
-    
-    
+                    links.add(I, J)
+                    links.add(J, I)
+
+
 #     % Check if the trunk is still in mutliple components and select the bottom
 #     % component to define "Trunk":
-    comps, cs = Utils.connected_components_array(Nei, Trunk,1, Fal)
+    comps, cs = _branch_components(indptr, indices, links, Trunk)
     comps = np.array(comps,dtype='object')
     if len(cs) > 1:
         I = np.argsort(-cs)
