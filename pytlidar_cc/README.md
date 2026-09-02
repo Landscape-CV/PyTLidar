@@ -21,7 +21,7 @@ Everything is in the source cloud's frame and carries its global shift.
 - CloudCompare 2.13 or newer with the PythonRuntime plugin. It ships in the
   Windows installer and in the OpenFields macOS builds
   (simulation.openfields.fr); otherwise build it from source.
-- PyTLidar 1.1.0 or newer in the plugin's Python environment.
+- PyTLidar 1.1.1 or newer in the plugin's Python environment.
 
 ## Install
 
@@ -30,6 +30,10 @@ With the Python environment CloudCompare uses:
 ```
 python -m pip install pytlidar-cc
 ```
+
+Do not install PySide6 (or PyTLidar's `gui` extra) into that environment. The plugin
+uses the Qt bindings CloudCompare ships, and a second Qt in the process makes
+CloudCompare abort when the settings dialog opens.
 
 Restart CloudCompare and PyTLidar appears in the Plugins menu. If it does
 not, the install went into a different Python than CloudCompare uses: in

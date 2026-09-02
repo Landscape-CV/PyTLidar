@@ -9,11 +9,13 @@ PyTLidar is a python module designed for manipulating and calculating metrics fr
 The release version of PyTLidar can be installed as a standard python package (Python 3.8 to 3.12).
 
 ```
-pip install PyTLidar
+pip install "PyTLidar[gui]"
 ```
+The `gui` extra brings in PySide6 for the desktop application. Leave it off for a headless
+install or the CloudCompare plugin, which uses CloudCompare's own Qt.
 The latest code can be installed straight from GitHub the same way:
 ```
-pip install git+https://github.com/Landscape-CV/PyTLidar
+pip install "PyTLidar[gui] @ git+https://github.com/Landscape-CV/PyTLidar"
 ```
 # Development Installation
 

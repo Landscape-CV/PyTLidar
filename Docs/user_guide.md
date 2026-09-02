@@ -4,7 +4,7 @@
 The release version of PyTLidar can be installed as a standard python package
 
 ```
-pip install PyTLidar
+pip install "PyTLidar[gui]"
 ```
 
 
