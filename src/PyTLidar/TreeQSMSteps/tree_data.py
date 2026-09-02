@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.spatial import ConvexHull
 try:
-    from .alpha_shape import alphashape
+    from .alpha_shape import alpha_area, alpha_volume
 except ImportError:
-    from TreeQSMSteps.alpha_shape import alphashape
+    from TreeQSMSteps.alpha_shape import alpha_area, alpha_volume
 try:
     from ..Utils import Utils
 except ImportError:
@@ -421,7 +421,7 @@ def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
 def crown_measures(treedata, cylinder, branch):
     """
     
-    Calculate crown measures using alphashape concave hull
+    Calculate crown measures using convex hulls and alpha shapes
 
     Args:
         treedata (dict): Dictionary to store tree data.
@@ -548,10 +548,7 @@ def crown_measures(treedata, cylinder, branch):
     # Crown areas from convex hull and alpha shape:
     treedata['CrownAreaConv'] = A
     alp = max(0.5, treedata['CrownDiamAve'] / 10)
-    # MATLAB alphaShape's alpha is an alpha-radius; the Python alphashape library
-    # uses the inverse convention (alpha ~ 1/radius), so pass 1/alp.
-    shp = alphashape(X, 1.0 / alp)
-    treedata['CrownAreaAlpha'] = shp.area
+    treedata['CrownAreaAlpha'] = alpha_area(X, alp)
 
     # Crown base
     dbh = treedata['DBHcyl']
@@ -624,27 +621,8 @@ def crown_measures(treedata, cylinder, branch):
         hull = ConvexHull(X)
         treedata['CrownVolumeConv'] = hull.volume
         alp = max(0.5, treedata['CrownDiamAve'] / 5)
-        adj_X = X.copy()
-        adj_X[:,0] = X[:,0]-min(X[:,0])
-        adj_X[:,1] = X[:,1]-min(X[:,1])
-        adj_X[:,2] = X[:,2]-min(X[:,2])
-        max_alp = alp*5
-        shp = None
-        while alp<=max_alp:
-            try:
-                # alp is the MATLAB alpha-radius; the Python alphashape library
-                # uses the inverse convention (alpha ~ 1/radius), so pass 1/alp.
-                shp = alphashape(adj_X, 1.0 / alp)
-                break
-            except:
-                alp+=max_alp/10
-        #shp = o3d.geometry.TriangleMesh.create_from_point_cloud_alpha_shape(o3d.geometry.PointCloud(o3d.utility.Vector3dVector(adj_X)), alp)
-        #shp = o3d.t.geometry.TriangleMesh.from_legacy(shp).fill_holes().to_legacy()
-        #shp = alphashape(adj_X, alp)
-        if shp is not None:
-            treedata['CrownVolumeAlpha'] = abs(shp.volume)#abs(shp.get_volume())
-        else:
-            treedata['CrownVolumeAlpha'] = float('inf')
+        adj_X = X - np.min(X, axis=0)
+        treedata['CrownVolumeAlpha'] = alpha_volume(adj_X, alp)
     else:
         # No branches
         treedata['CrownBaseHeight'] = treedata['TreeHeight']
