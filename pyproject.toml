@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "PyTLidar"
-version = "1.0.6"
+version = "1.1.0"
 description = "Python implementation of TreeQSM for terrestrial lidar tree models"
 readme = "README.md"
 license = "GPL-3.0-only"
 authors = [{ name = "John Hagood" }]
+maintainers = [{ name = "Ali Sean Khan" }]
 requires-python = ">=3.8, <3.13"
 classifiers = [
     "Programming Language :: Python :: 3",
