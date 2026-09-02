@@ -1,4 +1,5 @@
-__all__ = ["load_cloud", "centre", "build_inputs", "run_qsm", "run_batch", "calculate_optimal"]
+__all__ = ["load_cloud", "centre", "build_inputs", "run_qsm", "run_batch", "calculate_optimal",
+           "list_scalar_fields", "list_las_scalar_fields"]
 
 
 def __getattr__(name):

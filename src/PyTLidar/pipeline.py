@@ -10,19 +10,22 @@ import numpy as np
 if __package__:
     from .treeqsm import treeqsm, calculate_optimal
     from .Utils.define_input import define_input
-    from .Utils.Utils import load_point_cloud
+    from .Utils.Utils import load_point_cloud, list_scalar_fields, list_las_scalar_fields
 else:
     from treeqsm import treeqsm, calculate_optimal
     from Utils.define_input import define_input
-    from Utils.Utils import load_point_cloud
+    from Utils.Utils import load_point_cloud, list_scalar_fields, list_las_scalar_fields
 
-__all__ = ["load_cloud", "centre", "build_inputs", "run_qsm", "run_batch", "calculate_optimal"]
+__all__ = ["load_cloud", "centre", "build_inputs", "run_qsm", "run_batch", "calculate_optimal",
+           "list_scalar_fields", "list_las_scalar_fields"]
 
 
-def load_cloud(path, intensity_threshold=0.0):
-    """Nx3 float64 point array from a .las, .laz or .xyz file, keeping points whose intensity
-    is at least intensity_threshold."""
-    return load_point_cloud(path, intensity_threshold=float(intensity_threshold))
+def load_cloud(path, intensity_threshold=0.0, scalar_field="intensity", normalize_scalar=False):
+    """Nx3 float64 point array from a .las, .laz, .ply or .xyz file, keeping points whose
+    intensity is at least intensity_threshold. scalar_field names the field used as intensity
+    (case-insensitive); normalize_scalar rescales it to 0-65535 before the threshold."""
+    return load_point_cloud(path, intensity_threshold=float(intensity_threshold),
+                            scalar_field=scalar_field, normalize_scalar=normalize_scalar)
 
 
 def centre(P, xy=True, z=True):
