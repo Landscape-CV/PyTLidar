@@ -800,6 +800,11 @@ def save_model_text(QSM, savename):
         - results/branch_{savename}.txt
         - results/treedata_{savename}.txt
 
+    Cylinder indices in the files are 0-based: parent is the index of the parent cylinder,
+    -1 for the base cylinder; extension is the index of the cylinder continuing this one,
+    0 for a tip (the base cylinder is never an extension, so 0 is unambiguous). branch is
+    the 0-based branch index, 0 for the trunk.
+
     Args:
         QSM (dict): Dictionary with keys "cylinder", "branch", and "treedata". Created during the TreeQSM process.
         savename (str): String used to define the file names.
@@ -1039,8 +1044,8 @@ def growth_volume_correction(cylinder, inputs):
         cylinder (dict): Cylinder data used in the TreeQSM process:
             - "radius": measured radii (array-like)
             - "length": lengths (array-like)
-            - "parent": parent indices (array-like, 1-indexed; 0 indicates no parent)
-            - "extension": array indicating cylinder extension (0 for tips)
+            - "parent": parent cylinder index, 0-based, -1 for the base cylinder
+            - "extension": index of the cylinder continuing this one, 0-based, 0 for a tip
         inputs (dict): Dictionary containing at least:
             - "GrowthVolFac": the factor controlling allowed deviation.
 
@@ -1054,7 +1059,7 @@ def growth_volume_correction(cylinder, inputs):
     Rad = np.array(cylinder["radius"], dtype=float)
     Rad0 = Rad.copy()
     Len = np.array(cylinder["length"], dtype=float)
-    CPar = np.array(cylinder["parent"], dtype=int)  # 1-indexed; 0 indicates no parent.
+    CPar = np.array(cylinder["parent"], dtype=int)  # 0-based; -1 for no parent
     CExt = np.array(cylinder["extension"], dtype=int)
 
     # Compute initial volume in liters.
@@ -1066,8 +1071,8 @@ def growth_volume_correction(cylinder, inputs):
     CChi = [[] for _ in range(n)]
     for j in range(n):
         parent = CPar[j]
-        if parent > 0:
-            CChi[parent - 1].append(j)
+        if parent >= 0:
+            CChi[parent].append(j)
 
     # Compute growth volume for each cylinder.
     GrowthVol = np.zeros(n, dtype=float)
@@ -1076,14 +1081,14 @@ def growth_volume_correction(cylinder, inputs):
     GrowthVol[tip_mask] = np.pi * (Rad[tip_mask]**2) * Len[tip_mask]
 
     parents = np.unique(CPar[tip_mask])
-    parents = parents[parents != 0]
+    parents = parents[parents >= 0]
     while parents.size > 0:
-        V = np.pi * (Rad[parents - 1]**2) * Len[parents - 1]
+        V = np.pi * (Rad[parents]**2) * Len[parents]
         for i, parent in enumerate(parents):
-            children = CChi[parent - 1]
-            GrowthVol[parent - 1] = V[i] + (np.sum(GrowthVol[children]) if children else V[i])
-        new_parents = np.unique(CPar[parents - 1])
-        new_parents = new_parents[new_parents != 0]
+            children = CChi[parent]
+            GrowthVol[parent] = V[i] + (np.sum(GrowthVol[children]) if children else V[i])
+        new_parents = np.unique(CPar[parents])
+        new_parents = new_parents[new_parents >= 0]
         parents = new_parents
 
     # Define the allometry function with proper signature.
@@ -1988,7 +1993,7 @@ def compute_metric_value(met, T, treedata, Data):
     
     if met <= 27:  # cylinder distance metrics
         
-        D = np.mean(Data['CylDist'][T,:], axis=0) if type(T) is np.ndarray else Data['CylDist'][T,:]
+        D = np.nanmean(np.asarray(Data['CylDist'][T,:], dtype=float), axis=0) if type(T) is np.ndarray else Data['CylDist'][T,:]
         D[5:10] = 0.5 * D[5:10]  # Half the maximum values 
     
     if met < 10:  # mean cylinder distance metrics

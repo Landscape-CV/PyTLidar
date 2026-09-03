@@ -438,7 +438,10 @@ def calculate_optimal(models,metric):
     metrics = []
     for i in range(len(models)):
         metrics.append(Utils.compute_metric_value(Utils.select_metric(metric), i,metric_data[0],metric_data[3]))
-    best = np.argmin(np.array(metrics))
+    metrics_arr = np.array(metrics, dtype=float)
+    if np.all(np.isnan(metrics_arr)):
+        raise ValueError(f"Metric {metric} is undefined for every model, so no optimum can be chosen")
+    best = int(np.nanargmin(metrics_arr))
     return best,metrics[best],metric_data
 
 

@@ -2,6 +2,11 @@
 The steps every caller repeats around treeqsm: load a cloud, centre it, build the inputs
 dict(s), run one model, or run a batch of models in worker processes. The GUI, the two CLIs and
 any script use these; nothing here imports Qt.
+
+Cylinder indices in the models and the text files are 0-based: cylinder['parent'] is the
+parent cylinder's index, -1 for the base cylinder; cylinder['extension'] is the index of the
+cylinder continuing this one, 0 for a tip; cylinder['branch'] is the branch index, 0 for the
+trunk. MATLAB's files are the same fields 1-based with 0 for none.
 """
 import os
 import multiprocessing as mp
@@ -54,7 +59,12 @@ def build_inputs(clouds, n_patchdiam=(1, 1, 1), custom=None, names=None,
     savemat, savetxt, plot and disp are always set. savepdf is set only when given, since
     define_input's default of 1 writes PDFs into results/.
     """
-    clouds = [clouds] if isinstance(clouds, np.ndarray) else list(clouds)
+    if isinstance(clouds, np.ndarray):
+        if clouds.shape[0] == 0:
+            raise ValueError("The point cloud is empty, so there is nothing to build inputs for")
+        clouds = [clouds]
+    else:
+        clouds = list(clouds)
     if names is not None and len(names) != len(clouds):
         raise ValueError("names must have one entry per cloud")
     keep = [i for i, c in enumerate(clouds) if np.asarray(c).shape[0] > 0]
