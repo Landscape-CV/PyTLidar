@@ -239,7 +239,11 @@ MaxPatchDiam separated by commas for the values you would like to test
         if not file:
             QMessageBox.warning(self, "No File Selected", "Please select a LAS or LAZ file.")
             return
-        self.single_window = SingleFileProcessingWindow(self, file,inputs,self.InputType.isChecked(),self.show_only_optimal,self.optimumMetric.currentText())
+        try:
+            self.single_window = SingleFileProcessingWindow(self, file,inputs,self.InputType.isChecked(),self.show_only_optimal,self.optimumMetric.currentText())
+        except Exception as e:
+            QMessageBox.critical(self, "Could not load file", f"{os.path.basename(file)}\n\n{e}")
+            return
         self.single_window.show()
         self.hide()   
 
