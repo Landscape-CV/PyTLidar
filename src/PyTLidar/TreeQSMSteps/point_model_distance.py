@@ -205,9 +205,11 @@ def point_model_distance(P, cylinder):
     branch1_dists = DistCyl[B1]
     branch2_dists = DistCyl[B2]
 
-    pmdistance['TrunkMedian'] = float(np.median(trunk_dists)) if trunk_dists.size > 0 else 0.0
-    pmdistance['TrunkMean'] = float(np.mean(trunk_dists)) if trunk_dists.size > 0 else 0.0
-    pmdistance['TrunkMax'] = float(np.max(trunk_dists)) if trunk_dists.size > 0 else 0.0
+    # MATLAB takes the trunk statistics unguarded, so an empty trunk gives NaN there; the
+    # branch orders below are set to 0 when empty, as in MATLAB.
+    pmdistance['TrunkMedian'] = float(np.median(trunk_dists)) if trunk_dists.size > 0 else float('nan')
+    pmdistance['TrunkMean'] = float(np.mean(trunk_dists)) if trunk_dists.size > 0 else float('nan')
+    pmdistance['TrunkMax'] = float(np.max(trunk_dists)) if trunk_dists.size > 0 else float('nan')
     pmdistance['TrunkStd'] = float(np.std(trunk_dists, ddof=1)) if trunk_dists.size > 1 else 0.0
 
     pmdistance['BranchMedian'] = float(np.median(branch_dists)) if branch_dists.size > 0 else 0.0

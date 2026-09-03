@@ -1988,7 +1988,7 @@ def compute_metric_value(met, T, treedata, Data):
     
     if met <= 27:  # cylinder distance metrics
         
-        D = np.mean(Data['CylDist'][T,:], axis=0) if type(T) is np.ndarray else Data['CylDist'][T,:]
+        D = np.nanmean(np.asarray(Data['CylDist'][T,:], dtype=float), axis=0) if type(T) is np.ndarray else Data['CylDist'][T,:]
         D[5:10] = 0.5 * D[5:10]  # Half the maximum values 
     
     if met < 10:  # mean cylinder distance metrics
