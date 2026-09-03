@@ -84,7 +84,6 @@ def relative_size(P, cover, segment):
         C = next_C
 
     maxO = order + 1  # maximum branching order (plus one)
-    #print(Ord)
 
     # Determine tree height
     if Cen.size == 0:
@@ -123,7 +122,6 @@ def relative_size(P, cover, segment):
             BaseSize[i] = len(S[0]) / BaseSize[0] * 256
         bot = np.min(P[Cen[S[0]], 2])
         h = bot - Bot  # height of the segment's base
-        #print(f"h {h}")
         bs_term = 256 * ((maxO - Ord[i]) / maxO) * ((H - h) / H)
         BS = int(np.ceil(bs_term))  # maximum apriori base size
         if BaseSize[i] > BS:
@@ -145,12 +143,10 @@ def relative_size(P, cover, segment):
                 points = Bal[q]
                 if points.size == 0:
                     continue
-                #print(f"basesize[i] {BaseSize[i]}")
                 rs_val = BaseSize[i] - (BaseSize[i] - TS) * np.sqrt(j / s)
                 rounded_rs_val = round(rs_val)
                 if rs_val-rounded_rs_val == .5:
                     rounded_rs_val +=1          
-                #print(rs_val)
                 rs_val = max(0, min(255, int(rounded_rs_val)))  # unit8 only allows 0-255
                 RS[points] = rs_val
 
@@ -190,7 +186,6 @@ def relative_size(P, cover, segment):
                 if nb < len(Bal):
                     points.extend(Bal[nb])
             points = np.unique(points)
-            #print(points)
             if points.size > 0:
                 #added rounding to be the same as Matlab -- only important for testing
                 adj_RS = RS0[points]/2

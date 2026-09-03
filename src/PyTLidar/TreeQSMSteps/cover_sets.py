@@ -302,7 +302,6 @@ def create_neighbors(Ball,BoP,nb):
         N = np.unique(N)#unique_elements_array(N,Fal)#
         N = N[N != 0]
         Nei.append(N - 1)
-    #print(Nei)
     # Make the relation symmetric by adding, if needed, A as B's neighbor in the case B is A's neighbor
     for i in range(nb):
         for j in Nei[i]:

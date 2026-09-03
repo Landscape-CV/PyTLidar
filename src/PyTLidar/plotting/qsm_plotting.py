@@ -76,7 +76,6 @@ def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=1,return_ht
         segment_ids = segments
         cover_set_ids = cover_sets
         
-    #print(segments['segments'])
 
     # create cover set and segment ids for each point OLD SLOWER METHOD
     # cover_set_ids = np.full(n, -1)  # cover set id each point belongs to, initialize with -1 (not assigned)
@@ -110,9 +109,6 @@ def qsm_plotting(points, cover_sets, segments, qsm=None, marker_size=1,return_ht
         points = points[I[:int(points.shape[0] * fidelity)], :]
     leaf_mask = segment_ids == -1
     filtered_mask = segment_ids <0
-    #print(cover_set_ids)
-    #print(cover_sets['ball'])
-    #print(len(cover_sets['ball']), len(segments['segments']), p_count)
 
     
     # trace = make_categorical_color_trace(points, segment_ids, "Segment", marker_size, visible=True, additional_labels=segment_ids)

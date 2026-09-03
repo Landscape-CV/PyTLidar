@@ -31,6 +31,7 @@ try:
     from .Utils import Utils
     from .plotting.point_cloud_plotting import point_cloud_plotting
     from .plotting.qsm_plotting import qsm_plotting
+    from .plotting.cylinders_line_plotting import cylinders_line_plotting
 except ImportError:
     from treeqsm import treeqsm
     from Utils.define_input import define_input
@@ -38,6 +39,7 @@ except ImportError:
     import Utils.Utils as Utils
     from plotting.point_cloud_plotting import point_cloud_plotting
     from plotting.qsm_plotting import qsm_plotting
+    from plotting.cylinders_line_plotting import cylinders_line_plotting
 import os
 from PySide6.QtCore import QObject,QThread,Signal,Qt,QUrl,QProcess
 from PySide6.QtWidgets import QWidget,QGridLayout,QVBoxLayout,QLabel,QMainWindow,QPushButton,QApplication,QTextEdit,QToolButton,QComboBox,QHBoxLayout,QSlider,QFileDialog,QMessageBox,QTableWidget,QTableWidgetItem, QCheckBox,QRadioButton
@@ -53,6 +55,16 @@ import sys
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 # from matplotlib.figure import Figure
 import time
+
+
+def cylinder_plot_html(qsm):
+    # The GUI runs treeqsm with plot=0, so the cylinder plot is built here on demand
+    points = qsm['points']
+    fidelity = min(1, 100000 / len(points))
+    base_fig = point_cloud_plotting(points, subset=True, fidelity=fidelity, marker_size=.5, return_html=False)
+    _, html = cylinders_line_plotting(qsm['cylinder'], 100, 8, qsm.get('file_id', 'model'), True,
+                                      base_fig=base_fig, display=False)
+    return html
 
 class QSMWindow(QMainWindow):
     def __init__(self):
@@ -227,7 +239,11 @@ MaxPatchDiam separated by commas for the values you would like to test
         if not file:
             QMessageBox.warning(self, "No File Selected", "Please select a LAS or LAZ file.")
             return
-        self.single_window = SingleFileProcessingWindow(self, file,inputs,self.InputType.isChecked(),self.show_only_optimal,self.optimumMetric.currentText())
+        try:
+            self.single_window = SingleFileProcessingWindow(self, file,inputs,self.InputType.isChecked(),self.show_only_optimal,self.optimumMetric.currentText())
+        except Exception as e:
+            QMessageBox.critical(self, "Could not load file", f"{os.path.basename(file)}\n\n{e}")
+            return
         self.single_window.show()
         self.hide()   
 
@@ -620,12 +636,12 @@ class BatchProcessingWindow(QMainWindow):
         self.ui.layout().addWidget(self.seg_web_view, 0, 1,2,1)
 
     def show_cylinder_plot(self):
-        self.append_text("Showing Cylinder Plot...\n")
+        self.append_text("Showing Cylinder Plot, this may take a few moments...\n")
         self.left_arrow_button.setEnabled(False)
         self.right_arrow_button.setEnabled(False)
         index = self.get_selected_inputs()
-
-        html = self.file_data[self.selected_index]['plot'][index]
+        qsm = self.file_data[self.selected_index]['QSM'][index]
+        html = cylinder_plot_html(qsm)
         self.cyl_web_view = QWebEngineView()
         self.cyl_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
         self.ui.layout().addWidget(self.cyl_web_view, 0, 1,2,1)
@@ -888,6 +904,7 @@ class SingleFileProcessingWindow(QMainWindow):
         self.buttons_and_progress.layout().addWidget(self.text_edit)
 
         self.output_text = OutputText(self.text_edit)
+        self.previous_stdout = sys.stdout
         sys.stdout = self.output_text
         #Exit behavior
         
@@ -1020,8 +1037,9 @@ class SingleFileProcessingWindow(QMainWindow):
         self.left_arrow_button.setEnabled(False)
         self.right_arrow_button.setEnabled(False)
         index = self.get_selected_index()
+        qsm = self.data[index]
+        html = cylinder_plot_html(qsm)
         self.cyl_web_view = QWebEngineView()
-        html = self.cyl_plots[index]
         self.cyl_web_view.load(QUrl.fromLocalFile(os.getcwd()+"/"+html))
         self.ui.layout().addWidget(self.cyl_web_view, 0, 1,2,1)
 
@@ -1118,6 +1136,7 @@ class SingleFileProcessingWindow(QMainWindow):
 
     def closeEvent(self, event):
         # Handle the close event
+        sys.stdout = self.previous_stdout
         self.root.show()
         event.accept()
 
