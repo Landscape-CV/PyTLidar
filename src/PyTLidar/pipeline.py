@@ -2,6 +2,11 @@
 The steps every caller repeats around treeqsm: load a cloud, centre it, build the inputs
 dict(s), run one model, or run a batch of models in worker processes. The GUI, the two CLIs and
 any script use these; nothing here imports Qt.
+
+Cylinder indices in the models and the text files are 0-based: cylinder['parent'] is the
+parent cylinder's index, -1 for the base cylinder; cylinder['extension'] is the index of the
+cylinder continuing this one, 0 for a tip; cylinder['branch'] is the branch index, 0 for the
+trunk. MATLAB's files are the same fields 1-based with 0 for none.
 """
 import os
 import multiprocessing as mp

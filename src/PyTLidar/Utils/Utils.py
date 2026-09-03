@@ -800,6 +800,11 @@ def save_model_text(QSM, savename):
         - results/branch_{savename}.txt
         - results/treedata_{savename}.txt
 
+    Cylinder indices in the files are 0-based: parent is the index of the parent cylinder,
+    -1 for the base cylinder; extension is the index of the cylinder continuing this one,
+    0 for a tip (the base cylinder is never an extension, so 0 is unambiguous). branch is
+    the 0-based branch index, 0 for the trunk.
+
     Args:
         QSM (dict): Dictionary with keys "cylinder", "branch", and "treedata". Created during the TreeQSM process.
         savename (str): String used to define the file names.
