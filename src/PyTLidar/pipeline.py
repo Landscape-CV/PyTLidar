@@ -54,7 +54,12 @@ def build_inputs(clouds, n_patchdiam=(1, 1, 1), custom=None, names=None,
     savemat, savetxt, plot and disp are always set. savepdf is set only when given, since
     define_input's default of 1 writes PDFs into results/.
     """
-    clouds = [clouds] if isinstance(clouds, np.ndarray) else list(clouds)
+    if isinstance(clouds, np.ndarray):
+        if clouds.shape[0] == 0:
+            raise ValueError("The point cloud is empty, so there is nothing to build inputs for")
+        clouds = [clouds]
+    else:
+        clouds = list(clouds)
     if names is not None and len(names) != len(clouds):
         raise ValueError("names must have one entry per cloud")
     keep = [i for i, c in enumerate(clouds) if np.asarray(c).shape[0] > 0]

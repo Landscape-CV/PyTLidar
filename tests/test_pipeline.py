@@ -105,3 +105,8 @@ def test_run_qsm_passes_through_results(monkeypatch):
 def test_run_batch_rejects_mismatched_lengths():
     with pytest.raises(ValueError):
         pipeline.run_batch([_cloud()], [], n_workers=1)
+
+
+def test_build_inputs_rejects_a_single_empty_cloud():
+    with pytest.raises(ValueError, match="empty"):
+        pipeline.build_inputs(np.empty((0, 3)))
