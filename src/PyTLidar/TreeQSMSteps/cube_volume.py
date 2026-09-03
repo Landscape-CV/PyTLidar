@@ -25,7 +25,6 @@ def cube_volume(P, cylinder, EL, NE = 3):
     # The vertices of the bounding box containing P
     Min = np.min(P, axis=0)
     Max = np.max(P, axis=0)
-    #print(Max - Min)  # tree size
 
     # Calculate the number of cubes in each direction
     N = np.ceil((Max - Min) / EL).astype(int) + 2 * NE + 1
@@ -66,8 +65,6 @@ def cube_volume(P, cylinder, EL, NE = 3):
         q = SortOrd[c]
         # Calculate the volume of cylinders in current cube
         cube_volume[CubeCoord[q, 0] - 1, CubeCoord[q, 1] - 1, CubeCoord[q, 2] - 1] = curr_volume
-        #print(CubeCoord[q, 0] - 1, CubeCoord[q, 1] - 1, CubeCoord[q, 2] - 1, curr_volume)
         total_volume += curr_volume
         c += t
-    #print(total_volume)
     return cube_volume

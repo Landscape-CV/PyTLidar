@@ -659,7 +659,6 @@ def make_tree_connected(cover, aux, Forb, Base, Trunk, inputs):
             again_ind+=1
             # Check each component: part of "Tree" or "Forb"
             for i in range(nc):
-                # print(nc_ind, again_ind,i)
                 if NonClassified[i] and Pass[i]:
                     comp = Comps[i].astype(int)#np.concatenate([arr for arr in Comps[i]])   # candidate component for joining to the tree
 

@@ -346,7 +346,6 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
 
                         if inputs['Dist']:
                             qsm['pmdistance'] = pmdis
-                            print("added")
                         if inputs['Tria']:
                             qsm['triangulation'] = triangulation
 
@@ -458,7 +457,6 @@ def main(argv=None):
     
     
     if parsed_args not in ["ERROR","Help"]:
-        print(parsed_args)
         if __package__:
             from .pipeline import load_cloud, centre, build_inputs, run_qsm
         else:

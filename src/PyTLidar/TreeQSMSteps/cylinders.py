@@ -78,7 +78,6 @@ def cylinders(P,cover,segment,inputs):
 
     """
     # Initialization of variables
-    #print(segment)
     Segs = segment['segments']
     SPar = segment['ParentSegment'].astype(np.int64)
     SChi = segment['ChildSegment']
@@ -118,7 +117,6 @@ def cylinders(P,cover,segment,inputs):
     # Fit cylinders individually for each segment
     # Process each segment in order
     for si in SegmentIndex:
-        # print(si)
         Seg = Segs[si]  # the current segment under analysis
         nl = len(Seg)  # number of cover set layers in the segment
 
@@ -134,9 +132,6 @@ def cylinders(P,cover,segment,inputs):
         Sets, IndSets = Utils.verticalcat(Seg)  # the cover sets indices and (start, end) indices in the segment
 
         ns = len(Sets)  # number of cover sets in the current segment
-        #print(Sets)
-        #print(IndSets)
-        #print(cover['ball'])
         Points = np.concatenate([cover['ball'][s] for s in Sets])  # the points in the segments
         #Points = Points.ravel(order='F')  # to make the sequence same as matlab
         np_points = Points.shape[0]  # number of points in the segment
@@ -156,15 +151,11 @@ def cylinders(P,cover,segment,inputs):
 
         # Reconstruct only large enough segments
         base_layer_points = end_indices[0] - start_indices[0] + 1  # number of points in the base
-        #print(nl)
-        #print("np_points ", np_points)
-        #print("base_layer_pt ", base_layer_points)
         if nl <= 1 or np_points <= base_layer_points or ns <= 2 or np_points <= 20 or len(Seg[0])==0:
             continue
 
         # Cylinder fitting
         cyl, Reg = cylinder_fitting(P, Points, IndPoints, nl, si)
-        #print(cyl)
         nc = np.size(cyl['radius'])
 
         # Search possible parent cylinder
@@ -175,7 +166,6 @@ def cylinders(P,cover,segment,inputs):
             PC = []
             added = False
         cyl['radius0'] = cyl['radius'].copy()
-        #print(cyl)
 
         # Modify cylinders
         if nc > 0:
@@ -270,7 +260,6 @@ def cylinder_fitting(P, Points, Ind, nl, si):
 
 
     CylTop = np.zeros(3)  
-    #print("nl ", nl)
     if nl > 6:
         i0 = 0  # Index of the first layer 1->0
         i = 3  # Index of the last layer 4->3
@@ -308,7 +297,6 @@ def cylinder_fitting(P, Points, Ind, nl, si):
                 if i + j >= nl-1:
                     ht = (Top - c0['start']) @ c0['axis'].T
                     Top = Top + (np.max(h) - ht) * c0['axis']
-                #print(c0['start'])
                 # Compute height of the Top
                 ht = (Top - c0['start']) @ c0['axis'].T
                 Sec = ((h-ht) <=.00001 ) & ((h-minh) >= -.00001)  # Only points below the Top
@@ -318,7 +306,6 @@ def cylinder_fitting(P, Points, Ind, nl, si):
                 Q0 = P[reg]
 
                 ## Filter points and estimate radius
-                #print(Q0, c0)
                 if Q0.shape[0] > 20:
                     Keep, c0 = Utils.surface_coverage_filtering(Q0, c0, 0.02, 20)
                     reg = reg[Keep]
@@ -471,21 +458,17 @@ def cylinder_fitting(P, Points, Ind, nl, si):
             CylTop = c['start'] + c['length'] * c['axis']
 
         Reg = Reg[:t]
-        #print(c)
 
     else:
         ## Define a region for small segments
         Q0 = P[Points]
-        #print(Points)
         if Q0.shape[0] > 10:
             ## Define the direction
-            #print(Ind)  # Ind is the same
             bot = Points[Ind[0, 0]:Ind[0, 1] + 1]
             Bot = np.mean(P[bot],axis = 0)
             top = Points[Ind[nl - 1, 0]:Ind[nl - 1, 1] + 1]
             Top = np.mean(P[top],axis = 0)
             Axis = Top - Bot
-            #print(Top)
             c0 = {'axis': Axis / np.linalg.norm(Axis)}
             h = Q0 @ c0['axis'].T
             c0['length'] = np.max(h) - np.min(h)
@@ -493,10 +476,8 @@ def cylinder_fitting(P, Points, Ind, nl, si):
             c0['start'] = Bot - (hpoint - np.min(h)) * c0['axis']
 
             ## Define other outputs
-            #print("Q0 ", Q0, "c0", c0)  # Q0 is the same
             Keep, c0 = Utils.surface_coverage_filtering(Q0, c0, 0.02, 20)
             
-            #print("Keep ", Keep, "c0", c0)
             Reg = [Points[Keep]]
             Q0 = Q0[Keep]
             cyl = LSF.least_squares_cylinder(Q0, c0)
@@ -893,12 +874,9 @@ def adjustments(cyl, parcyl, inputs, Regs):
     nc = np.size(cyl['radius'])
     Mod = np.zeros(nc, dtype=bool)  # cylinders modified
     SC = cyl['SurfCov'] #if nc > 1 else np.array([cyl['SurfCov']])
-    #print(cyl['axis'])
-    #print(cyl['radius'])
 
     ## Determine the maximum and the minimum radius
     # The maximum based on parent branch
-    #print(parcyl)
     if parcyl['radius'].size > 0:
         MaxR = 0.95 * parcyl['radius']
         MaxR = np.maximum(MaxR, inputs['MinCylRad'])
@@ -906,7 +884,6 @@ def adjustments(cyl, parcyl, inputs, Regs):
         # use the maximum from the bottom cylinders
         a = min(3, nc)
         MaxR = 1.25 * np.max(cyl['radius'][:a] if nc > 1 else cyl['radius'])
-        #print(cyl['radius'])
     if nc > 1:
         MinR = np.min(cyl['radius'][SC > 0.7]) if np.any(SC > 0.7) else None
         if not (MinR is None) and np.min(cyl['radius']) < MinR / 2:
@@ -921,7 +898,6 @@ def adjustments(cyl, parcyl, inputs, Regs):
             MinR = cyl['radius'] if SC > 0.4 else None
             if MinR is None:
                 MinR = inputs['MinCylRad']
-    #print(MaxR, MinR)
 
     ## Check maximum and minimum radii
     I = cyl['radius'] < MinR
@@ -932,7 +908,6 @@ def adjustments(cyl, parcyl, inputs, Regs):
     Mod[I] = True
 
     if inputs['ParentCor'] or nc <= 3:
-        #print(cyl)
         I = ((cyl['radius'] > MaxR) & (SC < 0.7)) | (cyl['radius'] > 1.2 * MaxR)
         # if np.size(cyl['radius']) > 1:
         cyl['radius'][I] = MaxR
@@ -1056,7 +1031,6 @@ def adjustments(cyl, parcyl, inputs, Regs):
                 cyl_mad = cyl['mad'][0]
                 cyl_length = cyl['length'][0]
                 cyl_radius = cyl['radius'][0]
-            #print(cyl_radius)
             radius = cyl['radius'][i] if np.size(cyl['radius']) > 1 else cyl['radius']
             radius0 = cyl['radius0'][i] if np.size(cyl['radius0']) > 1 else cyl['radius0']
             if abs(radius - radius0) > 0.005 and (nr == nc or (nr < nc and i > 0)):
@@ -1087,7 +1061,6 @@ def adjustments(cyl, parcyl, inputs, Regs):
                     a = max(0.02, 0.2 * cyl_radius)
                     nl = max(4, int(np.ceil(cyl_length / a)))
                     ns = max(10, min(36, int(np.ceil(2 * np.pi * cyl_radius / a))))
-                    #print(a, nl, ns)
                     if np.size(cyl['SurfCov']) > 1:
                         cyl['SurfCov'][i] = Utils.surface_coverage2(
                             cyl_axis, cyl_length, V_dist, h, nl, ns
@@ -1124,7 +1097,6 @@ def adjustments(cyl, parcyl, inputs, Regs):
                         cyl['length'][j] += x[0]
 
     # Connect far away first cylinder to the parent
-    #print(parcyl['radius'])
     if parcyl['radius'].size > 0:
         # Calculate distance to parent axis
         d, V_dir, h, B = Utils.distances_to_line(

@@ -113,7 +113,6 @@ def branches(cylinder):
     branch_dict['order'] = BData[:, 0].astype(np.uint8)
     # Parent branch numbers
     BPar = np.ones(ns, dtype=np.int64) * -1
-    #print(BPar)
     # Children cylinder indices
     Chi = [None] * nc
 

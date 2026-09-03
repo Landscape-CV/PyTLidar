@@ -65,7 +65,6 @@ def point_model_distance(P, cylinder):
         P_sampled = P[I, :]
     else:
         P_sampled = P.copy()
-    #print(I)
     # Cubical partitioning parameters
     L = 2 * np.median(Len)
     NE_input = max(3, min(10, int(np.ceil(np.max(Len) / L)))) + 3
@@ -74,9 +73,6 @@ def point_model_distance(P, cylinder):
     EL = Info[6]
     NE = int(Info[7])
     dims = Info[3:6].astype(int)
-    #print(Info)
-    #print(partition)
-    #print(cubes)
 
     # Calculates the cube-coordinates of the starting points
     CC = np.floor((Sta - Min) / EL).astype(int) + NE
@@ -93,7 +89,6 @@ def point_model_distance(P, cylinder):
             if CC[i, dim] + N[i] + 1 > dims[dim]:
                 N[i] = dims[dim] - CC[i, dim] - 1
         N[i] = max(N[i], 0)
-    #print(N)
     # Calculate the distances to the cylinders
     np_sampled = P_sampled.shape[0]
     Dist = np.full((np_sampled, 2), -1, dtype=float)  # Distance and the closest cylinder of each points
@@ -117,21 +112,17 @@ def point_model_distance(P, cylinder):
             Data[i] = None
             continue
         points = np.array(points, dtype=int)
-        #print(points)
         d, _, h, _ = Utils.distances_to_line(P_sampled[points], Axe[i], Sta[i])
         d = np.abs(d - Rad[i])
-        #print(d)
         # Filter points within cylinder length and close
         valid = (h >= 0) & (h <= Len[i]) & (d < 0.5)
         improved = d < Dist[points, 0]
         mask = valid & improved
-        #print(mask)
         improved_points = points[mask]
         if improved_points.size > 0:
             Dist[improved_points, 0] = d[mask]
             Dist[improved_points, 1] = i
         Data[i] = (d, h, points)
-    #print(Dist)
     # Calculate the distances to the cylinders for points not yet calculated
     # because they are not "on side of cylinder
     # Filter points slightly outside cylinder ends
@@ -143,11 +134,9 @@ def point_model_distance(P, cylinder):
         improved = d < Dist[points, 0]
         mask = valid & improved
         improved_points = points[mask]
-        #print(mask)
         if improved_points.size > 0:
             Dist[improved_points, 0] = d[mask]
             Dist[improved_points, 1] = i
-    #print(Dist)
     # Select only the shortest 95% of distances for each cylinder
     '''
     Cyl = [[] for _ in range(n_cylinders)]
@@ -163,18 +152,15 @@ def point_model_distance(P, cylinder):
             N[int(Dist[i, 1])] = N[int(Dist[i, 1])] + 1
             O[i] = N[int(Dist[i, 1])]
     Cyl = [[] for _ in range(n_cylinders)]
-    #print(O, Cyl)
     for i in range(n_cylinders):
         Cyl[i] = np.zeros(int(N[i]))
     for i in range(np_sampled):
         if Dist[i, 1] >= 0:
             Cyl[int(Dist[i, 1])][int(O[i]) - 1] = i
-    #print(Cyl)
     DistCyl = np.zeros(n_cylinders, dtype=float)  # Average point distance to each cylinder
     for i in range(n_cylinders):
         I = np.array(Cyl[i], dtype=int)
         m = np.size(I)
-        #print(I, m)
         if m <= 0:
             DistCyl[i] = 0.0
             continue
@@ -184,7 +170,6 @@ def point_model_distance(P, cylinder):
             DistCyl[i] = np.mean(sorted_d[:cutoff])
         else:
             DistCyl[i] = np.mean(Dist[I, 0])
-    #print(DistCyl)
     # Prepare output
     pmdistance = {
         'CylDist': DistCyl.astype(np.float32),

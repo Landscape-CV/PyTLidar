@@ -887,10 +887,6 @@ def save_model_text(QSM, savename):
         S = [np.mean(SC[T]), np.mean(SC[~T]), np.mean(SC[B1]), np.mean(SC[B2])]
         S = np.round(10 * np.array(S)) / 10
 
-        # sys.stdout.write('  ----------\n')
-        # sys.stdout.write(f'  Average cylinder-point distance: {D[0]}  {D[1]}  {D[2]}  {D[3]} mm\n')
-        # sys.stdout.write(f'  Average surface coverage: {S[0]}  {S[1]}  {S[2]}  {S[3]} %\n')
-        # sys.stdout.write('  ----------\n')
         # --------------------
         treedata['AverageCylinderPointDistance_Trunk_mm'] = D[0]
         treedata['AverageCylinderPointDistance_Branch_mm'] = D[1]
@@ -991,8 +987,6 @@ def cubical_partition(P, EL, NE=3, return_cubes = True):
     # Sort points by LexOrd
     # SortOrd = np.argsort(LexOrd)
     LexOrd = LexOrd[SortOrd]
-    #print(LexOrd)
-    #print(SortOrd)
     if return_cubes:
         # Initialize outputs
         Partition = []
@@ -1027,7 +1021,6 @@ def cubical_partition(P, EL, NE=3, return_cubes = True):
             while (p + t < np_points) and (LexOrd[p] == LexOrd[p + t]):
                 t += 1
             q = SortOrd[p]
-            #print(SortOrd[p:p + t])
             # Assign the indices of points in the current cube to the corresponding cell in Partition
             Partition[CubeCoord[q, 0] - 1, CubeCoord[q, 1] - 1, CubeCoord[q, 2] - 1] = SortOrd[p:p + t]
             p += t
@@ -1168,7 +1161,6 @@ def surface_coverage_prep(P, Axis, Point, nl, ns, Dmin=None, Dmax=None):
     d, V, h, _ = distances_to_line(P, Axis, Point)
     h = h - np.min(h)
     Len = np.max(h)
-    #print(d)
 
     # Optional filtering: keep only points with d > Dmin (and, if provided, d < Dmax)
     if Dmin is not None:
@@ -2364,7 +2356,6 @@ def parse_args(argv):
         i+=1
     if args["Custom"]:
         if type(args["PatchDiam1"]) != list or type(args["PatchDiam2Min"]) != list or type(args["PatchDiam2Max"]) != list:
-            print(args)
             sys.stdout.write(f"If --custominput is selected, values for --ipd (PatchDiam1) --minpd (PatchDiam2Min) --maxpd (PatchDiam2Max). See --help if needed")
             return "ERROR"
     else:

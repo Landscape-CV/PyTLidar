@@ -87,7 +87,6 @@ def segments(cover, Base, Forb,qsm=True):
         # Update the forbidden sets
         
         Forb[Seg[nl]] = True
-        # print(ind,nl,sum(Forb))
         # Define the study
         Cut = define_cut(Nei, Seg[nl], Forb, Fal, csr)
         CutSize = len(Cut)
