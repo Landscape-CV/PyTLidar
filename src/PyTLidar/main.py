@@ -900,6 +900,7 @@ class SingleFileProcessingWindow(QMainWindow):
         self.buttons_and_progress.layout().addWidget(self.text_edit)
 
         self.output_text = OutputText(self.text_edit)
+        self.previous_stdout = sys.stdout
         sys.stdout = self.output_text
         #Exit behavior
         
@@ -1131,6 +1132,7 @@ class SingleFileProcessingWindow(QMainWindow):
 
     def closeEvent(self, event):
         # Handle the close event
+        sys.stdout = self.previous_stdout
         self.root.show()
         event.accept()
 
