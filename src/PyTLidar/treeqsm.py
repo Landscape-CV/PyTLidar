@@ -412,13 +412,15 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                 sys.stdout.write("\n") 
         if processing_queue is not None:
             processing_queue.put([batch,models,cyl_htmls])
-        os.chdir(original_location)
         return models, cyl_htmls
     except Exception as e:
         sys.stderr.write(f"An error occurred: {traceback.format_exc()}\n")
         if processing_queue is not None:
             processing_queue.put([batch, "ERROR", "ERROR"])
         return "ERROR", "ERROR"
+    finally:
+        # back to where the caller was, on the error path too
+        os.chdir(original_location)
 
 def calculate_optimal(models,metric):
     """
