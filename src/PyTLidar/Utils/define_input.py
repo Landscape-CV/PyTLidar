@@ -87,11 +87,20 @@ def define_input(clouds, nPD1=1, nPD2Min=1, nPD2Max=1):
         hSecBot = 0.02 * tree_height
         section_indices = (Hei > hSecBot) & (Hei < hSecTop)
         StemBot = P[section_indices]
+        if StemBot.shape[0] < 2:
+            raise ValueError(
+                f"Cannot estimate the inputs for {input_params['name']}: {P.shape[0]} points, "
+                f"{StemBot.shape[0]} of them in the stem section between 2% and 10% of the "
+                f"height, and at least 2 are needed to fit the stem axis")
 
         # Estimate stem axis
         axis_point = np.mean(StemBot, axis=0)
         V = StemBot - axis_point
         V = V / np.linalg.norm(V, axis=1, keepdims=True)
+        if not np.all(np.isfinite(V)):
+            raise ValueError(
+                f"Cannot estimate the inputs for {input_params['name']}: a point in the stem "
+                f"section coincides with the section centre, so the stem axis cannot be fitted")
         axis_dir = optimal_parallel_vector(V)
 
         # Stem diameter estimation
