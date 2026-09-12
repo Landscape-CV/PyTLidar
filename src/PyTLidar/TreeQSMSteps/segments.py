@@ -142,7 +142,7 @@ def segments(cover, Base, Forb,qsm=True):
             # Define the new cut.
             # If the cut is empty, determine the new base
             if len(Cut) == 0:
-                Segs[s] = np.array(Seg[:nl+1], dtype = 'object')
+                Segs[s] = Utils.object_array(Seg[:nl+1])
                 S = np.concatenate(Seg[:nl+1])
                 ForbAll[S] = True
 
@@ -162,7 +162,7 @@ def segments(cover, Base, Forb,qsm=True):
         else:
             # If the study region has zero size, then the current segment is
             # complete and determine the base of the next segment
-            Segs[s] = np.array(Seg[:nl+1], dtype = 'object')
+            Segs[s] = Utils.object_array(Seg[:nl+1])
             
             try:
                 S = np.concatenate(Seg[:nl+1])

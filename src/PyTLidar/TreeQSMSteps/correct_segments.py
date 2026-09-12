@@ -112,7 +112,7 @@ def correct_segments(P,cover,segment,inputs,RemSmall=False,ModBases=True,AddChil
     nump = P.shape[0]
     ns = len(Segs)
     # Define for each point its segment
-    Bal = np.array(Bal,dtype = 'object')
+    Bal = Utils.object_array(Bal)
     SegmentOfPoint = np.zeros(nump, dtype=np.int32)-1
     for i in range(ns):
         S = Segs[i]
@@ -592,7 +592,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
                     sp = int(SPar[J, 1])  # Layer index of the child's child in the child
 
                     if SP >= N - 3:  # Use the whole parent
-                        Segs[SegInd] = np.array([seg for seg in SegP]+[seg for seg in SegC[:sp+1]],dtype = 'object')#np.concatenate([SegP, np.concatenate([seg for seg in SegC[:sp+1]])])
+                        Segs[SegInd] = Utils.object_array([seg for seg in SegP]+[seg for seg in SegC[:sp+1]])#np.concatenate([SegP, np.concatenate([seg for seg in SegC[:sp+1]])])
                         if sp < len(SegC) - 1:  # Use only part of the child segment
                             Segs[I] = SegC[sp+1:]
                             SPar[I, 1] = N + sp
@@ -629,7 +629,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
                         UnMod = np.concatenate([UnMod,np.zeros(1,dtype=bool)])
                         UnMod[ns - 1] = True
 
-                        Segs[SegInd] = np.array([seg for seg in SegP[:SP+1]] + [seg for seg in SegC[:sp+1]], dtype = 'object')
+                        Segs[SegInd] = Utils.object_array([seg for seg in SegP[:SP+1]] + [seg for seg in SegC[:sp+1]])
 
 
                         ChildSegs = SChi[SegInd].copy()
@@ -677,7 +677,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
                 N = len(SegP)
 
                 if SP >= N - 4:  # Use the whole parent
-                    Segs[SegInd] = np.array([seg for seg in SegP]+[seg for seg in SegC],dtype='object')
+                    Segs[SegInd] = Utils.object_array([seg for seg in SegP]+[seg for seg in SegC])
                     Segs[I] = []
                     SPar[I, 0] = 0
                     UnMod[I] = False
@@ -699,7 +699,7 @@ def modify_topology(P, Ce, Bal, Segs, SPar, SChi, dmin):
                     SPar[ns - 1, :] = [SegInd, SP]
 
                     # Segs[SegInd] = np.array([SegP[:SP+1],np.concatenate([seg for seg in SegC])],dtype = 'object')#np.concatenate([seg for seg in SegP[:SP+1]]+ [seg for seg in SegC])
-                    Segs[SegInd] = np.array([seg for seg in SegP[:SP+1]]+[seg for seg in SegC],dtype = 'object')
+                    Segs[SegInd] = Utils.object_array([seg for seg in SegP[:SP+1]]+[seg for seg in SegC])
                     Segs[I] = []
                     SPar[I, 0] = 0
                     UnMod = np.concatenate([UnMod,np.zeros(1)]).astype(bool)
@@ -834,8 +834,8 @@ def remove_small(Ce, Segs, SPar, SChi):
     Keep = np.ones(Nseg, dtype=bool)
     Sets = np.zeros(2000, dtype=int)
     SPar = SPar.astype(int)
-    SChi = np.array(SChi,dtype = 'object')
-    Segs = np.array(Segs,dtype = 'object')
+    SChi = Utils.object_array(SChi)
+    Segs = Utils.object_array(Segs)
     for i in range(Nseg):
         if Keep[i]:
             ChildSegs = SChi[i]  # child segments

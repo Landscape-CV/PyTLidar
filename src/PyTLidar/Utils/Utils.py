@@ -770,6 +770,15 @@ def verticalcat(cell_array):
 
     return vector, ind_elements
 
+def object_array(items):
+    """A one dimensional object array of the items, even when they all have the same shape, which
+    np.array(items, dtype=object) would stack into a 2D array."""
+    out = np.empty(len(items), dtype=object)
+    for i, item in enumerate(items):
+        out[i] = item
+    return out
+
+
 def set_difference(Set1,Set2,Fal):
     """
         Performs the set difference so that the common elements of Set1 and Set2
