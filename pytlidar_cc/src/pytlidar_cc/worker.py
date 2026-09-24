@@ -15,6 +15,28 @@ import time
 from pathlib import Path
 
 
+def run_info(model, source, run_id, points, metric, elapsed):
+    """The run_info JSON contents for the chosen model."""
+    import numpy as np
+
+    inp = model["rundata"]["inputs"]
+    td = model["treedata"]
+    # rundata inputs hold the whole grid; the model carries its own values.
+    return {
+        "source": source,
+        "run": int(run_id),
+        "points": int(points),
+        "PatchDiam1": float(model["PatchDiam1"]),
+        "PatchDiam2Min": float(model["PatchDiam2Min"]),
+        "PatchDiam2Max": float(model["PatchDiam2Max"]),
+        "Tria": int(inp.get("Tria", 0)),
+        "metric": metric,
+        "TotalVolume_L": float(np.ravel(td.get("TotalVolume", 0))[0]),
+        "elapsed_s": round(elapsed, 1),
+        "date": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+
 def main(job_dir, cloud_idx, run_id):
     job = Path(job_dir)
 
@@ -62,21 +84,8 @@ def main(job_dir, cloud_idx, run_id):
             for f in sub.iterdir():
                 shutil.move(str(f), outdir / f.name)
             sub.rmdir()
-        inp = model["rundata"]["inputs"]
-        td = model["treedata"]
-        info = {
-            "source": settings["names"][int(cloud_idx)],
-            "run": int(run_id),
-            "points": int(P.shape[0]),
-            "PatchDiam1": float(np.ravel(inp["PatchDiam1"])[0]),
-            "PatchDiam2Min": float(np.ravel(inp["PatchDiam2Min"])[0]),
-            "PatchDiam2Max": float(np.ravel(inp["PatchDiam2Max"])[0]),
-            "Tria": int(inp.get("Tria", 0)),
-            "metric": settings["metric"],
-            "TotalVolume_L": float(np.ravel(td.get("TotalVolume", 0))[0]),
-            "elapsed_s": round(elapsed, 1),
-            "date": time.strftime("%Y-%m-%d %H:%M:%S"),
-        }
+        info = run_info(model, settings["names"][int(cloud_idx)], run_id,
+                        P.shape[0], settings["metric"], elapsed)
         try:
             from importlib.metadata import version
             info["PyTLidar"] = version("PyTLidar")
