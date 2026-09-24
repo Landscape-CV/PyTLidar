@@ -6,16 +6,20 @@ PyTLidar is a python module designed for manipulating and calculating metrics fr
 
 # Installation
 
-The release version of PyTLidar can be installed as a standard python package (Python 3.8 to 3.12).
+The release version of PyTLidar can be installed as a standard python package (Python 3.10 to 3.13).
 
+```
+pip install PyTLidar
+```
+This is a headless install with the command line tools and the Python API. For the desktop
+application, add the `gui` extra, which brings in PySide6:
 ```
 pip install "PyTLidar[gui]"
 ```
-The `gui` extra brings in PySide6 for the desktop application. Leave it off for a headless
-install or the CloudCompare plugin, which uses CloudCompare's own Qt.
+Leave it off for the CloudCompare plugin, which uses CloudCompare's own Qt.
 The latest code can be installed straight from GitHub the same way:
 ```
-pip install "PyTLidar[gui] @ git+https://github.com/Landscape-CV/PyTLidar"
+pip install "PyTLidar @ git+https://github.com/Landscape-CV/PyTLidar"
 ```
 # Development Installation
 
@@ -29,17 +33,19 @@ cd PyTLidar
 ## Create a .venv and install the package in editable mode
 ### Mac
 ```
-python -m venv .venv
-. .venv/bin/activate
-pip install -e .
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[test]"
+pytest
 ```
 ### Windows
 ```
 python -m venv .venv
 . .venv/Scripts/activate
-pip install -e .
+pip install -e ".[test]"
+pytest
 ```
-The code lives under `src/PyTLidar`; the editable install means edits there are picked up without reinstalling. To run the tests, `pip install pytest` then `pytest`.
+Any Python from 3.10 to 3.13 works for the venv. The code lives under `src/PyTLidar`; the editable install means edits there are picked up without reinstalling. The `test` extra brings in pytest.
 
 # TreeQSM
 
