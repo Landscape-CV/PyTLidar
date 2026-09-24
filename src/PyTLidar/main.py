@@ -26,6 +26,7 @@ This derivative work is released under the GNU General Public License (GPL).
 
 try:
     from .treeqsm import treeqsm
+    from .pipeline import _wait_for_worker
     from .Utils.define_input import define_input
     from .Utils.Utils import load_point_cloud
     from .Utils import Utils
@@ -34,6 +35,7 @@ try:
     from .plotting.cylinders_line_plotting import cylinders_line_plotting
 except ImportError:
     from treeqsm import treeqsm
+    from pipeline import _wait_for_worker
     from Utils.define_input import define_input
     from Utils.Utils import load_point_cloud
     import Utils.Utils as Utils
@@ -742,7 +744,7 @@ class BatchProcessingWindow(QMainWindow):
         metrics = []
         for i in range(len(self.file_data[index]['QSM'])):
             metrics.append(Utils.compute_metric_value(Utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[index][0],self.metric_data[index][3]))
-        return np.argmin(np.array(metrics))
+        return np.nanargmin(np.array(metrics))
     
 
 class SingleFileProcessingWindow(QMainWindow):
@@ -1130,7 +1132,7 @@ class SingleFileProcessingWindow(QMainWindow):
         metrics = []
         for i in range(len(self.data)):
             metrics.append(Utils.compute_metric_value(Utils.select_metric(self.optimumMetric.currentText()), i,self.metric_data[0],self.metric_data[3]))
-        return np.argmin(np.array(metrics))
+        return np.nanargmin(np.array(metrics))
 
         
 
@@ -1223,7 +1225,7 @@ class BatchQSM(QObject):
                 q=Q[process+i]
                 p = P[process+i]
                 try:
-                    batch,data,plot = q.get()
+                    batch,data,plot = _wait_for_worker(q, p) or (process+i, "ERROR", "ERROR")
                     if data =="ERROR":
                         raise Exception("Error in processing file")
                     p.join()
@@ -1259,7 +1261,7 @@ class SingleQSM(QObject):
             p = mp.Process(target=treeqsm, args=(self.points,self.inputs,0,q))
             p.start()
             
-            batch,data,plot = q.get()
+            batch,data,plot = _wait_for_worker(q, p) or (0, "ERROR", "ERROR")
             if data == "ERROR":
                 raise Exception("Error in processing file")
             p.join()
