@@ -4,7 +4,7 @@ import pytest
 
 from PyTLidar.Utils import Utils
 from PyTLidar.TreeQSMSteps.cover_sets import cover_sets
-from PyTLidar.TreeQSMSteps.tree_sets import tree_sets
+from PyTLidar.TreeQSMSteps.tree_sets import tree_sets, define_base_forb
 from PyTLidar.TreeQSMSteps.tree_data import stem_taper
 
 
@@ -43,10 +43,26 @@ def test_tree_sets_stops_clearly_on_a_flat_cover():
         tree_sets(P, cover_sets(P, dict(INPUTS)), dict(INPUTS))
 
 
-def test_second_pass_stops_clearly_when_no_stem_set_is_at_the_bottom():
+def _aux(P, cover):
+    Ce = P[cover['center'], :3]
+    nb = len(cover['center'])
+    return {'nb': nb, 'Fal': [False] * nb, 'Ind': np.arange(nb), 'Ce': Ce, 'Hmin': Ce[:, 2].min(),
+            'Height': np.ptp(Ce[:, 2])}
+
+
+def test_second_pass_starts_from_the_lowest_stem_sets_when_none_are_at_the_bottom(seeded):
+    # the lowest set belongs to another segment, as in a piece cut from a crown
+    cover = cover_sets(COLUMN, dict(INPUTS))
     segment = {'SegmentOfPoint': np.array([1, 0, 0])}
+    Base, Forb, cover = define_base_forb(COLUMN, cover, _aux(COLUMN, cover), dict(INPUTS), segment)
+    assert cover['center'][Base].tolist() == [1]
+
+
+def test_second_pass_stops_clearly_without_a_stem(seeded):
+    cover = cover_sets(COLUMN, dict(INPUTS))
+    segment = {'SegmentOfPoint': np.array([1, 1, 1])}
     with pytest.raises(ValueError, match="base of the trunk"):
-        tree_sets(COLUMN, cover_sets(COLUMN, dict(INPUTS)), dict(INPUTS), segment)
+        define_base_forb(COLUMN, cover, _aux(COLUMN, cover), dict(INPUTS), segment)
 
 
 def test_stem_taper_with_and_without_trunk_cylinders():

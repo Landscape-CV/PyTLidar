@@ -229,9 +229,13 @@ def define_base_forb(P, cover, aux, inputs, segment=None):
         I = Ce[stem, 2] < aux['Hmin'] + BaseHeight
         Base = stem[I]
         Forb = aux['Fal']
+        if len(Base) == 0 and len(stem) > 0:
+            # The lowest sets belong to other segments, as in a piece cut from a crown. TreeQSM carries on with an
+            # empty base and fails, so start from the lowest stem sets instead.
+            I = Ce[stem, 2] < np.min(Ce[stem, 2]) + BaseHeight
+            Base = stem[I]
         if len(Base) == 0:
-            # TreeQSM carries on with an empty base and fails later on the empty first stem layer
-            raise ValueError("No stem sets lie at the bottom of the cover, so the base of the trunk cannot be found")
+            raise ValueError("The previous segmentation has no stem sets, so the base of the trunk cannot be found")
 
     
     else:
