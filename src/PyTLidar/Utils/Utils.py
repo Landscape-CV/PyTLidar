@@ -648,7 +648,8 @@ def connected_components_array(Nei, Sub, MinSize, Fal=None):
     CompSize  : Number of sets in the components (list of integers).
     """
     Sub = Sub.copy()
-    if len(Sub) <= 3 and Sub[0] > 0:
+    # as in TreeQSM, only a list of indices can be a small subset, a logical mask never is
+    if len(Sub) <= 3 and np.asarray(Sub).dtype != bool and Sub[0] > 0:
         # Very small subset, i.e., at most 3 cover sets
         n = len(Sub)
         if n == 1:
@@ -769,6 +770,15 @@ def verticalcat(cell_array):
         vector[ind_elements[i, 0]:ind_elements[i, 1] + 1] = cell
 
     return vector, ind_elements
+
+def object_array(items):
+    """A one dimensional object array of the items, even when they all have the same shape, which
+    np.array(items, dtype=object) would stack into a 2D array."""
+    out = np.empty(len(items), dtype=object)
+    for i, item in enumerate(items):
+        out[i] = item
+    return out
+
 
 def set_difference(Set1,Set2,Fal):
     """

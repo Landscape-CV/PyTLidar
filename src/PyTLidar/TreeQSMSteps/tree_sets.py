@@ -168,6 +168,8 @@ def tree_sets(P:np.ndarray,cover:dict,inputs:dict,segment=None):
     aux['Fal'] = [False] * aux['nb']  # Initialize with False values
     aux['Ind'] = np.array(list(range( aux['nb'])))  # Index list from 1 to aux.nb
     aux['Ce'] = P[cover['center'], :3]  # Coordinates of the center points 
+    if aux['nb'] == 0:
+        raise ValueError(f"The cover has no sets (PatchDiam1 {inputs['PatchDiam1']}), so there is no tree to model")
     aux['Hmin'] = aux['Ce'][:, 2].min()  # Minimum height (Z-coordinate)
     aux['Height'] = aux['Ce'][:, 2].max() - aux['Hmin']  # Height range
 
@@ -200,6 +202,9 @@ def define_base_forb(P, cover, aux, inputs, segment=None):
         I = Ce[:, 2] < aux['Hmin'] + BaseHeight
         Base = aux['Ind'][I]
         Forb = aux['Fal']
+        if len(Base) == 0:
+            # only when every set centre is at the same height; TreeQSM fails here too
+            raise ValueError("The cover sets all lie at one height, so the base of the trunk cannot be found")
 
         # Ensure the base is not in multiple parts
         Wb = np.max(np.max(Ce[Base, :2], axis=0) - np.min(Ce[Base, :2], axis=0))
@@ -224,6 +229,13 @@ def define_base_forb(P, cover, aux, inputs, segment=None):
         I = Ce[stem, 2] < aux['Hmin'] + BaseHeight
         Base = stem[I]
         Forb = aux['Fal']
+        if len(Base) == 0 and len(stem) > 0:
+            # The lowest sets belong to other segments, as in a piece cut from a crown. TreeQSM carries on with an
+            # empty base and fails, so start from the lowest stem sets instead.
+            I = Ce[stem, 2] < np.min(Ce[stem, 2]) + BaseHeight
+            Base = stem[I]
+        if len(Base) == 0:
+            raise ValueError("The previous segmentation has no stem sets, so the base of the trunk cannot be found")
 
     
     else:
@@ -403,7 +415,7 @@ def define_main_branches(cover, segment, aux, inputs):
     """
     Bal = cover['ball']
 
-    Nei = np.array([np.array(n, dtype=int) for n in cover['neighbor']], dtype=object)
+    Nei = Utils.object_array([np.array(n, dtype=int) for n in cover['neighbor']])
     Ce = aux['Ce']
     Fal = np.array(aux['Fal'], dtype=bool)
     # Initialize the main branches
@@ -583,7 +595,7 @@ def define_main_branches(cover, segment, aux, inputs):
 #     % Check if the trunk is still in mutliple components and select the bottom
 #     % component to define "Trunk":
     comps, cs = _branch_components(indptr, indices, links, Trunk)
-    comps = np.array(comps,dtype='object')
+    comps = Utils.object_array(comps)
     if len(cs) > 1:
         I = np.argsort(-cs)
         sorted_comps = comps[I]
