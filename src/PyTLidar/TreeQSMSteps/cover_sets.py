@@ -362,7 +362,7 @@ def create_cover(Ball, Cen, BoP, nb, np_points):
         return cover
     PointsInSets=create_PointsInSets(nb,np_points,BoP)
     Nei=create_neighbors(Ball,BoP,nb)
-    Nei = np.array([np.array(neighbors).astype(np.int64) for neighbors in Nei],dtype=object)
+    Nei = Utils.object_array([np.array(neighbors).astype(np.int64) for neighbors in Nei])
     cover = {
         'ball': PointsInSets,
         'center': np.array(Cen, dtype=np.int64),

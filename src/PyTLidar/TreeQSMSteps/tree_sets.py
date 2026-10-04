@@ -403,7 +403,7 @@ def define_main_branches(cover, segment, aux, inputs):
     """
     Bal = cover['ball']
 
-    Nei = np.array([np.array(n, dtype=int) for n in cover['neighbor']], dtype=object)
+    Nei = Utils.object_array([np.array(n, dtype=int) for n in cover['neighbor']])
     Ce = aux['Ce']
     Fal = np.array(aux['Fal'], dtype=bool)
     # Initialize the main branches
@@ -583,7 +583,7 @@ def define_main_branches(cover, segment, aux, inputs):
 #     % Check if the trunk is still in mutliple components and select the bottom
 #     % component to define "Trunk":
     comps, cs = _branch_components(indptr, indices, links, Trunk)
-    comps = np.array(comps,dtype='object')
+    comps = Utils.object_array(comps)
     if len(cs) > 1:
         I = np.argsort(-cs)
         sorted_comps = comps[I]
