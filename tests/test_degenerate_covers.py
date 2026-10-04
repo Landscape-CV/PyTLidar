@@ -1,5 +1,6 @@
 """Small and degenerate covers: the steps either carry on the way TreeQSM does or stop with a clear error."""
 import numpy as np
+import pytest
 
 from PyTLidar.Utils import Utils
 from PyTLidar.TreeQSMSteps.cover_sets import cover_sets
@@ -26,3 +27,22 @@ def test_isolated_sets_keep_one_empty_neighbor_list_each():
 def test_tree_sets_runs_on_isolated_sets(seeded):
     cover, Base, Forb = tree_sets(COLUMN, cover_sets(COLUMN, dict(INPUTS)), dict(INPUTS))
     assert cover['center'][Base].tolist() == [0]  # the set at the lowest point
+
+
+def test_tree_sets_stops_clearly_on_an_empty_cover():
+    cover = {'center': np.zeros(0, dtype=np.int64), 'ball': [], 'neighbor': Utils.object_array([]),
+             'sets': np.zeros(3, dtype=int) - 1}
+    with pytest.raises(ValueError, match="no sets"):
+        tree_sets(np.zeros((3, 3)), cover, dict(INPUTS))
+
+
+def test_tree_sets_stops_clearly_on_a_flat_cover():
+    P = np.array([[0, 0, 0], [1.0, 0, 0], [2.0, 0, 0]])
+    with pytest.raises(ValueError, match="one height"):
+        tree_sets(P, cover_sets(P, dict(INPUTS)), dict(INPUTS))
+
+
+def test_second_pass_stops_clearly_when_no_stem_set_is_at_the_bottom():
+    segment = {'SegmentOfPoint': np.array([1, 0, 0])}
+    with pytest.raises(ValueError, match="base of the trunk"):
+        tree_sets(COLUMN, cover_sets(COLUMN, dict(INPUTS)), dict(INPUTS), segment)
