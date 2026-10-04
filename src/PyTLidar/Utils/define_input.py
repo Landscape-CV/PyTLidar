@@ -30,6 +30,8 @@ Copyright (C) 2025 Georgia Institute of Technology Human-Augmented Analytics Gro
 This derivative work is released under the GNU General Public License (GPL).
 """
 
+import warnings
+
 import numpy as np
 try:
     from Utils import compute_patch_diam,distances_to_line,load_point_cloud,optimal_parallel_vector
@@ -114,6 +116,11 @@ def define_input(clouds, nPD1=1, nPD2Min=1, nPD2Max=1):
         # Define PatchDiam parameters
         pd1 = Rstem / 3
         input_params['PatchDiam1'] = compute_patch_diam(pd1, nPD1)
+        if pd1 < 0.01:
+            warnings.warn(
+                f"{input_params['name']}: the stem radius near the base comes out at {100 * Rstem:.1f} cm, so "
+                f"PatchDiam1 is {1000 * pd1:.0f} mm. That usually means the cloud is a branch or a piece rather "
+                f"than a whole tree, so set the patch sizes yourself")
 
         pd2 = Rstem / 6 * min(1, 20 / tree_height)
         input_params['PatchDiam2Min'] = compute_patch_diam(pd2, nPD2Min)

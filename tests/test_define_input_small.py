@@ -1,7 +1,26 @@
+import warnings
+
 import numpy as np
 import pytest
 
 from PyTLidar.Utils.define_input import define_input
+
+
+def _stem(radius, height, n=2000):
+    rng = np.random.default_rng(0)
+    a = rng.uniform(0, 2 * np.pi, n)
+    return np.column_stack([radius * np.cos(a), radius * np.sin(a), rng.uniform(0, height, n)])
+
+
+def test_a_branch_sized_cloud_warns_about_its_patch_sizes():
+    with pytest.warns(UserWarning, match="PatchDiam1 is 5 mm"):
+        define_input(_stem(0.015, 2.0), 1, 1, 1)
+
+
+def test_a_tree_sized_stem_does_not_warn():
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        define_input(_stem(0.2, 10.0), 1, 1, 1)
 
 
 @pytest.mark.parametrize("n, seed, expected", [
