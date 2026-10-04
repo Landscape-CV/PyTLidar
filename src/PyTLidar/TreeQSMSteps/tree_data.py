@@ -108,13 +108,7 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
     # ---------------------------------------------------------------------
     # Stem taper
     # ---------------------------------------------------------------------
-    R = Rad[Trunk]
-    n = len(R)
-    Taper = np.zeros((n + 1, 2))
-    Taper[0, 1] = 2 * R[0]
-    Taper[1:, 0] = np.cumsum(Len[Trunk])
-    Taper[1:, 1] = np.hstack((2 * R[1:], 2 * R[-1]))
-    treedata['StemTaper'] = Taper.T
+    treedata['StemTaper'] = stem_taper(Rad, Len, Trunk)
 
     # ---------------------------------------------------------------------
     # CYLINDER DISTRIBUTIONS
@@ -350,6 +344,21 @@ def tree_data(cylinder, branch, trunk, inputs, iter = 0):
         figures = [plt.figure(6+iter*10), plt.figure(7+iter*10), plt.figure(8+iter*10), plt.figure(9+iter*10)]
         treedata['figures'] = figures
     return treedata, triangulation
+
+
+def stem_taper(Rad, Len, Trunk):
+    """Stem taper as in TreeQSM, heights along the trunk and diameters as a 2 by (n + 1) array for the n trunk
+    cylinders. A model with no trunk cylinders gets a zero taper instead of failing."""
+    R = Rad[Trunk]
+    n = len(R)
+    Taper = np.zeros((n + 1, 2))
+    if n > 0:
+        Taper[0, 1] = 2 * R[0]
+        Taper[1:, 0] = np.cumsum(Len[Trunk])
+        Taper[1:, 1] = np.hstack((2 * R[1:], 2 * R[-1]))
+    return Taper.T
+
+
 def dbh_cylinder(treedata, trunk, Trunk, cylinder, ind):
     """
     
