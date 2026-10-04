@@ -82,7 +82,7 @@ The below arguments can also be passed to provide full functionality
 
     --threshold: filter point cloud based on values greater than the indicated intensity
 
-    --normalize: recenter point cloud locations. Use this if your point cloud X, Y location values are very large (e.g., using UTM coordinates rather than a local coordinate system).
+    --normalize: recenter point cloud X, Y locations and keep the model in those local coordinates. UTM clouds don't need it any more, since treeqsm moves the cloud near the origin itself and puts the model back in the input coordinates.
 
     --custominput: user sets specific patch diameters to test
 
