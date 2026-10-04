@@ -93,6 +93,11 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
     P[:,2] = P[:,2]-z_offset
     if inputs.get('zero_base', 0):
         z_offset = 0.0
+    # Bring a georeferenced cloud near the origin as well. The cylinder arrays are single precision
+    # like MATLAB's, which at UTM scale quantises positions to decimetres. The offset is rounded to
+    # whole hundreds of metres so a cloud that is already local is left untouched. Undone on the output.
+    xy_offset = np.round(np.mean(P[:, :2], axis=0), -2)
+    P[:, :2] = P[:, :2] - xy_offset
     original_location = os.getcwd()
     if results_location is not None:
         os.chdir(results_location)
@@ -309,16 +314,19 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                         Date[1] = datetime.now().timetuple()[:6]  # Update date
                         Time[11] = sum(Time[:11])
 
-                        # Undo the internal base-to-zero shift so the model registers to the input cloud
-                        if z_offset != 0.0:
+                        # Undo the internal shifts so the model registers to the input cloud
+                        if z_offset != 0.0 or np.any(xy_offset != 0.0):
+                            cylinder['start'][:, :2] = cylinder['start'][:, :2] + xy_offset
                             cylinder['start'][:, 2] = cylinder['start'][:, 2] + z_offset
                             treedata['location'] = np.array(cylinder['start'][0, :])
                             if isinstance(triangulation, dict) and np.size(triangulation.get('vert', [])) > 0:
                                 triangulation['vert'] = triangulation['vert'].astype(np.float64)
+                                triangulation['vert'][:, :2] = triangulation['vert'][:, :2] + xy_offset
                                 triangulation['vert'][:, 2] = triangulation['vert'][:, 2] + z_offset
                                 triangulation['bottom'] = triangulation['bottom'] + z_offset
                                 triangulation['top'] = triangulation['top'] + z_offset
                             P_out = P.copy()
+                            P_out[:, :2] = P_out[:, :2] + xy_offset
                             P_out[:, 2] = P_out[:, 2] + z_offset
                         else:
                             P_out = P
@@ -338,6 +346,7 @@ def treeqsm(P,inputs,batch =0,processing_queue = None,results_location=None):
                             'segment': segment2,
                             'points':P_out,
                             'z_offset':z_offset,
+                            'xy_offset':xy_offset,
                             'PatchDiam1': PatchDiam1[h],
                             'PatchDiam2Max': PatchDiam2Max[i],
                             'PatchDiam2Min': PatchDiam2Min[j],

@@ -67,6 +67,9 @@ class BatchQSM():
         except:
             num_cores = mp.cpu_count()
             print(f"Invalid number of cores specified. Using {num_cores} cores instead.\n")
+        if self.directory is not None and not os.path.isdir(self.directory):
+            print(f"Output directory {self.directory} does not exist.\n")
+            return
         clouds = [load_cloud(os.path.join(self.folder, file), self.intensity_threshold) for file in self.files]
         if self.normalize:
             clouds = [centre(cloud, z=False) for cloud in clouds]

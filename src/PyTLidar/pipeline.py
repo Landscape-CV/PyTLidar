@@ -10,6 +10,7 @@ trunk. MATLAB's files are the same fields 1-based with 0 for none.
 """
 import os
 import multiprocessing as mp
+from queue import Empty
 import numpy as np
 
 if __package__:
@@ -112,6 +113,22 @@ def run_qsm(P, inputs, results_dir=None):
     return models, cyl_htmls
 
 
+def _wait_for_worker(queue, proc, timeout=1.0):
+    """The [batch, models, cyl_htmls] message a treeqsm worker put on its queue, or None if the
+    worker exited without putting one: killed, out of memory, crashed, or failed before treeqsm's
+    own error handling. The queue is polled every timeout seconds while the worker is alive."""
+    while proc.is_alive():
+        try:
+            return queue.get(timeout=timeout)
+        except Empty:
+            pass
+    # the worker may have put its message just before exiting
+    try:
+        return queue.get(timeout=timeout)
+    except Empty:
+        return None
+
+
 def run_batch(clouds, inputs_list, n_workers=1, results_dir=None, on_message=print, on_result=None):
     """Run one treeqsm worker process per cloud, n_workers at a time, the way the batch CLI and
     the GUI always have: every worker gets its own queue, workers start in groups of n_workers and
@@ -124,6 +141,8 @@ def run_batch(clouds, inputs_list, n_workers=1, results_dir=None, on_message=pri
     """
     if len(clouds) != len(inputs_list):
         raise ValueError("clouds and inputs_list must have the same length")
+    if results_dir is not None and not os.path.isdir(results_dir):
+        raise ValueError(f"results_dir {results_dir} is not an existing directory")
     n_workers = max(1, int(n_workers))
     ctx = mp.get_context("spawn")
     queues, procs = [], []
@@ -140,8 +159,16 @@ def run_batch(clouds, inputs_list, n_workers=1, results_dir=None, on_message=pri
                 on_message(f"Processing {inputs_list[i]['name']}. This may take several minutes...\n")
             procs[i].start()
         for i in group:
-            _, models, cyl_htmls = queues[i].get()
+            # read before joining: a worker with a large result cannot exit until it is read
+            message = _wait_for_worker(queues[i], procs[i])
             procs[i].join()
+            if message is None:
+                if on_message is not None:
+                    on_message(f"An error occured on file {inputs_list[i]['name']}. The worker process exited "
+                               f"with code {procs[i].exitcode} without returning a result. "
+                               "Consider checking the console and reporting the bug to us.\n")
+                continue
+            _, models, cyl_htmls = message
             if isinstance(models, str) and models == "ERROR":
                 if on_message is not None:
                     on_message(f"An error occured on file {inputs_list[i]['name']}. Please try again. "
